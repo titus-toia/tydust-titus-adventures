@@ -16,18 +16,14 @@ __pycache__/
 .env.local
 .env.*
 
-# Generated assets (large, can be recreated)
-assets/doodads/
-assets/music/
-assets/parallax/
-assets/particles/
+# Generated images (one-off generations)
 generated_imgs/
 
-# Audio generation debris
+# Audio generation debris (root level only, not assets/)
 audio_ai/
-*.wav
-*.mp3
-*.ogg
+/*.wav
+/*.mp3
+/*.ogg
 
 # Python generation scripts (one-off tools)
 generate_*.py
