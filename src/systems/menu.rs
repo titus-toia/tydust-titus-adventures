@@ -177,9 +177,9 @@ fn spawn_ship_button(
 				width: Val::Px(BUTTON_WIDTH),
 				height: Val::Px(BUTTON_HEIGHT),
 				flex_direction: FlexDirection::Column,
-				justify_content: JustifyContent::Center,
+				justify_content: JustifyContent::SpaceBetween,
 				align_items: AlignItems::Center,
-				padding: UiRect::all(Val::Px(10.0)),
+				padding: UiRect::all(Val::Px(12.0)),
 				border: UiRect::all(Val::Px(2.0)),
 				..default()
 			},
@@ -189,7 +189,7 @@ fn spawn_ship_button(
 			ShipButton { ship_type },
 		))
 		.with_children(|button| {
-			// Ship name
+			// Ship name at top
 			button.spawn((
 				Text::new(ship_name.to_uppercase()),
 				TextFont {
@@ -199,12 +199,12 @@ fn spawn_ship_button(
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::bottom(Val::Px(8.0)),
+					align_self: AlignSelf::Center,
 					..default()
 				},
 			));
 
-			// Ship preview image
+			// Ship preview image - centered
 			button.spawn((
 				ImageNode {
 					image: asset_server.load(ship_type.sprite_path()),
@@ -213,27 +213,27 @@ fn spawn_ship_button(
 				Node {
 					width: Val::Px(SHIP_PREVIEW_SIZE),
 					height: Val::Px(SHIP_PREVIEW_SIZE),
-					margin: UiRect::all(Val::Px(5.0)),
+					align_self: AlignSelf::Center,
 					..default()
 				},
 			));
 
-			// Stats display
+			// Stats display at bottom
 			let stats_text = format!(
-				"Speed: {:.0}\nFire Rate: {:.2}s\nSize: {:.0}\n\n{}",
+				"Speed: {:.0}\nFire: {:.2}s\nSize: {:.0}\n{}",
 				stats.speed, stats.fire_cooldown, stats.size, stats.description
 			);
 			button.spawn((
 				Text::new(stats_text),
 				TextFont {
 					font: font.clone(),
-					font_size: 12.0,
+					font_size: 11.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.7, 0.7, 0.8)),
 				TextLayout::new_with_justify(JustifyText::Center),
 				Node {
-					margin: UiRect::top(Val::Px(10.0)),
+					align_self: AlignSelf::Stretch,
 					..default()
 				},
 			));
@@ -264,9 +264,9 @@ fn spawn_weapon_button(
 				width: Val::Px(BUTTON_WIDTH),
 				height: Val::Px(BUTTON_HEIGHT),
 				flex_direction: FlexDirection::Column,
-				justify_content: JustifyContent::Center,
+				justify_content: JustifyContent::SpaceBetween,
 				align_items: AlignItems::Center,
-				padding: UiRect::all(Val::Px(10.0)),
+				padding: UiRect::all(Val::Px(12.0)),
 				border: UiRect::all(Val::Px(2.0)),
 				..default()
 			},
@@ -276,7 +276,7 @@ fn spawn_weapon_button(
 			WeaponButton { weapon_type },
 		))
 		.with_children(|button| {
-			// Weapon name
+			// Weapon name at top
 			button.spawn((
 				Text::new(weapon_name.to_uppercase()),
 				TextFont {
@@ -286,41 +286,41 @@ fn spawn_weapon_button(
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::bottom(Val::Px(8.0)),
+					align_self: AlignSelf::Center,
 					..default()
 				},
 			));
 
-			// Weapon icon preview
+			// Weapon icon preview - centered
 			button.spawn((
 				ImageNode {
 					image: asset_server.load(icon_path),
 					..default()
 				},
 				Node {
-					width: Val::Px(120.0),
-					height: Val::Px(120.0),
-					margin: UiRect::all(Val::Px(5.0)),
+					width: Val::Px(100.0),
+					height: Val::Px(100.0),
+					align_self: AlignSelf::Center,
 					..default()
 				},
 			));
 
-			// Stats display
+			// Stats display at bottom
 			let stats_text = format!(
-				"Damage: {:.0}\nSpeed: {:.0}\nLevels: {}\n\n{}",
+				"DMG: {:.0} | SPD: {:.0}\nLevels: {}\n{}",
 				config.base_damage, config.projectile_speed, levels, description
 			);
 			button.spawn((
 				Text::new(stats_text),
 				TextFont {
 					font: font.clone(),
-					font_size: 12.0,
+					font_size: 11.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.7, 0.7, 0.8)),
 				TextLayout::new_with_justify(JustifyText::Center),
 				Node {
-					margin: UiRect::top(Val::Px(10.0)),
+					align_self: AlignSelf::Stretch,
 					..default()
 				},
 			));
