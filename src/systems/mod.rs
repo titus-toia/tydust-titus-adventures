@@ -10,3 +10,4 @@ pub mod enemies;
 pub mod particles;
 pub mod visual;
 pub mod menu;
+pub mod collision;

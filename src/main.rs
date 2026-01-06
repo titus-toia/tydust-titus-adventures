@@ -17,8 +17,9 @@ use systems::enemies::{update_enemy_movement, rotate_enemies_toward_player, clea
 use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_weapon_selection, handle_start_game, cleanup_menu};
 use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handle_player_hit, debug_weapon_controls};
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
-use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent};
-use systems::particles::{spawn_engine_particles, update_particles};
+use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent};
+use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles};
+use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility};
 use systems::visual::apply_atmospheric_tint;
 use systems::world::WORLD_HEIGHT;
 use resources::{SelectedShip, SelectedWeapon, GameState};
@@ -44,6 +45,8 @@ fn main() {
 		.add_event::<WeaponSwitchEvent>()
 		.add_event::<WeaponUpgradeEvent>()
 		.add_event::<PlayerHitEvent>()
+		.add_event::<EnemyHitEvent>()
+		.add_event::<EnemyDeathEvent>()
 		// Startup: camera only
 		.add_systems(Startup, (setup, spawn_exit_button).chain())
 		// Menu state systems
@@ -104,6 +107,14 @@ fn main() {
 			update_particles,
 			apply_atmospheric_tint,
 		).run_if(in_state(GameState::Playing)))
+		// Collision systems
+		.add_systems(Update, (
+			check_projectile_enemy_collisions,
+			apply_enemy_damage,
+			spawn_explosion_particles,
+			check_player_enemy_collisions,
+			update_invincibility,
+		).chain().run_if(in_state(GameState::Playing)))
 		.run();
 }
 

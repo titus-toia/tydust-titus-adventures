@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::components::{Player, ParticleEmitter, ShipType, Weapon, WeaponType};
+use crate::components::{Player, ParticleEmitter, ShipType, Weapon, WeaponType, PlayerHealth, Collider};
 use crate::resources::{SelectedShip, SelectedWeapon};
 use super::world::player_bounds;
 
@@ -40,6 +40,8 @@ pub fn spawn_player(
 			spawn_timer: Timer::from_seconds(0.05, TimerMode::Repeating),
 			offset: Vec2::new(0.0, -stats.size / 2.0 + 10.0),
 		},
+		PlayerHealth::default(),
+		Collider::new(stats.size / 2.0 * 0.7), // Slightly smaller than visual for fair gameplay
 	));
 
 	info!(
