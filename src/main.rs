@@ -10,16 +10,16 @@ mod resources;
 
 use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
-use systems::weapons::{fire_weapons, move_projectiles_straight, move_projectiles_sine, move_angled_projectiles, move_homing_projectiles, manage_orbital_entities, cleanup_projectiles};
+use systems::weapons::{fire_weapons, move_projectiles_straight, move_projectiles_sine, move_angled_projectiles, move_homing_projectiles, manage_orbital_entities, orbital_auto_fire, cleanup_projectiles};
 use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, process_level_events, process_tutorials, process_phases, apply_doodad_drift, MusicState, DebugSpeed, toggle_debug_speed};
 use systems::parallax::{init_parallax_timers, spawn_procedural_parallax, scroll_parallax, cleanup_parallax};
-use systems::enemies::{update_enemy_movement, rotate_enemies_toward_player, cleanup_enemies, execute_enemy_behaviors, update_formations};
+use systems::enemies::{update_enemy_movement, cleanup_enemies, execute_enemy_behaviors, update_formations, setup_enemy_shooters, enemy_shooting, move_enemy_projectiles, init_enemy_rotation, rotate_enemies_to_movement, shimmer_enemies};
 use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_weapon_selection, handle_start_game, cleanup_menu};
 use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handle_player_hit, debug_weapon_controls};
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
 use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent};
-use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles};
-use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility};
+use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles, spawn_player_hit_particles};
+use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, play_enemy_hit_sound, play_enemy_death_sound};
 use systems::visual::apply_atmospheric_tint;
 use systems::world::WORLD_HEIGHT;
 use resources::{SelectedShip, SelectedWeapon, GameState};
@@ -80,6 +80,7 @@ fn main() {
 			move_angled_projectiles,
 			move_homing_projectiles,
 			manage_orbital_entities,
+			orbital_auto_fire,
 			cleanup_projectiles,
 		).run_if(in_state(GameState::Playing)))
 		.add_systems(Update, (
@@ -97,7 +98,12 @@ fn main() {
 			update_enemy_movement,
 			execute_enemy_behaviors,
 			update_formations,
-			rotate_enemies_toward_player,
+			init_enemy_rotation,
+			rotate_enemies_to_movement,
+			shimmer_enemies,
+			setup_enemy_shooters,
+			enemy_shooting,
+			move_enemy_projectiles,
 			cleanup_enemies,
 			process_doodads,
 			apply_doodad_drift,
@@ -111,8 +117,12 @@ fn main() {
 		.add_systems(Update, (
 			check_projectile_enemy_collisions,
 			apply_enemy_damage,
+			play_enemy_hit_sound,
+			play_enemy_death_sound,
 			spawn_explosion_particles,
 			check_player_enemy_collisions,
+			check_enemy_projectile_player_collisions,
+			spawn_player_hit_particles,
 			update_invincibility,
 		).chain().run_if(in_state(GameState::Playing)))
 		.run();

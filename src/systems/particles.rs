@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::Rng;
-use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType};
+use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType, PlayerHitEvent};
 
 pub fn spawn_engine_particles(
 	mut commands: Commands,
@@ -118,6 +118,50 @@ pub fn spawn_explosion_particles(
 					..default()
 				},
 				Transform::from_xyz(event.position.x, event.position.y, 1.0),
+				Particle {
+					lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+					velocity,
+				},
+			));
+		}
+	}
+}
+
+pub fn spawn_player_hit_particles(
+	mut commands: Commands,
+	mut hit_events: EventReader<PlayerHitEvent>,
+	player_query: Query<&Transform, With<Player>>,
+	asset_server: Res<AssetServer>,
+) {
+	let mut rng = rand::thread_rng();
+
+	for _event in hit_events.read() {
+		let Ok(player_transform) = player_query.get_single() else { continue };
+		let pos = player_transform.translation.truncate();
+
+		// Shield/spark burst effect
+		for _ in 0..15 {
+			let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+			let speed = rng.gen_range(80.0..180.0);
+			let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+
+			let size = rng.gen_range(8.0..16.0);
+			let lifetime = rng.gen_range(0.2..0.4);
+
+			// Blue/white sparks for shield hit
+			let sprite = if rng.gen_bool(0.6) {
+				"particles/spark_white.png"
+			} else {
+				"particles/exhaust_cyan.png"
+			};
+
+			commands.spawn((
+				Sprite {
+					image: asset_server.load(sprite),
+					custom_size: Some(Vec2::splat(size)),
+					..default()
+				},
+				Transform::from_xyz(pos.x, pos.y, 1.5),
 				Particle {
 					lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
 					velocity,

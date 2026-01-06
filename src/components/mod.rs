@@ -331,6 +331,33 @@ pub enum EnemyType {
 	StationDebris,
 }
 
+impl EnemyType {
+	/// Returns (projectile_type, fire_rate) if this enemy can shoot
+	pub fn shooting_config(&self) -> Option<(EnemyProjectileType, f32)> {
+		match self {
+			// Non-shooters
+			EnemyType::Scout => None,
+			EnemyType::SmallAsteroid => None,
+			EnemyType::MediumAsteroid => None,
+			EnemyType::LargeAsteroid => None,
+			EnemyType::StationDebris => None,
+
+			// Basic shooters
+			EnemyType::Fighter => Some((EnemyProjectileType::BasicShot, 2.0)),
+			EnemyType::Interceptor => Some((EnemyProjectileType::Burst, 1.8)),
+			EnemyType::Drone => Some((EnemyProjectileType::Stream, 0.3)),
+
+			// Heavy shooters
+			EnemyType::Bomber => Some((EnemyProjectileType::PlasmaBall, 2.5)),
+			EnemyType::Corvette => Some((EnemyProjectileType::SpreadShot, 1.5)),
+			EnemyType::HeavyGunship => Some((EnemyProjectileType::SpreadShot, 1.2)),
+
+			// Boss
+			EnemyType::Boss => Some((EnemyProjectileType::Ring, 1.0)),
+		}
+	}
+}
+
 #[derive(Component)]
 pub struct EnemyMovement {
 	pub pattern: MovementPattern,
@@ -385,6 +412,112 @@ pub enum BehaviorType {
 	Flash { color: [f32; 4], frequency: f32 },
 	Parallel { behaviors: Vec<Behavior> },
 }
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum EnemyProjectileType {
+	BasicShot,    // Single aimed shot
+	SpreadShot,   // 3 projectiles in a cone
+	Burst,        // Rapid 3-shot burst
+	PlasmaBall,   // Slow, large projectile
+	Ring,         // 8 projectiles in a circle
+	Stream,       // Continuous rapid fire
+}
+
+impl EnemyProjectileType {
+	pub fn config(&self) -> EnemyProjectileConfig {
+		match self {
+			EnemyProjectileType::BasicShot => EnemyProjectileConfig {
+				damage: 10.0,
+				speed: 350.0,
+				size: Vec2::new(8.0, 8.0),
+				color: Color::srgb(1.0, 0.3, 0.3),
+				count: 1,
+				spread_angle: 0.0,
+				burst_count: 1,
+				burst_delay: 0.0,
+			},
+			EnemyProjectileType::SpreadShot => EnemyProjectileConfig {
+				damage: 8.0,
+				speed: 300.0,
+				size: Vec2::new(6.0, 6.0),
+				color: Color::srgb(1.0, 0.5, 0.2),
+				count: 3,
+				spread_angle: 0.4, // ~23 degrees total spread
+				burst_count: 1,
+				burst_delay: 0.0,
+			},
+			EnemyProjectileType::Burst => EnemyProjectileConfig {
+				damage: 8.0,
+				speed: 400.0,
+				size: Vec2::new(5.0, 10.0),
+				color: Color::srgb(1.0, 1.0, 0.3),
+				count: 1,
+				spread_angle: 0.0,
+				burst_count: 3,
+				burst_delay: 0.1,
+			},
+			EnemyProjectileType::PlasmaBall => EnemyProjectileConfig {
+				damage: 20.0,
+				speed: 180.0,
+				size: Vec2::new(20.0, 20.0),
+				color: Color::srgb(0.8, 0.2, 1.0),
+				count: 1,
+				spread_angle: 0.0,
+				burst_count: 1,
+				burst_delay: 0.0,
+			},
+			EnemyProjectileType::Ring => EnemyProjectileConfig {
+				damage: 6.0,
+				speed: 250.0,
+				size: Vec2::new(8.0, 8.0),
+				color: Color::srgb(0.3, 1.0, 1.0),
+				count: 8,
+				spread_angle: std::f32::consts::TAU, // Full circle
+				burst_count: 1,
+				burst_delay: 0.0,
+			},
+			EnemyProjectileType::Stream => EnemyProjectileConfig {
+				damage: 5.0,
+				speed: 450.0,
+				size: Vec2::new(4.0, 12.0),
+				color: Color::srgb(1.0, 0.8, 0.2),
+				count: 1,
+				spread_angle: 0.0,
+				burst_count: 1,
+				burst_delay: 0.0,
+			},
+		}
+	}
+}
+
+pub struct EnemyProjectileConfig {
+	pub damage: f32,
+	pub speed: f32,
+	pub size: Vec2,
+	pub color: Color,
+	pub count: u8,        // Projectiles per shot
+	pub spread_angle: f32, // Angle spread for multiple projectiles
+	pub burst_count: u8,  // Shots per burst
+	pub burst_delay: f32, // Delay between burst shots
+}
+
+#[derive(Component)]
+pub struct EnemyProjectile {
+	pub damage: f32,
+	pub velocity: Vec2,
+	pub lifetime: Timer,
+}
+
+#[derive(Component)]
+pub struct EnemyShooter {
+	pub projectile_type: EnemyProjectileType,
+	pub fire_timer: Timer,
+	pub burst_remaining: u8,
+	pub burst_timer: Timer,
+}
+
+#[derive(Component)]
+pub struct EnemyPreviousPosition(pub Vec3);
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum SineAxis {

@@ -3,7 +3,7 @@ use bevy_kira_audio::prelude::*;
 use rand::Rng;
 use crate::components::{Player, Weapon, Projectile, SineMotion, WeaponType, Particle, HomingProjectile, OrbitalEntity, Enemy, AngledShot};
 use super::world::{HALF_WORLD_HEIGHT};
-use std::f32::consts::PI;
+use std::f32::consts::{PI, FRAC_PI_2};
 
 const PROJECTILE_Z: f32 = 0.5;
 const PROJECTILE_LIFETIME: f32 = 3.0;
@@ -65,13 +65,13 @@ pub fn fire_weapons(
 			spawn_muzzle_flash(&mut commands, &asset_server, spawn_pos, weapon.weapon_type);
 
 			let sound_path = match weapon.weapon_type {
-				WeaponType::BasicBlaster => "sounds/basic_blaster_fire.wav",
-				WeaponType::PlasmaCannon => "sounds/plasma_cannon_fire.wav",
-				WeaponType::WaveGun => "sounds/wave_gun_fire.wav",
-				WeaponType::SpreadShot => "sounds/spread_shot_fire.wav",
-				WeaponType::MissilePods => "sounds/missile_launch.wav",
-				WeaponType::LaserArray => "sounds/laser_array_fire.wav",
-				WeaponType::OrbitalDefense => "sounds/laser_fire.ogg", // Fallback for orbital
+				WeaponType::BasicBlaster => "sounds/basic_blaster_fire.ogg",
+				WeaponType::PlasmaCannon => "sounds/plasma_cannon_fire.ogg",
+				WeaponType::WaveGun => "sounds/wave_gun_fire.ogg",
+				WeaponType::SpreadShot => "sounds/spread_shot_fire.ogg",
+				WeaponType::MissilePods => "sounds/missile_launch.ogg",
+				WeaponType::LaserArray => "sounds/laser_array_fire.ogg",
+				WeaponType::OrbitalDefense => "sounds/orbital_fire.ogg",
 			};
 
 			audio.play(asset_server.load(sound_path));
@@ -331,7 +331,8 @@ fn spawn_missile_projectiles(
 				custom_size: Some(Vec2::new(30.0, 70.0)),
 				..default()
 			},
-			Transform::from_translation((spawn_pos + Vec3::new(offset_x, 0.0, 0.0)).with_z(PROJECTILE_Z)),
+			Transform::from_translation((spawn_pos + Vec3::new(offset_x, 0.0, 0.0)).with_z(PROJECTILE_Z))
+				.with_rotation(Quat::from_rotation_z(0.0)), // Points upward
 			Projectile {
 				weapon_type: weapon.weapon_type,
 				level: weapon.level,
@@ -468,6 +469,62 @@ pub fn manage_orbital_entities(
 		let offset_y = orbital.angle.sin() * orbital.radius;
 
 		orb_transform.translation = player_transform.translation + Vec3::new(offset_x, offset_y, 0.0);
+	}
+}
+
+pub fn orbital_auto_fire(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut orbital_query: Query<(&Transform, &mut OrbitalEntity)>,
+	enemy_query: Query<&Transform, With<Enemy>>,
+	time: Res<Time>,
+) {
+	for (orb_transform, mut orbital) in orbital_query.iter_mut() {
+		orbital.fire_timer.tick(time.delta());
+
+		if orbital.fire_timer.just_finished() {
+			// Find closest enemy
+			let orb_pos = orb_transform.translation.truncate();
+			let mut closest_enemy: Option<(Vec2, f32)> = None;
+
+			for enemy_transform in enemy_query.iter() {
+				let enemy_pos = enemy_transform.translation.truncate();
+				let distance = orb_pos.distance(enemy_pos);
+
+				if distance < 400.0 {
+					if let Some((_, closest_dist)) = closest_enemy {
+						if distance < closest_dist {
+							closest_enemy = Some((enemy_pos, distance));
+						}
+					} else {
+						closest_enemy = Some((enemy_pos, distance));
+					}
+				}
+			}
+
+			// Fire at closest enemy
+			if let Some((enemy_pos, _)) = closest_enemy {
+				let direction = (enemy_pos - orb_pos).normalize_or_zero();
+				let angle = direction.y.atan2(direction.x) - FRAC_PI_2;
+
+				commands.spawn((
+					Sprite {
+						image: asset_server.load("sprites/projectiles/orbital_orb.png"),
+						custom_size: Some(Vec2::new(15.0, 15.0)),
+						..default()
+					},
+					Transform::from_xyz(orb_pos.x, orb_pos.y, 0.6)
+						.with_rotation(Quat::from_rotation_z(angle)),
+					Projectile {
+						weapon_type: WeaponType::OrbitalDefense,
+						level: 1,
+						speed: 800.0,
+						damage: 15.0,
+						lifetime: Timer::from_seconds(2.0, TimerMode::Once),
+					},
+				));
+			}
+		}
 	}
 }
 

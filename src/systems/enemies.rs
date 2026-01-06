@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::components::{Enemy, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyProjectileType};
+use crate::components::{Enemy, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyPreviousPosition, EnemyProjectileType};
 use super::world::HALF_WORLD_HEIGHT;
 use super::level::CurrentLevel;
 use std::f32::consts::{PI, FRAC_PI_2};
@@ -71,8 +71,8 @@ pub fn execute_enemy_behaviors(
 	for (mut transform, mut behavior_state, mut sprite) in query.iter_mut() {
 		behavior_state.total_time_alive += delta;
 
-		// All enemies scroll down with level
-		transform.translation.y -= scroll_speed * delta;
+		// Enemies with explicit behaviors handle their own positioning
+		// Don't auto-scroll them or they fight against MoveToPosition/MoveCircular
 
 		if behavior_state.current_index >= behavior_state.behaviors.len() {
 			continue;
@@ -279,10 +279,6 @@ fn execute_behavior(
 				);
 			}
 		}
-
-		BehaviorType::ShootAtPlayer { .. } => {
-			// Enemy shooting handled by separate system
-		}
 	}
 }
 
@@ -302,39 +298,23 @@ pub fn update_formations(
 
 pub fn setup_enemy_shooters(
 	mut commands: Commands,
-	query: Query<(Entity, &EnemyBehavior), Without<EnemyShooter>>,
+	query: Query<(Entity, &Enemy), Without<EnemyShooter>>,
 ) {
-	for (entity, behavior) in query.iter() {
-		for b in &behavior.behaviors {
-			if let BehaviorType::ShootAtPlayer { projectile_type, fire_rate } = &b.behavior_type {
-				commands.entity(entity).insert(EnemyShooter {
-					projectile_type: *projectile_type,
-					fire_timer: Timer::from_seconds(*fire_rate, TimerMode::Repeating),
-					burst_remaining: 0,
-					burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
-				});
-				break;
-			}
-			// Also check inside Parallel behaviors
-			if let BehaviorType::Parallel { behaviors } = &b.behavior_type {
-				for sub in behaviors {
-					if let BehaviorType::ShootAtPlayer { projectile_type, fire_rate } = &sub.behavior_type {
-						commands.entity(entity).insert(EnemyShooter {
-							projectile_type: *projectile_type,
-							fire_timer: Timer::from_seconds(*fire_rate, TimerMode::Repeating),
-							burst_remaining: 0,
-							burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
-						});
-						break;
-					}
-				}
-			}
+	for (entity, enemy) in query.iter() {
+		if let Some((projectile_type, fire_rate)) = enemy.enemy_type.shooting_config() {
+			commands.entity(entity).insert(EnemyShooter {
+				projectile_type,
+				fire_timer: Timer::from_seconds(fire_rate, TimerMode::Repeating),
+				burst_remaining: 0,
+				burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+			});
 		}
 	}
 }
 
 pub fn enemy_shooting(
 	mut commands: Commands,
+	asset_server: Res<AssetServer>,
 	mut shooters: Query<(&Transform, &mut EnemyShooter), With<Enemy>>,
 	player_query: Query<&Transform, With<Player>>,
 	time: Res<Time>,
@@ -351,7 +331,7 @@ pub fn enemy_shooting(
 
 		// Handle burst shooting
 		if shooter.burst_remaining > 0 && shooter.burst_timer.just_finished() {
-			spawn_enemy_projectiles(&mut commands, enemy_pos, player_pos, &shooter, &config);
+			spawn_enemy_projectiles(&mut commands, &asset_server, enemy_pos, player_pos, &shooter, &config);
 			shooter.burst_remaining -= 1;
 		}
 
@@ -361,7 +341,7 @@ pub fn enemy_shooting(
 				shooter.burst_remaining = config.burst_count;
 				shooter.burst_timer.reset();
 			} else {
-				spawn_enemy_projectiles(&mut commands, enemy_pos, player_pos, &shooter, &config);
+				spawn_enemy_projectiles(&mut commands, &asset_server, enemy_pos, player_pos, &shooter, &config);
 			}
 		}
 	}
@@ -369,6 +349,7 @@ pub fn enemy_shooting(
 
 fn spawn_enemy_projectiles(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	enemy_pos: Vec2,
 	player_pos: Vec2,
 	shooter: &EnemyShooter,
@@ -379,6 +360,13 @@ fn spawn_enemy_projectiles(
 
 	let count = config.count as i32;
 	let half_spread = config.spread_angle / 2.0;
+
+	// Select sprite based on projectile type
+	let (sprite_path, sprite_size) = match shooter.projectile_type {
+		EnemyProjectileType::PlasmaBall => ("sprites/enemy_projectiles/plasma_ball.png", Vec2::splat(48.0)),
+		EnemyProjectileType::SpreadShot => ("sprites/enemy_projectiles/spread_shot.png", Vec2::splat(24.0)),
+		_ => ("sprites/enemy_projectiles/basic_shot.png", Vec2::splat(32.0)),
+	};
 
 	for i in 0..count {
 		let angle_offset = if count == 1 {
@@ -396,8 +384,8 @@ fn spawn_enemy_projectiles(
 
 		commands.spawn((
 			Sprite {
-				color: config.color,
-				custom_size: Some(config.size),
+				image: asset_server.load(sprite_path),
+				custom_size: Some(sprite_size),
 				..default()
 			},
 			Transform::from_xyz(enemy_pos.x, enemy_pos.y, 0.6)
@@ -436,5 +424,52 @@ pub fn move_enemy_projectiles(
 		{
 			commands.entity(entity).despawn();
 		}
+	}
+}
+
+// === Enemy Rotation System ===
+
+pub fn init_enemy_rotation(
+	mut commands: Commands,
+	query: Query<(Entity, &Transform), (With<Enemy>, Without<EnemyPreviousPosition>)>,
+) {
+	for (entity, transform) in query.iter() {
+		commands.entity(entity).insert(EnemyPreviousPosition(transform.translation));
+	}
+}
+
+pub fn rotate_enemies_to_movement(
+	mut query: Query<(&mut Transform, &mut EnemyPreviousPosition), With<Enemy>>,
+	time: Res<Time>,
+) {
+	let delta = time.delta_secs();
+	if delta < 0.001 { return; }
+
+	for (mut transform, mut prev_pos) in query.iter_mut() {
+		let current_pos = transform.translation;
+		let movement = current_pos - prev_pos.0;
+
+		// Only rotate if moving significantly
+		if movement.length() > 0.5 {
+			let direction = movement.truncate();
+			// Calculate angle (0 degrees = pointing up)
+			let target_angle = direction.y.atan2(direction.x) - FRAC_PI_2;
+			transform.rotation = Quat::from_rotation_z(target_angle);
+		}
+
+		prev_pos.0 = current_pos;
+	}
+}
+
+pub fn shimmer_enemies(
+	mut query: Query<(&mut Sprite, &Enemy)>,
+	time: Res<Time>,
+) {
+	let elapsed = time.elapsed_secs();
+
+	for (mut sprite, _enemy) in query.iter_mut() {
+		// Shimmer effect - pulsing between 0.8 and 1.3
+		let shimmer = 1.05 + ((elapsed * 3.5).sin() * 0.25);
+		sprite.color = Color::srgb(shimmer, shimmer, shimmer);
 	}
 }

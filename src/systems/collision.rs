@@ -1,7 +1,9 @@
 use bevy::prelude::*;
+use bevy_kira_audio::prelude::*;
 use crate::components::{
 	Enemy, Player, Projectile, Collider, Health, PlayerHealth,
 	Invincible, ContactDamage, EnemyHitEvent, EnemyDeathEvent, PlayerHitEvent,
+	EnemyProjectile,
 };
 
 pub fn check_projectile_enemy_collisions(
@@ -98,5 +100,57 @@ pub fn update_invincibility(
 			sprite.color.set_alpha(1.0);
 			commands.entity(entity).remove::<Invincible>();
 		}
+	}
+}
+
+pub fn check_enemy_projectile_player_collisions(
+	mut commands: Commands,
+	projectiles: Query<(Entity, &Transform, &EnemyProjectile)>,
+	player_query: Query<(Entity, &Transform, &Collider), (With<Player>, Without<Invincible>)>,
+	mut player_health: Query<&mut PlayerHealth>,
+	mut hit_events: EventWriter<PlayerHitEvent>,
+) {
+	let Ok((player_entity, player_transform, player_collider)) = player_query.get_single() else {
+		return;
+	};
+	let player_pos = player_transform.translation.truncate();
+
+	for (proj_entity, proj_transform, projectile) in projectiles.iter() {
+		let proj_pos = proj_transform.translation.truncate();
+		let proj_radius = 5.0; // Small collision radius for projectiles
+
+		let distance = player_pos.distance(proj_pos);
+
+		if distance < proj_radius + player_collider.radius {
+			if let Ok(mut health) = player_health.get_single_mut() {
+				health.current = (health.current - projectile.damage).max(0.0);
+				info!("Player hit by projectile! HP: {:.0}/{:.0}", health.current, health.max);
+			}
+
+			commands.entity(proj_entity).despawn();
+			hit_events.send(PlayerHitEvent);
+			commands.entity(player_entity).insert(Invincible::new(1.0));
+			break; // Only one hit per frame
+		}
+	}
+}
+
+pub fn play_enemy_hit_sound(
+	mut hit_events: EventReader<EnemyHitEvent>,
+	audio: Res<Audio>,
+	asset_server: Res<AssetServer>,
+) {
+	for _ in hit_events.read() {
+		audio.play(asset_server.load("sounds/enemy_hit.ogg")).with_volume(0.6);
+	}
+}
+
+pub fn play_enemy_death_sound(
+	mut death_events: EventReader<EnemyDeathEvent>,
+	audio: Res<Audio>,
+	asset_server: Res<AssetServer>,
+) {
+	for _ in death_events.read() {
+		audio.play(asset_server.load("sounds/enemy_death.ogg")).with_volume(0.8);
 	}
 }
