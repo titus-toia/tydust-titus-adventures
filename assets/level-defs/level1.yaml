@@ -1,0 +1,3171 @@
+name: First Contact - Abandoned Station Awakens
+
+# === PHASE STRUCTURE (6-7 minute duration) ===
+# Phase 1: The Approach (0:00-1:30) - 5400 GU
+# Phase 2: Outer Perimeter (1:30-3:30) - 7200 GU
+# Phase 3: Industrial Zone (3:30-5:30) - 12000 GU (CANYON SHOWPIECE)
+# Phase 4: Core Breach (5:30-6:30) - 7200 GU
+# Phase 5: Boss Arena (6:30-7:30) - 3600 GU
+# Total: 35400 GU over ~420 seconds (7 minutes)
+
+phases:
+- name: The Approach
+  music: phase1_calm.mp3
+  scroll_speed: 60.0
+  background: starfield_slow
+  start_distance: 0.0
+  end_distance: 5400.0
+
+- name: Outer Perimeter
+  music: phase2_tension.mp3
+  scroll_speed: 80.0
+  background: starfield_normal
+  start_distance: 5400.0
+  end_distance: 12600.0
+
+- name: Industrial Zone
+  music: phase3_combat.mp3
+  scroll_speed: 100.0
+  background: starfield_normal
+  start_distance: 12600.0
+  end_distance: 24600.0
+
+- name: Core Breach
+  music: phase4_peak.mp3
+  scroll_speed: 120.0
+  background: starfield_intense
+  start_distance: 24600.0
+  end_distance: 31800.0
+
+- name: Boss Arena
+  music: phase5_boss.mp3
+  scroll_speed: 60.0
+  background: starfield_boss
+  start_distance: 31800.0
+  end_distance: 35400.0
+
+# === STATIC BACKDROP (spawned once at level start) ===
+backdrop:
+# Subtle nebula wash - barely there, just a hint of color
+- sprite: nebula_purple_1.png
+  position: [250.0, 200.0]
+  size: [500, 400]
+  alpha: 0.15
+
+# Tiny color accents - whispers of color in corners
+- sprite: nebula_blue_1.png
+  position: [-350.0, 250.0]
+  size: [250, 200]
+  alpha: 0.08
+
+- sprite: nebula_orange_1.png
+  position: [320.0, -180.0]
+  size: [200, 150]
+  alpha: 0.06
+
+# === ENEMY WAVES ===
+enemy_waves:
+# ============================================================
+# PHASE 1 ENEMIES: Tutorial pacing, 3-4 waves total
+# ============================================================
+
+# Wave 1 (1800 GU): Single scout - first contact
+- enemies:
+  - enemy_type: Scout
+    position: [0.0, 580.0]
+    movement: PassBy
+  spawn_distance: 1800.0
+
+# Wave 2 (2800 GU): Two scouts - learning to handle multiples
+- enemies:
+  - enemy_type: Scout
+    position: [-120.0, 600.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [120.0, 600.0]
+    movement: SineWave
+  spawn_distance: 2800.0
+
+# Wave 3 (4000 GU): Three scouts in diagonal formation
+- enemies:
+  - enemy_type: Scout
+    position: [-150.0, 620.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.0, -110.0]
+        duration: 4.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [0.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -120.0]
+        duration: 4.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [150.0, 620.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-30.0, -110.0]
+        duration: 4.0
+        transition: WaitForCompletion
+  spawn_distance: 4000.0
+
+# Wave 4 (5100 GU): Two scouts flanking - transition to Phase 2
+- enemies:
+  - enemy_type: Scout
+    position: [-200.0, 580.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [200.0, 580.0]
+    movement: PassBy
+  spawn_distance: 5100.0
+
+# ============================================================
+# PHASE 2 ENEMIES: Tyrian-style formations (5400-12600 GU)
+# 10-12 waves, clean patterns with 2-3 sec breaks between
+# ============================================================
+
+# Wave 1 (5800 GU): Pair from sides - perimeter patrol
+- enemies:
+  - enemy_type: Scout
+    position: [-200.0, 600.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [200.0, 600.0]
+    movement: SineWave
+  spawn_distance: 5800.0
+
+# Wave 2 (6400 GU): V-formation scouts
+- enemies:
+  - enemy_type: Scout
+    position: [0.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [-80.0, 600.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [80.0, 600.0]
+    movement: PassBy
+  spawn_distance: 6400.0
+
+# Wave 3 (7000 GU): First Fighter appears with escort
+- enemies:
+  - enemy_type: Fighter
+    position: [0.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-120.0, 620.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [120.0, 620.0]
+    movement: PassBy
+  spawn_distance: 7000.0
+
+# Wave 4 (7600 GU): Diagonal sweep from left
+- enemies:
+  - enemy_type: Scout
+    position: [-250.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [-250.0, 650.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [-250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 7600.0
+
+# Wave 5 (8200 GU): Diagonal sweep from right
+- enemies:
+  - enemy_type: Scout
+    position: [250.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [250.0, 650.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 8200.0
+
+# Wave 6 (8800 GU): Two Fighters flanking
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 650.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150.0, 650.0]
+    movement: SineWave
+  spawn_distance: 8800.0
+
+# Wave 7 (9400 GU): Diamond formation
+- enemies:
+  - enemy_type: Scout
+    position: [0.0, 700.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [-100.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [100.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [0.0, 600.0]
+    movement: PassBy
+  spawn_distance: 9400.0
+
+# Wave 8 (10000 GU): Fighter with four scout escort
+- enemies:
+  - enemy_type: Fighter
+    position: [0.0, 700.0]
+    movement: Straight
+  - enemy_type: Scout
+    position: [-80.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [80.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [-80.0, 600.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [80.0, 600.0]
+    movement: PassBy
+  spawn_distance: 10000.0
+
+# Wave 9 (10600 GU): Interceptors! Fast pass-through
+- enemies:
+  - enemy_type: Interceptor
+    position: [-100.0, 700.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [100.0, 700.0]
+    movement: PassBy
+  spawn_distance: 10600.0
+
+# Wave 10 (11200 GU): Box formation
+- enemies:
+  - enemy_type: Scout
+    position: [-100.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [100.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-100.0, 600.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [100.0, 600.0]
+    movement: SineWave
+  spawn_distance: 11200.0
+
+# Wave 11 (11800 GU): Heavy Fighter pair - warning of things to come
+- enemies:
+  - enemy_type: Fighter
+    position: [-120.0, 680.0]
+    movement: Circle
+  - enemy_type: Fighter
+    position: [120.0, 680.0]
+    movement: Circle
+  spawn_distance: 11800.0
+
+# Wave 12 (12400 GU): Final perimeter wave - dense
+- enemies:
+  - enemy_type: Scout
+    position: [-180.0, 650.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [0.0, 700.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [180.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [-90.0, 600.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [90.0, 600.0]
+    movement: PassBy
+  spawn_distance: 12400.0
+
+# ============================================================
+# PHASE 3 ENEMIES: Industrial Zone (12600-24600 GU)
+# DEMONSTAR CHAOS - Constant enemies, overlapping waves, no breaks!
+# ~30 waves at 300-400 GU spacing, enemies from all angles
+# ============================================================
+
+# Wave 1 (12900 GU): Entering the canyon - immediate pressure
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 650.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150.0, 650.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [0.0, 700.0]
+    movement: PassBy
+  spawn_distance: 12900.0
+
+# Wave 2 (13200 GU): Drones swarm from left
+- enemies:
+  - enemy_type: Drone
+    position: [-250.0, 620.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-250.0, 670.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-250.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  spawn_distance: 13200.0
+
+# Wave 3 (13500 GU): Interceptors speed through
+- enemies:
+  - enemy_type: Interceptor
+    position: [-80.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [80.0, 750.0]
+    movement: PassBy
+  spawn_distance: 13500.0
+
+# Wave 4 (13800 GU): Fighters flanking with scouts
+- enemies:
+  - enemy_type: Fighter
+    position: [-180.0, 680.0]
+    movement: Circle
+  - enemy_type: Scout
+    position: [0.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [100.0, 620.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [180.0, 680.0]
+    movement: Circle
+  spawn_distance: 13800.0
+
+# Wave 5 (14100 GU): Drones swarm from right (overlap with previous)
+- enemies:
+  - enemy_type: Drone
+    position: [250.0, 620.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [250.0, 670.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [250.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-100.0, -80.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  spawn_distance: 14100.0
+
+# Wave 6 (14400 GU): First Bomber - slow but dangerous
+- enemies:
+  - enemy_type: Bomber
+    position: [0.0, 750.0]
+    movement: Straight
+  - enemy_type: Scout
+    position: [-120.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [120.0, 680.0]
+    movement: SineWave
+  spawn_distance: 14400.0
+
+# Wave 7 (14700 GU): V-formation Fighters
+- enemies:
+  - enemy_type: Fighter
+    position: [0.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-80.0, 680.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [80.0, 680.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-160.0, 640.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [160.0, 640.0]
+    movement: PassBy
+  spawn_distance: 14700.0
+
+# Wave 8 (15000 GU): Cross-fire - enemies from both sides simultaneously
+- enemies:
+  - enemy_type: Scout
+    position: [-280.0, 650.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [120.0, -60.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [280.0, 650.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-120.0, -60.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [0.0, 700.0]
+    movement: SineWave
+  spawn_distance: 15000.0
+
+# Wave 9 (15300 GU): Heavy resistance starts - Corvette
+- enemies:
+  - enemy_type: Corvette
+    position: [-100.0, 750.0]
+    movement: Straight
+  - enemy_type: Drone
+    position: [150.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -100.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-150.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -100.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  spawn_distance: 15300.0
+
+# Wave 10 (15600 GU): Interceptor rush
+- enemies:
+  - enemy_type: Interceptor
+    position: [-150.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [0.0, 780.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [150.0, 750.0]
+    movement: PassBy
+  spawn_distance: 15600.0
+
+# Wave 11 (15900 GU): Pincer attack
+- enemies:
+  - enemy_type: Fighter
+    position: [-250.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [-250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [250.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -100.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 15900.0
+
+# Wave 12 (16200 GU): Bomber with escorts
+- enemies:
+  - enemy_type: Bomber
+    position: [-80.0, 750.0]
+    movement: Straight
+  - enemy_type: Scout
+    position: [-160.0, 700.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [0.0, 700.0]
+    movement: PassBy
+  spawn_distance: 16200.0
+
+# Wave 13 (16500 GU): Drone cloud
+- enemies:
+  - enemy_type: Drone
+    position: [-120.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [20.0, -90.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [0.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [-10.0, -85.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [120.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -90.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-60.0, 650.0]
+    behaviors:
+      - type: Drift
+        velocity: [15.0, -95.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [60.0, 650.0]
+    behaviors:
+      - type: Drift
+        velocity: [-15.0, -95.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  spawn_distance: 16500.0
+
+# Wave 14 (16800 GU): Fighter diamond formation
+- enemies:
+  - enemy_type: Fighter
+    position: [0.0, 750.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-100.0, 700.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [100.0, 700.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [0.0, 650.0]
+    movement: PassBy
+  spawn_distance: 16800.0
+
+# Wave 15 (17100 GU): Heavy Gunship debut - mid-boss feel
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [0.0, 800.0]
+    movement: Circle
+  spawn_distance: 17100.0
+
+# Wave 16 (17400 GU): Swarm while gunship still on screen
+- enemies:
+  - enemy_type: Scout
+    position: [-200.0, 650.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-100.0, 620.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [100.0, 620.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [200.0, 650.0]
+    movement: SineWave
+  spawn_distance: 17400.0
+
+# Wave 17 (17700 GU): Corvette pair
+- enemies:
+  - enemy_type: Corvette
+    position: [-120.0, 750.0]
+    movement: Straight
+  - enemy_type: Corvette
+    position: [120.0, 750.0]
+    movement: Straight
+  spawn_distance: 17700.0
+
+# Wave 18 (18000 GU): Interceptor harassment
+- enemies:
+  - enemy_type: Interceptor
+    position: [-200.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [200.0, 720.0]
+    movement: PassBy
+  spawn_distance: 18000.0
+
+# Wave 19 (18300 GU): Mixed assault
+- enemies:
+  - enemy_type: Fighter
+    position: [0.0, 750.0]
+    movement: Circle
+  - enemy_type: Drone
+    position: [-150.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [30.0, -100.0]
+        variance: 25.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [150.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-30.0, -100.0]
+        variance: 25.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [-80.0, 620.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [80.0, 620.0]
+    movement: PassBy
+  spawn_distance: 18300.0
+
+# Wave 20 (18600 GU): Bomber formation
+- enemies:
+  - enemy_type: Bomber
+    position: [-100.0, 780.0]
+    movement: Straight
+  - enemy_type: Bomber
+    position: [100.0, 780.0]
+    movement: Straight
+  spawn_distance: 18600.0
+
+# Wave 21 (18900 GU): Wide sweep
+- enemies:
+  - enemy_type: Fighter
+    position: [-220.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [60.0, -120.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [-110.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.0, -130.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [0.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -140.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [110.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-30.0, -130.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [220.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-60.0, -120.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 18900.0
+
+# Wave 22 (19200 GU): Heavy Gunship with support
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [-80.0, 800.0]
+    movement: Straight
+  - enemy_type: Drone
+    position: [100.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -90.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [180.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -90.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  spawn_distance: 19200.0
+
+# Wave 23 (19500 GU): Interceptor squad
+- enemies:
+  - enemy_type: Interceptor
+    position: [-150.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [-50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [150.0, 750.0]
+    movement: PassBy
+  spawn_distance: 19500.0
+
+# Wave 24 (19800 GU): Cross pattern
+- enemies:
+  - enemy_type: Scout
+    position: [-200.0, 650.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [150.0, -80.0]
+        duration: 4.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [200.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-150.0, -80.0]
+        duration: 4.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [0.0, 700.0]
+    movement: Circle
+  spawn_distance: 19800.0
+
+# Wave 25 (20100 GU): Drone swarm
+- enemies:
+  - enemy_type: Drone
+    position: [-180.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [40.0, -80.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-90.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [20.0, -90.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [0.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -100.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [90.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -90.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [180.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-40.0, -80.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  spawn_distance: 20100.0
+
+# Wave 26 (20400 GU): Corvette with fighter escort
+- enemies:
+  - enemy_type: Corvette
+    position: [0.0, 780.0]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [-150.0, 700.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150.0, 700.0]
+    movement: SineWave
+  spawn_distance: 20400.0
+
+# Wave 27 (20700 GU): Bomber wall
+- enemies:
+  - enemy_type: Bomber
+    position: [-150.0, 750.0]
+    movement: Straight
+  - enemy_type: Bomber
+    position: [0.0, 780.0]
+    movement: Straight
+  - enemy_type: Bomber
+    position: [150.0, 750.0]
+    movement: Straight
+  spawn_distance: 20700.0
+
+# Wave 28 (21000 GU): Peak chaos - Heavy Gunship + mixed
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [0.0, 850.0]
+    movement: Circle
+  - enemy_type: Fighter
+    position: [-180.0, 680.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [180.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-100.0, 620.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [100.0, 620.0]
+    movement: PassBy
+  spawn_distance: 21000.0
+
+# Wave 29 (21300 GU): Interceptor blitz
+- enemies:
+  - enemy_type: Interceptor
+    position: [-180.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [-60.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [60.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [180.0, 720.0]
+    movement: PassBy
+  spawn_distance: 21300.0
+
+# Wave 30 (21600 GU): Fighter box formation
+- enemies:
+  - enemy_type: Fighter
+    position: [-120.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [120.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-120.0, 650.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [120.0, 650.0]
+    movement: PassBy
+  spawn_distance: 21600.0
+
+# Wave 31 (21900 GU): Drone harassment
+- enemies:
+  - enemy_type: Drone
+    position: [-200.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [50.0, -70.0]
+        variance: 45.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [200.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-50.0, -70.0]
+        variance: 45.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [0.0, 750.0]
+    movement: Circle
+  spawn_distance: 21900.0
+
+# Wave 32 (22200 GU): Corvette pair with drones
+- enemies:
+  - enemy_type: Corvette
+    position: [-100.0, 780.0]
+    movement: Straight
+  - enemy_type: Corvette
+    position: [100.0, 780.0]
+    movement: Straight
+  - enemy_type: Drone
+    position: [0.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -100.0]
+        variance: 50.0
+        transition: WaitForCompletion
+  spawn_distance: 22200.0
+
+# Wave 33 (22500 GU): Wide scatter
+- enemies:
+  - enemy_type: Scout
+    position: [-220.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-140.0, 720.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-60.0, 650.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [60.0, 650.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [140.0, 720.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [220.0, 680.0]
+    movement: SineWave
+  spawn_distance: 22500.0
+
+# Wave 34 (22800 GU): Bomber with interceptor cover
+- enemies:
+  - enemy_type: Bomber
+    position: [0.0, 800.0]
+    movement: Straight
+  - enemy_type: Interceptor
+    position: [-150.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [150.0, 720.0]
+    movement: PassBy
+  spawn_distance: 22800.0
+
+# Wave 35 (23100 GU): Final rush - Heavy Gunship
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [-100.0, 850.0]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [100.0, 700.0]
+    movement: Circle
+  - enemy_type: Drone
+    position: [200.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-30.0, -100.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  spawn_distance: 23100.0
+
+# Wave 36 (23400 GU): Fighter gauntlet
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 700.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [150.0, 700.0]
+    movement: PassBy
+  spawn_distance: 23400.0
+
+# Wave 37 (23700 GU): Mixed chaos
+- enemies:
+  - enemy_type: Scout
+    position: [-200.0, 650.0]
+    movement: SineWave
+  - enemy_type: Drone
+    position: [-100.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [20.0, -110.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  - enemy_type: Fighter
+    position: [0.0, 750.0]
+    movement: Circle
+  - enemy_type: Drone
+    position: [100.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -110.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  - enemy_type: Scout
+    position: [200.0, 650.0]
+    movement: SineWave
+  spawn_distance: 23700.0
+
+# Wave 38 (24000 GU): Interceptor squad - approaching transition
+- enemies:
+  - enemy_type: Interceptor
+    position: [-120.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [0.0, 780.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [120.0, 750.0]
+    movement: PassBy
+  spawn_distance: 24000.0
+
+# Wave 39 (24300 GU): Final industrial wave - everything
+- enemies:
+  - enemy_type: Corvette
+    position: [0.0, 800.0]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [-180.0, 700.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [180.0, 700.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-100.0, 650.0]
+    movement: PassBy
+  - enemy_type: Scout
+    position: [100.0, 650.0]
+    movement: PassBy
+  spawn_distance: 24300.0
+
+# ============================================================
+# PHASE 4 ENEMIES: Core Breach (24600-31800 GU)
+# Asteroids + Military - Station breaking apart, chaos
+# ~18 waves mixing asteroid curtains with elite military units
+# ============================================================
+
+# Wave 1 (24900 GU): Asteroid curtain - station breaking apart
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [-200.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [20.0, -180.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-80.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-10.0, -200.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [100.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [15.0, -190.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [220.0, 740.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-25.0, -170.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  spawn_distance: 24900.0
+
+# Wave 2 (25200 GU): Military response - elite fighters
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 700.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150.0, 700.0]
+    movement: SineWave
+  - enemy_type: Interceptor
+    position: [0.0, 750.0]
+    movement: PassBy
+  spawn_distance: 25200.0
+
+# Wave 3 (25500 GU): Medium asteroids
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-120.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.0, -140.0]
+        duration: 7.0
+        transition: WaitForCompletion
+  - enemy_type: MediumAsteroid
+    position: [150.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-20.0, -150.0]
+        duration: 7.0
+        transition: WaitForCompletion
+  spawn_distance: 25500.0
+
+# Wave 4 (25800 GU): Corvette with escorts
+- enemies:
+  - enemy_type: Corvette
+    position: [0.0, 780.0]
+    movement: Straight
+  - enemy_type: Scout
+    position: [-120.0, 700.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [120.0, 700.0]
+    movement: SineWave
+  spawn_distance: 25800.0
+
+# Wave 5 (26100 GU): Asteroid shower - small debris
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [-180.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [40.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-60.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [10.0, -210.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [80.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-20.0, -190.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [200.0, 740.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-35.0, -180.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [0.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [5.0, -220.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 26100.0
+
+# Wave 6 (26400 GU): Heavy Gunship emerges
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [-80.0, 850.0]
+    movement: Straight
+  - enemy_type: Drone
+    position: [100.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -100.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [180.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [-30.0, -90.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  spawn_distance: 26400.0
+
+# Wave 7 (26700 GU): Large asteroid + small debris
+- enemies:
+  - enemy_type: LargeAsteroid
+    position: [0.0, 800.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -100.0]
+        duration: 10.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-150.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [25.0, -180.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [180.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-30.0, -190.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  spawn_distance: 26700.0
+
+# Wave 8 (27000 GU): Interceptor squadron
+- enemies:
+  - enemy_type: Interceptor
+    position: [-150.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [-50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [50.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [150.0, 750.0]
+    movement: PassBy
+  spawn_distance: 27000.0
+
+# Wave 9 (27300 GU): Mixed asteroid types
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-100.0, 780.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [15.0, -130.0]
+        duration: 8.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [50.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-20.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [180.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-40.0, -180.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: MediumAsteroid
+    position: [-200.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.0, -140.0]
+        duration: 8.0
+        transition: WaitForCompletion
+  spawn_distance: 27300.0
+
+# Wave 10 (27600 GU): Bomber with fighter escort
+- enemies:
+  - enemy_type: Bomber
+    position: [0.0, 780.0]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [-120.0, 700.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [120.0, 700.0]
+    movement: SineWave
+  spawn_distance: 27600.0
+
+# Wave 11 (27900 GU): Station debris chunks
+- enemies:
+  - enemy_type: StationDebris
+    position: [-150.0, 750.0]
+    behaviors:
+      - type: Drift
+        velocity: [20.0, -110.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: StationDebris
+    position: [100.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [-15.0, -120.0]
+        variance: 30.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [200.0, 680.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-25.0, -190.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 27900.0
+
+# Wave 12 (28200 GU): Heavy Gunship pair - major threat
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [-100.0, 850.0]
+    movement: Circle
+  - enemy_type: HeavyGunship
+    position: [100.0, 850.0]
+    movement: Circle
+  spawn_distance: 28200.0
+
+# Wave 13 (28500 GU): Asteroid rain while gunships present
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [-200.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-100.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [15.0, -210.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [0.0, 740.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -220.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [120.0, 710.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-20.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [220.0, 730.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-35.0, -190.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 28500.0
+
+# Wave 14 (28800 GU): Corvette pair
+- enemies:
+  - enemy_type: Corvette
+    position: [-100.0, 780.0]
+    movement: Straight
+  - enemy_type: Corvette
+    position: [100.0, 780.0]
+    movement: Straight
+  spawn_distance: 28800.0
+
+# Wave 15 (29100 GU): Large asteroid + medium
+- enemies:
+  - enemy_type: LargeAsteroid
+    position: [-80.0, 850.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [10.0, -90.0]
+        duration: 12.0
+        transition: WaitForCompletion
+  - enemy_type: MediumAsteroid
+    position: [150.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-25.0, -140.0]
+        duration: 8.0
+        transition: WaitForCompletion
+  spawn_distance: 29100.0
+
+# Wave 16 (29400 GU): Final military push
+- enemies:
+  - enemy_type: Fighter
+    position: [-180.0, 700.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [-60.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [60.0, 720.0]
+    movement: PassBy
+  - enemy_type: Fighter
+    position: [180.0, 700.0]
+    movement: PassBy
+  spawn_distance: 29400.0
+
+# Wave 17 (29700 GU): Station debris field
+- enemies:
+  - enemy_type: StationDebris
+    position: [-180.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [25.0, -100.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  - enemy_type: StationDebris
+    position: [0.0, 750.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -120.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  - enemy_type: StationDebris
+    position: [160.0, 700.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -110.0]
+        variance: 35.0
+        transition: WaitForCompletion
+  spawn_distance: 29700.0
+
+# Wave 18 (30000 GU): Heavy assault
+- enemies:
+  - enemy_type: HeavyGunship
+    position: [0.0, 900.0]
+    movement: Straight
+  - enemy_type: Interceptor
+    position: [-150.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [150.0, 720.0]
+    movement: PassBy
+  spawn_distance: 30000.0
+
+# Wave 19 (30300 GU): Asteroid wave
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-150.0, 780.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [20.0, -130.0]
+        duration: 8.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [0.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: MediumAsteroid
+    position: [180.0, 760.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-25.0, -140.0]
+        duration: 8.0
+        transition: WaitForCompletion
+  spawn_distance: 30300.0
+
+# Wave 20 (30600 GU): Bomber formation
+- enemies:
+  - enemy_type: Bomber
+    position: [-100.0, 780.0]
+    movement: Straight
+  - enemy_type: Bomber
+    position: [100.0, 780.0]
+    movement: Straight
+  spawn_distance: 30600.0
+
+# Wave 21 (30900 GU): Small asteroid storm
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [-220.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [40.0, -180.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-120.0, 730.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [20.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [-20.0, 710.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [5.0, -210.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [100.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-15.0, -190.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [200.0, 740.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-30.0, -180.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 30900.0
+
+# Wave 22 (31200 GU): Final elite squad before boss
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 720.0]
+    movement: SineWave
+  - enemy_type: Corvette
+    position: [0.0, 800.0]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [150.0, 720.0]
+    movement: SineWave
+  spawn_distance: 31200.0
+
+# Wave 23 (31500 GU): Last asteroid curtain
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-100.0, 800.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [15.0, -120.0]
+        duration: 9.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [50.0, 720.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-10.0, -190.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  - enemy_type: SmallAsteroid
+    position: [180.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-25.0, -200.0]
+        duration: 5.0
+        transition: WaitForCompletion
+  spawn_distance: 31500.0
+
+# ============================================================
+# PHASE 5 ENEMIES: Boss Arena (31800-35400 GU)
+# Pre-boss minion waves, then the Station Guardian awakens
+# ~8 waves including pre-boss minions and boss encounter
+# ============================================================
+
+# Wave 1 (32100 GU): Arena clear - last defenders
+- enemies:
+  - enemy_type: Fighter
+    position: [-150.0, 700.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [0.0, 750.0]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150.0, 700.0]
+    movement: SineWave
+  spawn_distance: 32100.0
+
+# Wave 2 (32400 GU): Interceptor honor guard
+- enemies:
+  - enemy_type: Interceptor
+    position: [-180.0, 720.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [-60.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [60.0, 750.0]
+    movement: PassBy
+  - enemy_type: Interceptor
+    position: [180.0, 720.0]
+    movement: PassBy
+  spawn_distance: 32400.0
+
+# Wave 3 (32700 GU): Heavy escort - boss incoming warning
+- enemies:
+  - enemy_type: Corvette
+    position: [-100.0, 780.0]
+    movement: Straight
+  - enemy_type: Corvette
+    position: [100.0, 780.0]
+    movement: Straight
+  spawn_distance: 32700.0
+
+# Wave 4 (33000 GU): BOSS ENTRANCE - Station Guardian
+- enemies:
+  - enemy_type: Boss
+    position: [0.0, 950.0]
+    behaviors:
+      - type: MoveToPosition
+        target: [0.0, 600.0]
+        speed: 80.0
+        easing: EaseOut
+        duration: 4.0
+        transition: WaitForCompletion
+      - type: MoveCircular
+        center_offset: [0.0, 0.0]
+        radius: 150.0
+        angular_speed: 0.5
+        clockwise: true
+        transition: WaitForCompletion
+  spawn_distance: 33000.0
+
+# Wave 5 (33500 GU): Boss support drones - spawn during boss fight
+- enemies:
+  - enemy_type: Drone
+    position: [-200.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [30.0, -80.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [200.0, 680.0]
+    behaviors:
+      - type: Drift
+        velocity: [-30.0, -80.0]
+        variance: 40.0
+        transition: WaitForCompletion
+  spawn_distance: 33500.0
+
+# Wave 6 (34000 GU): More drones from sides
+- enemies:
+  - enemy_type: Drone
+    position: [-250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -60.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [-250.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [80.0, -60.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [250.0, 700.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -60.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [250.0, 750.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-80.0, -60.0]
+        duration: 6.0
+        transition: WaitForCompletion
+  spawn_distance: 34000.0
+
+# Wave 7 (34500 GU): Scout reinforcements
+- enemies:
+  - enemy_type: Scout
+    position: [-180.0, 680.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [-60.0, 700.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [60.0, 700.0]
+    movement: SineWave
+  - enemy_type: Scout
+    position: [180.0, 680.0]
+    movement: SineWave
+  spawn_distance: 34500.0
+
+# Wave 8 (35000 GU): Final drone wave
+- enemies:
+  - enemy_type: Drone
+    position: [-150.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [20.0, -90.0]
+        variance: 45.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [0.0, 750.0]
+    behaviors:
+      - type: Drift
+        velocity: [0.0, -100.0]
+        variance: 45.0
+        transition: WaitForCompletion
+  - enemy_type: Drone
+    position: [150.0, 720.0]
+    behaviors:
+      - type: Drift
+        velocity: [-20.0, -90.0]
+        variance: 45.0
+        transition: WaitForCompletion
+  spawn_distance: 35000.0
+
+# === DOODADS & STRUCTURES ===
+doodads:
+# ============================================================
+# PHASE 1: THE APPROACH (0-5400) - "Calm Before the Storm"
+# Eerie silence, drifting debris, distant station glimpses
+# Target: ~25-30 doodads, atmospheric buildup
+# ============================================================
+
+# --- 0-500 GU: Empty space, distant asteroids ---
+# Distant station looming ahead - the destination
+- sprite: station_ring_1.png
+  position: [0.0, 650.0]
+  velocity: [0.0, -8.0]
+  rotation_speed: 0.0
+  layer: deep_structures
+  size: [350, 350]
+  spawn_distance: 100.0
+
+- sprite: distant_asteroid_1.png
+  position: [-200.0, 700.0]
+  velocity: [2.0, -25.0]
+  rotation_speed: 0.2
+  layer: far_field
+  spawn_distance: 200.0
+
+- sprite: distant_asteroid_2.png
+  position: [280.0, 750.0]
+  velocity: [-1.0, -20.0]
+  rotation_speed: 0.15
+  layer: far_field
+  spawn_distance: 400.0
+
+# --- 500-1000 GU: First debris field ---
+- sprite: asteroid_1.png
+  position: [-180.0, 650.0]
+  velocity: [5.0, -55.0]
+  rotation_speed: 0.6
+  spawn_distance: 550.0
+
+- sprite: cargo_1.png
+  position: [220.0, 700.0]
+  velocity: [-3.0, -48.0]
+  rotation_speed: 0.3
+  spawn_distance: 700.0
+
+- sprite: hull_fragment_1.png
+  position: [-50.0, 680.0]
+  velocity: [8.0, -60.0]
+  rotation_speed: 1.2
+  spawn_distance: 850.0
+
+- sprite: asteroid_2.png
+  position: [150.0, 620.0]
+  velocity: [-4.0, -52.0]
+  rotation_speed: 0.8
+  spawn_distance: 950.0
+
+# --- 1000-1500 GU: Station silhouette appears ---
+- sprite: station_silhouette_1.png
+  position: [-300.0, 1400.0]
+  velocity: [0.0, -8.0]
+  rotation_speed: 0.0
+  layer: deep_structures
+  spawn_distance: 1100.0
+
+- sprite: satellite_1.png
+  position: [200.0, 680.0]
+  velocity: [-6.0, -50.0]
+  rotation_speed: 0.4
+  spawn_distance: 1250.0
+
+- sprite: cargo_2.png
+  position: [-250.0, 720.0]
+  velocity: [4.0, -45.0]
+  rotation_speed: 0.2
+  spawn_distance: 1400.0
+
+# --- 1500-2000 GU: More debris, dead satellite ---
+- sprite: hull_debris_1.png
+  position: [100.0, 650.0]
+  velocity: [-2.0, -58.0]
+  rotation_speed: 0.9
+  spawn_distance: 1550.0
+
+- sprite: satellite_2.png
+  position: [-180.0, 700.0]
+  velocity: [3.0, -42.0]
+  rotation_speed: 0.1
+  spawn_distance: 1700.0
+
+- sprite: asteroid_3.png
+  position: [280.0, 680.0]
+  velocity: [-5.0, -55.0]
+  rotation_speed: 0.7
+  spawn_distance: 1900.0
+
+# --- 2000-2500 GU: Hull fragments, sparking debris ---
+- sprite: hull_fragment_2.png
+  position: [-120.0, 660.0]
+  velocity: [6.0, -62.0]
+  rotation_speed: 1.5
+  spawn_distance: 2100.0
+
+- sprite: sparking_1.png
+  position: [50.0, 700.0]
+  velocity: [-1.0, -50.0]
+  rotation_speed: 0.0
+  spawn_distance: 2300.0
+
+- sprite: wreckage_1.png
+  position: [200.0, 720.0]
+  velocity: [-4.0, -48.0]
+  rotation_speed: 0.3
+  spawn_distance: 2450.0
+
+# --- 2500-3000 GU: Denser debris field ---
+- sprite: cargo_3.png
+  position: [-220.0, 680.0]
+  velocity: [5.0, -52.0]
+  rotation_speed: 0.25
+  spawn_distance: 2550.0
+
+- sprite: asteroid_1.png
+  position: [160.0, 640.0]
+  velocity: [-3.0, -58.0]
+  rotation_speed: 0.85
+  spawn_distance: 2700.0
+
+- sprite: hull_debris_2.png
+  position: [-80.0, 700.0]
+  velocity: [2.0, -55.0]
+  rotation_speed: 1.1
+  spawn_distance: 2850.0
+
+# --- 3000-3500 GU: Station closer, escape pods ---
+- sprite: station_silhouette_2.png
+  position: [280.0, 1300.0]
+  velocity: [0.0, -10.0]
+  rotation_speed: 0.0
+  layer: deep_structures
+  spawn_distance: 3050.0
+
+- sprite: escape_pod_1.png
+  position: [-200.0, 680.0]
+  velocity: [4.0, -65.0]
+  rotation_speed: 0.5
+  spawn_distance: 3200.0
+
+- sprite: escape_pod_2.png
+  position: [120.0, 720.0]
+  velocity: [-2.0, -60.0]
+  rotation_speed: 0.4
+  spawn_distance: 3400.0
+
+# --- 3500-4000 GU: Mining debris ---
+- sprite: fuel_tank_1.png
+  position: [-150.0, 700.0]
+  velocity: [3.0, -50.0]
+  rotation_speed: 0.2
+  spawn_distance: 3550.0
+
+- sprite: solar_broken_1.png
+  position: [180.0, 660.0]
+  velocity: [-4.0, -55.0]
+  rotation_speed: 0.6
+  spawn_distance: 3750.0
+
+- sprite: hull_fragment_3.png
+  position: [-50.0, 680.0]
+  velocity: [1.0, -58.0]
+  rotation_speed: 1.3
+  spawn_distance: 3900.0
+
+# --- 4000-4500 GU: Wreckage field ---
+- sprite: wreckage_2.png
+  position: [100.0, 700.0]
+  velocity: [-3.0, -52.0]
+  rotation_speed: 0.35
+  spawn_distance: 4100.0
+
+- sprite: satellite_3.png
+  position: [-220.0, 720.0]
+  velocity: [5.0, -48.0]
+  rotation_speed: 0.15
+  spawn_distance: 4300.0
+
+- sprite: sparking_2.png
+  position: [250.0, 680.0]
+  velocity: [-2.0, -55.0]
+  rotation_speed: 0.0
+  spawn_distance: 4450.0
+
+# --- 4500-5000 GU: Transition debris ---
+- sprite: asteroid_2.png
+  position: [-180.0, 650.0]
+  velocity: [4.0, -60.0]
+  rotation_speed: 0.9
+  spawn_distance: 4600.0
+
+- sprite: hull_debris_3.png
+  position: [80.0, 700.0]
+  velocity: [-1.0, -55.0]
+  rotation_speed: 1.0
+  spawn_distance: 4800.0
+
+- sprite: cargo_1.png
+  position: [220.0, 680.0]
+  velocity: [-5.0, -50.0]
+  rotation_speed: 0.28
+  spawn_distance: 4950.0
+
+# --- 5000-5400 GU: Final approach ---
+- sprite: wreckage_3.png
+  position: [-100.0, 720.0]
+  velocity: [2.0, -48.0]
+  rotation_speed: 0.4
+  spawn_distance: 5100.0
+
+- sprite: fuel_tank_2.png
+  position: [150.0, 660.0]
+  velocity: [-3.0, -52.0]
+  rotation_speed: 0.22
+  spawn_distance: 5300.0
+
+# ============================================================
+# PHASE 2: OUTER PERIMETER (5400-12600) - "Tyrian-Style Formations"
+# Perimeter defenses activating, patrol craft, walls appearing
+# Target: ~10-12 enemy waves, ~25 doodads, structures on edges
+# ============================================================
+
+# --- 5400-6200 GU: Entering the perimeter ---
+- sprite: beacon_1.png
+  position: [-280.0, 680.0]
+  velocity: [2.0, -55.0]
+  rotation_speed: 0.0
+  spawn_distance: 5500.0
+
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 5700.0
+
+- sprite: hull_debris_1.png
+  position: [180.0, 700.0]
+  velocity: [-3.0, -58.0]
+  rotation_speed: 0.8
+  spawn_distance: 5900.0
+
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 6100.0
+
+# --- 6200-7000 GU: First perimeter structures ---
+- sprite: beacon_2.png
+  position: [250.0, 660.0]
+  velocity: [-1.0, -52.0]
+  rotation_speed: 0.0
+  spawn_distance: 6300.0
+
+- sprite: nav_buoy_1.png
+  position: [-150.0, 700.0]
+  velocity: [4.0, -48.0]
+  rotation_speed: 0.3
+  spawn_distance: 6500.0
+
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 6700.0
+
+- sprite: asteroid_1.png
+  position: [100.0, 680.0]
+  velocity: [-2.0, -55.0]
+  rotation_speed: 0.6
+  spawn_distance: 6900.0
+
+# --- 7000-7800 GU: Solar array section ---
+- sprite: perimeter_solar_array.png
+  position: [-320.0, 1100.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 350]
+  spawn_distance: 7100.0
+
+- sprite: solar_broken_1.png
+  position: [200.0, 700.0]
+  velocity: [-3.0, -50.0]
+  rotation_speed: 0.4
+  spawn_distance: 7300.0
+
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 7500.0
+
+- sprite: cargo_2.png
+  position: [-180.0, 680.0]
+  velocity: [5.0, -52.0]
+  rotation_speed: 0.25
+  spawn_distance: 7700.0
+
+# --- 7800-8600 GU: Communication tower ---
+- sprite: antenna_1.png
+  position: [150.0, 700.0]
+  velocity: [-2.0, -55.0]
+  rotation_speed: 0.2
+  spawn_distance: 7900.0
+
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 8100.0
+
+- sprite: perimeter_comm_tower.png
+  position: [300.0, 1300.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [180, 500]
+  spawn_distance: 8300.0
+
+- sprite: hull_fragment_1.png
+  position: [-100.0, 680.0]
+  velocity: [3.0, -58.0]
+  rotation_speed: 1.1
+  spawn_distance: 8500.0
+
+# --- 8600-9400 GU: Denser wall section ---
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 8700.0
+
+- sprite: beacon_1.png
+  position: [-220.0, 700.0]
+  velocity: [2.0, -50.0]
+  rotation_speed: 0.0
+  spawn_distance: 8900.0
+
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 9100.0
+
+- sprite: wreckage_1.png
+  position: [80.0, 680.0]
+  velocity: [-4.0, -55.0]
+  rotation_speed: 0.35
+  spawn_distance: 9300.0
+
+# --- 9400-10200 GU: Second solar array ---
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 9500.0
+
+- sprite: nav_buoy_2.png
+  position: [-160.0, 700.0]
+  velocity: [3.0, -48.0]
+  rotation_speed: 0.2
+  spawn_distance: 9700.0
+
+- sprite: perimeter_solar_array.png
+  position: [320.0, 1100.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 350]
+  spawn_distance: 9900.0
+
+- sprite: satellite_1.png
+  position: [50.0, 680.0]
+  velocity: [-2.0, -52.0]
+  rotation_speed: 0.15
+  spawn_distance: 10100.0
+
+# --- 10200-11000 GU: Approaching industrial zone ---
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 10300.0
+
+- sprite: sparking_1.png
+  position: [180.0, 700.0]
+  velocity: [-1.0, -50.0]
+  rotation_speed: 0.0
+  spawn_distance: 10500.0
+
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 10700.0
+
+- sprite: hull_debris_2.png
+  position: [-120.0, 680.0]
+  velocity: [4.0, -55.0]
+  rotation_speed: 0.9
+  spawn_distance: 10900.0
+
+# --- 11000-11800 GU: Final perimeter section ---
+- sprite: antenna_2.png
+  position: [200.0, 700.0]
+  velocity: [-3.0, -52.0]
+  rotation_speed: 0.18
+  spawn_distance: 11100.0
+
+- sprite: perimeter_wall_mid.png
+  position: [-350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 11300.0
+
+- sprite: cargo_3.png
+  position: [-80.0, 680.0]
+  velocity: [2.0, -58.0]
+  rotation_speed: 0.3
+  spawn_distance: 11500.0
+
+- sprite: perimeter_wall_mid.png
+  position: [350.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 11700.0
+
+# --- 11800-12600 GU: Transition to industrial ---
+- sprite: fuel_tank_1.png
+  position: [150.0, 700.0]
+  velocity: [-2.0, -50.0]
+  rotation_speed: 0.22
+  spawn_distance: 11900.0
+
+- sprite: wreckage_2.png
+  position: [-200.0, 680.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 0.4
+  spawn_distance: 12100.0
+
+- sprite: gas_vent_1.png
+  position: [100.0, 720.0]
+  velocity: [-1.0, -48.0]
+  rotation_speed: 0.0
+  spawn_distance: 12300.0
+
+- sprite: asteroid_2.png
+  position: [-50.0, 660.0]
+  velocity: [4.0, -60.0]
+  rotation_speed: 0.7
+  spawn_distance: 12500.0
+
+
+# ============================================================
+# PHASE 3: INDUSTRIAL ZONE (12600-24600) - THE CANYON
+# Dense structures + industrial debris throughout
+# ============================================================
+
+# --- 12600-13500 GU: Canyon entrance ---
+# Left wall sequence
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 13000.0
+
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1856.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 13200.0
+
+# Right wall sequence
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 13100.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1856.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 13300.0
+
+# Industrial debris - gas vents and sparks
+- sprite: gas_vent_1.png
+  position: [-200.0, 680.0]
+  velocity: [5.0, -65.0]
+  rotation_speed: 0.0
+  spawn_distance: 12800.0
+
+- sprite: sparking_1.png
+  position: [150.0, 700.0]
+  velocity: [-3.0, -70.0]
+  rotation_speed: 0.0
+  spawn_distance: 13050.0
+
+- sprite: fuel_tank_1.png
+  position: [-80.0, 720.0]
+  velocity: [8.0, -60.0]
+  rotation_speed: 0.4
+  spawn_distance: 13350.0
+
+# --- 13500-14500 GU: Furnace approach ---
+- sprite: hull_debris_1.png
+  position: [180.0, 680.0]
+  velocity: [-6.0, -72.0]
+  rotation_speed: 1.1
+  spawn_distance: 13600.0
+
+- sprite: gas_vent_2.png
+  position: [-150.0, 700.0]
+  velocity: [4.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 13850.0
+
+- sprite: cargo_1.png
+  position: [100.0, 660.0]
+  velocity: [-2.0, -65.0]
+  rotation_speed: 0.25
+  spawn_distance: 14100.0
+
+- sprite: sparking_2.png
+  position: [-220.0, 720.0]
+  velocity: [6.0, -62.0]
+  rotation_speed: 0.0
+  spawn_distance: 14300.0
+
+# HERO STRUCTURE: Massive refinery furnace
+- sprite: refinery_furnace.png
+  position: [-350.0, 1800.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [400, 800]
+  spawn_distance: 14500.0
+
+# --- 14500-15500 GU: Furnace zone debris ---
+- sprite: trail_1.png
+  position: [50.0, 700.0]
+  velocity: [-1.0, -80.0]
+  rotation_speed: 0.0
+  spawn_distance: 14700.0
+
+- sprite: hull_fragment_1.png
+  position: [-120.0, 680.0]
+  velocity: [7.0, -75.0]
+  rotation_speed: 1.3
+  spawn_distance: 14950.0
+
+- sprite: gas_vent_1.png
+  position: [200.0, 720.0]
+  velocity: [-5.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 15150.0
+
+- sprite: fuel_tank_2.png
+  position: [-180.0, 700.0]
+  velocity: [3.0, -60.0]
+  rotation_speed: 0.3
+  spawn_distance: 15350.0
+
+# Continue canyon walls
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 15500.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 15700.0
+
+# --- 15700-16800 GU: Mid-canyon density ---
+- sprite: sparking_1.png
+  position: [80.0, 680.0]
+  velocity: [-2.0, -72.0]
+  rotation_speed: 0.0
+  spawn_distance: 15900.0
+
+- sprite: cargo_2.png
+  position: [-160.0, 720.0]
+  velocity: [4.0, -65.0]
+  rotation_speed: 0.2
+  spawn_distance: 16100.0
+
+- sprite: hull_debris_2.png
+  position: [140.0, 700.0]
+  velocity: [-5.0, -70.0]
+  rotation_speed: 0.9
+  spawn_distance: 16300.0
+
+- sprite: gas_vent_2.png
+  position: [-100.0, 680.0]
+  velocity: [6.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 16500.0
+
+- sprite: trail_2.png
+  position: [220.0, 720.0]
+  velocity: [-3.0, -75.0]
+  rotation_speed: 0.0
+  spawn_distance: 16650.0
+
+# Ore processor on right side
+- sprite: ore_processor.png
+  position: [340.0, 1500.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [350, 600]
+  spawn_distance: 16800.0
+
+# --- 16800-18200 GU: Ore processing zone ---
+- sprite: wreckage_1.png
+  position: [-180.0, 700.0]
+  velocity: [5.0, -62.0]
+  rotation_speed: 0.35
+  spawn_distance: 17000.0
+
+- sprite: sparking_2.png
+  position: [100.0, 680.0]
+  velocity: [-4.0, -70.0]
+  rotation_speed: 0.0
+  spawn_distance: 17200.0
+
+- sprite: fuel_tank_1.png
+  position: [-50.0, 720.0]
+  velocity: [2.0, -65.0]
+  rotation_speed: 0.28
+  spawn_distance: 17400.0
+
+- sprite: hull_fragment_2.png
+  position: [180.0, 700.0]
+  velocity: [-6.0, -72.0]
+  rotation_speed: 1.5
+  spawn_distance: 17600.0
+
+# More canyon walls
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 17800.0
+
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1856.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 18000.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 18200.0
+
+# --- 18200-19300 GU: Intense debris ---
+- sprite: gas_vent_1.png
+  position: [-200.0, 700.0]
+  velocity: [7.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 18400.0
+
+- sprite: cargo_3.png
+  position: [120.0, 680.0]
+  velocity: [-3.0, -65.0]
+  rotation_speed: 0.22
+  spawn_distance: 18600.0
+
+- sprite: sparking_1.png
+  position: [-80.0, 720.0]
+  velocity: [4.0, -70.0]
+  rotation_speed: 0.0
+  spawn_distance: 18800.0
+
+- sprite: hull_debris_3.png
+  position: [200.0, 700.0]
+  velocity: [-5.0, -72.0]
+  rotation_speed: 1.0
+  spawn_distance: 19000.0
+
+- sprite: trail_1.png
+  position: [-150.0, 680.0]
+  velocity: [2.0, -78.0]
+  rotation_speed: 0.0
+  spawn_distance: 19150.0
+
+# Cargo bay structure
+- sprite: cargo_bay.png
+  position: [-330.0, 1450.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [400, 500]
+  spawn_distance: 19300.0
+
+# --- 19300-20600 GU: Peak canyon - maximum debris ---
+- sprite: fuel_tank_2.png
+  position: [80.0, 700.0]
+  velocity: [-2.0, -62.0]
+  rotation_speed: 0.35
+  spawn_distance: 19500.0
+
+- sprite: gas_vent_2.png
+  position: [-120.0, 720.0]
+  velocity: [5.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 19700.0
+
+- sprite: wreckage_2.png
+  position: [180.0, 680.0]
+  velocity: [-4.0, -65.0]
+  rotation_speed: 0.4
+  spawn_distance: 19850.0
+
+# Dense wall section - peak canyon
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 20000.0
+
+- sprite: sparking_2.png
+  position: [-50.0, 700.0]
+  velocity: [3.0, -72.0]
+  rotation_speed: 0.0
+  spawn_distance: 20100.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 20200.0
+
+- sprite: hull_fragment_3.png
+  position: [150.0, 720.0]
+  velocity: [-6.0, -70.0]
+  rotation_speed: 1.2
+  spawn_distance: 20300.0
+
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1856.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 20400.0
+
+- sprite: gas_vent_1.png
+  position: [-180.0, 680.0]
+  velocity: [4.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 20500.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1856.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 20600.0
+
+# --- 20600-21800 GU: Post-peak debris ---
+- sprite: cargo_1.png
+  position: [100.0, 700.0]
+  velocity: [-3.0, -65.0]
+  rotation_speed: 0.25
+  spawn_distance: 20800.0
+
+- sprite: trail_2.png
+  position: [-140.0, 720.0]
+  velocity: [2.0, -75.0]
+  rotation_speed: 0.0
+  spawn_distance: 21000.0
+
+- sprite: sparking_1.png
+  position: [200.0, 680.0]
+  velocity: [-5.0, -70.0]
+  rotation_speed: 0.0
+  spawn_distance: 21200.0
+
+- sprite: hull_debris_1.png
+  position: [-80.0, 700.0]
+  velocity: [6.0, -72.0]
+  rotation_speed: 1.1
+  spawn_distance: 21400.0
+
+- sprite: fuel_tank_1.png
+  position: [160.0, 720.0]
+  velocity: [-2.0, -62.0]
+  rotation_speed: 0.3
+  spawn_distance: 21600.0
+
+# Another furnace - reinforcing the theme
+- sprite: refinery_furnace.png
+  position: [350.0, 1800.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [400, 800]
+  spawn_distance: 21800.0
+
+# --- 21800-23200 GU: Second furnace zone ---
+- sprite: gas_vent_2.png
+  position: [-160.0, 700.0]
+  velocity: [4.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 22000.0
+
+- sprite: wreckage_3.png
+  position: [100.0, 680.0]
+  velocity: [-3.0, -65.0]
+  rotation_speed: 0.38
+  spawn_distance: 22200.0
+
+- sprite: sparking_2.png
+  position: [-200.0, 720.0]
+  velocity: [5.0, -70.0]
+  rotation_speed: 0.0
+  spawn_distance: 22400.0
+
+- sprite: hull_fragment_1.png
+  position: [180.0, 700.0]
+  velocity: [-6.0, -72.0]
+  rotation_speed: 1.4
+  spawn_distance: 22600.0
+
+- sprite: cargo_2.png
+  position: [-100.0, 680.0]
+  velocity: [3.0, -65.0]
+  rotation_speed: 0.2
+  spawn_distance: 22800.0
+
+# Final canyon walls before transition
+- sprite: refinery_wall_left_mid.png
+  position: [-370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 23000.0
+
+- sprite: refinery_wall_right_mid.png
+  position: [370.0, 1600.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 23200.0
+
+# --- 23200-24600 GU: Canyon exit / transition debris ---
+- sprite: gas_vent_1.png
+  position: [120.0, 700.0]
+  velocity: [-4.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 23400.0
+
+- sprite: trail_1.png
+  position: [-180.0, 720.0]
+  velocity: [3.0, -75.0]
+  rotation_speed: 0.0
+  spawn_distance: 23600.0
+
+- sprite: fuel_tank_2.png
+  position: [80.0, 680.0]
+  velocity: [-2.0, -62.0]
+  rotation_speed: 0.32
+  spawn_distance: 23800.0
+
+- sprite: hull_debris_2.png
+  position: [-140.0, 700.0]
+  velocity: [5.0, -70.0]
+  rotation_speed: 0.95
+  spawn_distance: 24000.0
+
+- sprite: sparking_1.png
+  position: [200.0, 720.0]
+  velocity: [-3.0, -68.0]
+  rotation_speed: 0.0
+  spawn_distance: 24200.0
+
+- sprite: wreckage_1.png
+  position: [-60.0, 680.0]
+  velocity: [4.0, -65.0]
+  rotation_speed: 0.4
+  spawn_distance: 24400.0
+
+
+# ============================================================
+# PHASE 4: CORE BREACH (24600-31800) - Chaos and energy
+# Station breaking apart, asteroid debris, energy discharges
+# ============================================================
+
+# --- 24600-25500 GU: Entering the breach ---
+- sprite: asteroid_1.png
+  position: [-150.0, 700.0]
+  velocity: [30.0, -120.0]
+  rotation_speed: 1.5
+  spawn_distance: 24700.0
+
+- sprite: sparking_1.png
+  position: [180.0, 720.0]
+  velocity: [-25.0, -100.0]
+  rotation_speed: 0.0
+  spawn_distance: 24900.0
+
+# Reactor walls - energy conduits
+- sprite: reactor_wall_mid.png
+  position: [-360.0, 1600.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 25000.0
+
+- sprite: hull_debris_1.png
+  position: [-80.0, 680.0]
+  velocity: [40.0, -110.0]
+  rotation_speed: 1.8
+  spawn_distance: 25100.0
+
+- sprite: reactor_wall_mid.png
+  position: [360.0, 1600.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 25200.0
+
+- sprite: asteroid_2.png
+  position: [120.0, 700.0]
+  velocity: [-35.0, -130.0]
+  rotation_speed: 1.2
+  spawn_distance: 25400.0
+
+# --- 25500-26500 GU: Approaching reactor core ---
+- sprite: trail_1.png
+  position: [-200.0, 720.0]
+  velocity: [20.0, -95.0]
+  rotation_speed: 0.0
+  spawn_distance: 25600.0
+
+- sprite: hull_fragment_1.png
+  position: [150.0, 680.0]
+  velocity: [-30.0, -115.0]
+  rotation_speed: 2.0
+  spawn_distance: 25800.0
+
+- sprite: sparking_2.png
+  position: [-100.0, 700.0]
+  velocity: [25.0, -100.0]
+  rotation_speed: 0.0
+  spawn_distance: 26000.0
+
+- sprite: asteroid_3.png
+  position: [80.0, 720.0]
+  velocity: [-20.0, -125.0]
+  rotation_speed: 1.4
+  spawn_distance: 26200.0
+
+- sprite: fuel_tank_1.png
+  position: [-180.0, 700.0]
+  velocity: [35.0, -90.0]
+  rotation_speed: 0.5
+  spawn_distance: 26400.0
+
+# HERO STRUCTURE: Massive reactor core
+- sprite: reactor_core.png
+  position: [0.0, 2000.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [500, 1000]
+  spawn_distance: 26500.0
+
+# --- 26500-28000 GU: Reactor zone chaos ---
+- sprite: wreckage_1.png
+  position: [200.0, 680.0]
+  velocity: [-40.0, -105.0]
+  rotation_speed: 0.6
+  spawn_distance: 26700.0
+
+- sprite: trail_2.png
+  position: [-120.0, 720.0]
+  velocity: [15.0, -90.0]
+  rotation_speed: 0.0
+  spawn_distance: 26900.0
+
+- sprite: asteroid_1.png
+  position: [50.0, 700.0]
+  velocity: [-10.0, -135.0]
+  rotation_speed: 1.6
+  spawn_distance: 27100.0
+
+- sprite: hull_debris_2.png
+  position: [-180.0, 680.0]
+  velocity: [45.0, -100.0]
+  rotation_speed: 1.9
+  spawn_distance: 27300.0
+
+- sprite: sparking_1.png
+  position: [160.0, 720.0]
+  velocity: [-30.0, -95.0]
+  rotation_speed: 0.0
+  spawn_distance: 27500.0
+
+- sprite: asteroid_2.png
+  position: [-60.0, 700.0]
+  velocity: [25.0, -120.0]
+  rotation_speed: 1.3
+  spawn_distance: 27700.0
+
+# Energy distributor
+- sprite: energy_distributor.png
+  position: [-320.0, 1500.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [300, 400]
+  spawn_distance: 28000.0
+
+# --- 28000-29500 GU: Peak destruction ---
+- sprite: hull_fragment_2.png
+  position: [180.0, 680.0]
+  velocity: [-35.0, -110.0]
+  rotation_speed: 2.2
+  spawn_distance: 28200.0
+
+- sprite: cargo_1.png
+  position: [-140.0, 720.0]
+  velocity: [30.0, -85.0]
+  rotation_speed: 0.4
+  spawn_distance: 28400.0
+
+- sprite: asteroid_3.png
+  position: [100.0, 700.0]
+  velocity: [-25.0, -130.0]
+  rotation_speed: 1.5
+  spawn_distance: 28600.0
+
+- sprite: sparking_2.png
+  position: [-200.0, 700.0]
+  velocity: [40.0, -95.0]
+  rotation_speed: 0.0
+  spawn_distance: 28800.0
+
+# More reactor walls - damaged/chaotic placement
+- sprite: reactor_wall_mid.png
+  position: [-360.0, 1600.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 29000.0
+
+- sprite: wreckage_2.png
+  position: [60.0, 680.0]
+  velocity: [-15.0, -105.0]
+  rotation_speed: 0.55
+  spawn_distance: 29100.0
+
+- sprite: reactor_wall_mid.png
+  position: [360.0, 1800.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 29300.0
+
+- sprite: fuel_tank_2.png
+  position: [-100.0, 720.0]
+  velocity: [25.0, -90.0]
+  rotation_speed: 0.45
+  spawn_distance: 29500.0
+
+# --- 29500-31000 GU: Approaching boss arena ---
+- sprite: asteroid_1.png
+  position: [180.0, 700.0]
+  velocity: [-40.0, -125.0]
+  rotation_speed: 1.7
+  spawn_distance: 29700.0
+
+- sprite: hull_debris_3.png
+  position: [-150.0, 680.0]
+  velocity: [35.0, -100.0]
+  rotation_speed: 1.6
+  spawn_distance: 29900.0
+
+- sprite: trail_1.png
+  position: [80.0, 720.0]
+  velocity: [-20.0, -90.0]
+  rotation_speed: 0.0
+  spawn_distance: 30100.0
+
+- sprite: asteroid_2.png
+  position: [-80.0, 700.0]
+  velocity: [30.0, -120.0]
+  rotation_speed: 1.4
+  spawn_distance: 30300.0
+
+# Another energy distributor
+- sprite: energy_distributor.png
+  position: [320.0, 1500.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [300, 400]
+  spawn_distance: 30500.0
+
+- sprite: sparking_1.png
+  position: [150.0, 680.0]
+  velocity: [-25.0, -95.0]
+  rotation_speed: 0.0
+  spawn_distance: 30700.0
+
+- sprite: wreckage_3.png
+  position: [-180.0, 720.0]
+  velocity: [35.0, -85.0]
+  rotation_speed: 0.5
+  spawn_distance: 30900.0
+
+- sprite: hull_fragment_3.png
+  position: [100.0, 700.0]
+  velocity: [-30.0, -110.0]
+  rotation_speed: 1.8
+  spawn_distance: 31100.0
+
+- sprite: asteroid_3.png
+  position: [-60.0, 680.0]
+  velocity: [20.0, -115.0]
+  rotation_speed: 1.3
+  spawn_distance: 31300.0
+
+- sprite: trail_2.png
+  position: [200.0, 720.0]
+  velocity: [-15.0, -90.0]
+  rotation_speed: 0.0
+  spawn_distance: 31500.0
+
+# ============================================================
+# PHASE 5: BOSS ARENA (31800-35400)
+# Open arena with battle-damaged walls, debris from destruction
+# ============================================================
+
+# --- 31800-32500 GU: Arena entrance ---
+- sprite: wreckage_1.png
+  position: [-180.0, 700.0]
+  velocity: [15.0, -50.0]
+  rotation_speed: 0.4
+  spawn_distance: 31900.0
+
+# Arena walls - battle-damaged
+- sprite: reactor_wall_mid.png
+  position: [-380.0, 1600.0]
+  velocity: [0.0, -20.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 32000.0
+
+- sprite: hull_debris_1.png
+  position: [150.0, 680.0]
+  velocity: [-10.0, -55.0]
+  rotation_speed: 0.8
+  spawn_distance: 32100.0
+
+- sprite: reactor_wall_mid.png
+  position: [380.0, 1600.0]
+  velocity: [0.0, -20.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [128, 256]
+  spawn_distance: 32200.0
+
+- sprite: sparking_1.png
+  position: [-100.0, 720.0]
+  velocity: [8.0, -45.0]
+  rotation_speed: 0.0
+  spawn_distance: 32400.0
+
+# --- 32500-33500 GU: Boss entrance zone ---
+- sprite: asteroid_1.png
+  position: [120.0, 700.0]
+  velocity: [-12.0, -60.0]
+  rotation_speed: 0.6
+  spawn_distance: 32600.0
+
+- sprite: hull_fragment_1.png
+  position: [-160.0, 680.0]
+  velocity: [10.0, -50.0]
+  rotation_speed: 1.0
+  spawn_distance: 32800.0
+
+- sprite: trail_1.png
+  position: [80.0, 720.0]
+  velocity: [-5.0, -40.0]
+  rotation_speed: 0.0
+  spawn_distance: 33000.0
+
+- sprite: wreckage_2.png
+  position: [-80.0, 700.0]
+  velocity: [12.0, -55.0]
+  rotation_speed: 0.35
+  spawn_distance: 33200.0
+
+- sprite: sparking_2.png
+  position: [180.0, 680.0]
+  velocity: [-8.0, -45.0]
+  rotation_speed: 0.0
+  spawn_distance: 33400.0
+
+# --- 33500-34500 GU: Boss fight debris ---
+- sprite: hull_debris_2.png
+  position: [-150.0, 720.0]
+  velocity: [10.0, -50.0]
+  rotation_speed: 0.9
+  spawn_distance: 33600.0
+
+- sprite: asteroid_2.png
+  position: [100.0, 700.0]
+  velocity: [-15.0, -55.0]
+  rotation_speed: 0.7
+  spawn_distance: 33800.0
+
+- sprite: fuel_tank_1.png
+  position: [-60.0, 680.0]
+  velocity: [5.0, -48.0]
+  rotation_speed: 0.25
+  spawn_distance: 34000.0
+
+- sprite: trail_2.png
+  position: [160.0, 720.0]
+  velocity: [-8.0, -42.0]
+  rotation_speed: 0.0
+  spawn_distance: 34200.0
+
+- sprite: hull_fragment_2.png
+  position: [-180.0, 700.0]
+  velocity: [12.0, -52.0]
+  rotation_speed: 1.1
+  spawn_distance: 34400.0
+
+# --- 34500-35400 GU: Final stretch ---
+- sprite: sparking_1.png
+  position: [50.0, 680.0]
+  velocity: [-3.0, -45.0]
+  rotation_speed: 0.0
+  spawn_distance: 34600.0
+
+- sprite: wreckage_3.png
+  position: [-120.0, 720.0]
+  velocity: [8.0, -50.0]
+  rotation_speed: 0.4
+  spawn_distance: 34800.0
+
+- sprite: asteroid_3.png
+  position: [140.0, 700.0]
+  velocity: [-10.0, -58.0]
+  rotation_speed: 0.65
+  spawn_distance: 35000.0
+
+- sprite: hull_debris_3.png
+  position: [-80.0, 680.0]
+  velocity: [6.0, -52.0]
+  rotation_speed: 0.85
+  spawn_distance: 35200.0
+
+
+# ============================================================
+# AMBIENT ELEMENTS (Scattered throughout)
+# ============================================================
+
+# Gameplay layer debris for visual variety
+- sprite: asteroid_2.png
+  position: [195.0, 716.0]
+  velocity: [-3.0, -45.0]
+  rotation_speed: 0.3
+  spawn_distance: 2000.0
+
+- sprite: satellite_2.png
+  position: [-195.0, 716.0]
+  velocity: [15.0, -71.0]
+  rotation_speed: 0.6
+  spawn_distance: 8000.0
+
+- sprite: cargo_2.png
+  position: [325.0, 748.0]
+  velocity: [-13.0, -65.0]
+  rotation_speed: 1.3
+  spawn_distance: 15000.0
+
+- sprite: hull_fragment_1.png
+  position: [234.0, 846.0]
+  velocity: [-15.0, -71.0]
+  rotation_speed: 0.7
+  spawn_distance: 22000.0
+
+- sprite: wreckage_1.png
+  position: [234.0, 748.0]
+  velocity: [-7.0, -71.0]
+  rotation_speed: 0.5
+  spawn_distance: 27000.0
+
+# Mid-distance gas wisps for atmosphere
+- sprite: gas_wisp_purple_1.png
+  position: [-200.0, 800.0]
+  velocity: [2.0, -50.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  spawn_distance: 7000.0
+
+- sprite: gas_wisp_blue_1.png
+  position: [250.0, 850.0]
+  velocity: [-3.0, -55.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  spawn_distance: 16000.0
+
+- sprite: gas_wisp_orange_1.png
+  position: [-300.0, 850.0]
+  velocity: [4.0, -55.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  spawn_distance: 25000.0
+
+# ============================================================
+# NARRATIVE EVENTS - Radio Chatter
+# ============================================================
+events:
+# Phase 1: Discovery
+- type: RadioChatter
+  message: "Approaching coordinates. Station should be here..."
+  distance: 1500.0
+
+- type: RadioChatter
+  message: "Reading zero life signs. Looks abandoned."
+  distance: 3500.0
+
+# Phase 2: First Contact
+- type: RadioChatter
+  message: "Wait... sensor contact. Single craft."
+  distance: 6500.0
+
+- type: RadioChatter
+  message: "Unidentified craft! All units to—"
+  distance: 7500.0
+
+- type: RadioChatter
+  message: "The whole station is coming online!"
+  distance: 9500.0
+
+# Phase 3: Station Awakens
+- type: RadioChatter
+  message: "Defensive protocol engaged! They're not defending the station..."
+  distance: 14000.0
+
+- type: ScreenShake
+  intensity: 0.3
+  duration: 1.5
+  distance: 15000.0
+
+- type: RadioChatter
+  message: "...the station IS defending!"
+  distance: 17500.0
+
+- type: ScreenShake
+  intensity: 0.5
+  duration: 2.0
+  distance: 20000.0
+
+- type: RadioChatter
+  message: "Heavy resistance! This is bad!"
+  distance: 21500.0
+
+# Phase 4: Core Breach
+- type: RadioChatter
+  message: "Core breach detected! Energy readings off the charts!"
+  distance: 26000.0
+
+- type: ScreenShake
+  intensity: 0.7
+  duration: 1.0
+  distance: 27500.0
+
+- type: RadioChatter
+  message: "Something big is launching from the hangar..."
+  distance: 30000.0
+
+# Phase 5: Guardian
+- type: RadioChatter
+  message: "Station guardian online. All defensive systems active."
+  distance: 32500.0
+
+tutorials:
+- message: Use ARROW KEYS or WASD to move
+  distance: 500.0
+  display_distance: 400.0
+
+- message: Press SPACE to fire your primary laser
+  distance: 3000.0
+  display_distance: 400.0
+
+- message: Dodge incoming fire and destroy the enemy
+  distance: 6500.0
+  display_distance: 300.0
+
+total_distance: 35400.0

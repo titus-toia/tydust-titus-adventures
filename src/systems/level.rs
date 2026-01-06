@@ -4,10 +4,30 @@ use std::fs;
 use crate::level::LevelData;
 use super::world::{sizes, doodad_sizes};
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct MusicState {
 	pub current_track: Option<String>,
 	pub handle: Option<Handle<AudioInstance>>,
+	pub selected_genre: String,
+	pub crossfade_duration: f32,
+}
+
+impl Default for MusicState {
+	fn default() -> Self {
+		Self {
+			current_track: None,
+			handle: None,
+			selected_genre: Self::pick_random_genre(),
+			crossfade_duration: 1.0,
+		}
+	}
+}
+
+impl MusicState {
+	pub fn pick_random_genre() -> String {
+		let genres = vec!["chiptune", "darkwave", "industrial", "orchestral-rock", "synthwave"];
+		genres[rand::random::<usize>() % genres.len()].to_string()
+	}
 }
 
 #[derive(Resource, Default)]
@@ -69,7 +89,7 @@ impl CurrentLevel {
 	}
 }
 
-pub fn load_level(mut commands: Commands) {
+pub fn load_level(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let yaml_path = "assets/level-defs/level1.yaml";
 
 	match fs::read_to_string(yaml_path) {
@@ -77,6 +97,27 @@ pub fn load_level(mut commands: Commands) {
 			match serde_yaml::from_str::<LevelData>(&yaml_str) {
 				Ok(level) => {
 					info!("✓ Loaded level: {}", level.name);
+
+					// Spawn backdrop items (static deep space elements)
+					for (i, item) in level.backdrop.iter().enumerate() {
+						let sprite_path = format!("parallax/{}", item.sprite);
+						let size = item.size.map(|s| Vec2::new(s[0], s[1]))
+							.unwrap_or(Vec2::new(800.0, 800.0));
+
+						commands.spawn((
+							Sprite {
+								image: asset_server.load(&sprite_path),
+								custom_size: Some(size),
+								color: Color::srgba(1.0, 1.0, 1.0, item.alpha),
+								..default()
+							},
+							// z=-9.5: behind stars (-9.0) but in front of background tiles (-10.0)
+						Transform::from_xyz(item.position[0], item.position[1], -9.5 + (i as f32 * 0.01)),
+							BackdropEntity,
+						));
+						info!("Spawned backdrop: {} at ({}, {})", item.sprite, item.position[0], item.position[1]);
+					}
+
 					commands.insert_resource(CurrentLevel::new(level));
 				}
 				Err(e) => {
@@ -106,8 +147,10 @@ pub fn process_enemy_waves(
 	mut level: ResMut<CurrentLevel>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
+	mut formation_registry: ResMut<crate::components::FormationRegistry>,
 ) {
-	use crate::components::{Enemy, EnemyType, EnemyMovement, MovementPattern};
+	use crate::components::{Enemy, EnemyType, EnemyMovement, MovementPattern, EnemyBehavior, FormationLeader, FormationMember, Health, Collider};
+	use crate::level::{FormationRole, EnemySpawn};
 
 	let current_distance = level.distance;
 	let scroll_speed = level.get_scroll_speed();
@@ -130,36 +173,107 @@ pub fn process_enemy_waves(
 				"Fighter" => ("enemies/fighter.png", sizes::FIGHTER, EnemyType::Fighter),
 				"HeavyGunship" => ("enemies/heavy_gunship.png", sizes::HEAVY_GUNSHIP, EnemyType::HeavyGunship),
 				"Boss" => ("enemies/boss.png", sizes::BOSS, EnemyType::Boss),
+				"Interceptor" => ("enemies/interceptor.png", sizes::INTERCEPTOR, EnemyType::Interceptor),
+				"Drone" => ("enemies/drone.png", sizes::DRONE, EnemyType::Drone),
+				"Bomber" => ("enemies/bomber.png", sizes::BOMBER, EnemyType::Bomber),
+				"Corvette" => ("enemies/corvette.png", sizes::CORVETTE, EnemyType::Corvette),
+				"SmallAsteroid" => ("enemies/small_asteroid.png", sizes::SMALL_ASTEROID, EnemyType::SmallAsteroid),
+				"MediumAsteroid" => ("enemies/medium_asteroid.png", sizes::MEDIUM_ASTEROID, EnemyType::MediumAsteroid),
+				"LargeAsteroid" => ("enemies/large_asteroid.png", sizes::LARGE_ASTEROID, EnemyType::LargeAsteroid),
+				"StationDebris" => ("enemies/station_debris.png", sizes::STATION_DEBRIS, EnemyType::StationDebris),
 				_ => ("enemies/scout.png", sizes::SCOUT, EnemyType::Scout),
 			};
 
-			let movement_pattern = match enemy.movement.as_str() {
-				"SineWave" => MovementPattern::SineWave { amplitude: 100.0, frequency: 2.0 },
-				"PassBy" => MovementPattern::PassBy { speed: 150.0 },
-				"Circle" => MovementPattern::Circle { radius: 80.0, angular_speed: 1.5 },
-				"Straight" => MovementPattern::Straight { speed: 100.0 },
-				_ => MovementPattern::Straight { speed: 100.0 },
-			};
+			let mut behaviors = enemy.get_behaviors();
+			if behaviors.is_empty() {
+				behaviors = EnemySpawn::get_default_behavior_for_type(&enemy.enemy_type);
+			}
 
-			commands.spawn((
-				Sprite {
-					image: asset_server.load(sprite_path),
-					custom_size: Some(Vec2::splat(size)),
-					..default()
-				},
-				Transform::from_xyz(enemy.position[0], enemy.position[1], 0.5),
-				Enemy { enemy_type },
-				EnemyMovement {
-					pattern: movement_pattern,
-					spawn_x: enemy.position[0],
-					time_alive: 0.0,
-				},
-			));
+			if !behaviors.is_empty() {
+				let mut entity_commands = commands.spawn((
+					Sprite {
+						image: asset_server.load(sprite_path),
+						custom_size: Some(Vec2::splat(size)),
+						..default()
+					},
+					Transform::from_xyz(enemy.position[0], enemy.position[1], 0.5),
+					Enemy { enemy_type },
+					EnemyBehavior {
+						behaviors: behaviors.clone(),
+						current_index: 0,
+						behavior_start_time: 0.0,
+						total_time_alive: 0.0,
+						spawn_position: Vec2::new(enemy.position[0], enemy.position[1]),
+					},
+					Health::for_enemy_type(enemy_type),
+					Collider::for_enemy_type(enemy_type),
+				));
 
-			info!(
-				"Spawned {:?} at ({:.1}, {:.1}) with {:?}",
-				enemy_type, enemy.position[0], enemy.position[1], movement_pattern
-			);
+				if let Some(ref formation_id) = enemy.formation_id {
+					match enemy.formation_role {
+						Some(FormationRole::Leader) => {
+							let entity_id = entity_commands.id();
+							entity_commands.insert(FormationLeader {
+								formation_id: formation_id.clone(),
+								member_offsets: Vec::new(),
+							});
+							formation_registry.formations.insert(formation_id.clone(), entity_id);
+						}
+						Some(FormationRole::Member) => {
+							if let Some(leader_entity) = formation_registry.formations.get(formation_id) {
+								let offset = enemy.formation_offset
+									.map(|o| Vec2::new(o[0], o[1]))
+									.unwrap_or(Vec2::ZERO);
+								entity_commands.insert(FormationMember {
+									formation_id: formation_id.clone(),
+									leader: *leader_entity,
+									offset,
+								});
+							}
+						}
+						None => {}
+					}
+				}
+
+				info!(
+					"Spawned {:?} at ({:.1}, {:.1}) with {} behaviors",
+					enemy_type, enemy.position[0], enemy.position[1], behaviors.len()
+				);
+			} else {
+				let movement_pattern = if let Some(ref movement) = enemy.movement {
+					match movement.as_str() {
+						"SineWave" => MovementPattern::SineWave { amplitude: 100.0, frequency: 2.0 },
+						"PassBy" => MovementPattern::PassBy { speed: 150.0 },
+						"Circle" => MovementPattern::Circle { radius: 80.0, angular_speed: 1.5 },
+						"Straight" => MovementPattern::Straight { speed: 100.0 },
+						_ => MovementPattern::Straight { speed: 100.0 },
+					}
+				} else {
+					MovementPattern::Straight { speed: 100.0 }
+				};
+
+				commands.spawn((
+					Sprite {
+						image: asset_server.load(sprite_path),
+						custom_size: Some(Vec2::splat(size)),
+						..default()
+					},
+					Transform::from_xyz(enemy.position[0], enemy.position[1], 0.5),
+					Enemy { enemy_type },
+					EnemyMovement {
+						pattern: movement_pattern,
+						spawn_x: enemy.position[0],
+						time_alive: 0.0,
+					},
+					Health::for_enemy_type(enemy_type),
+					Collider::for_enemy_type(enemy_type),
+				));
+
+				info!(
+					"Spawned {:?} at ({:.1}, {:.1}) with {:?} (legacy)",
+					enemy_type, enemy.position[0], enemy.position[1], movement_pattern
+				);
+			}
 		}
 
 		level.processed_waves.push(wave_idx);
@@ -194,46 +308,68 @@ pub fn process_doodads(
 	for (doodad_idx, doodad) in doodads_to_process {
 		// Determine sprite path based on layer
 		let sprite_path = match doodad.layer {
-			DoodadLayer::Gameplay => format!("doodads/{}", doodad.sprite),
+			DoodadLayer::Gameplay | DoodadLayer::FarField => format!("doodads/{}", doodad.sprite),
+			DoodadLayer::MegaStructures | DoodadLayer::StructureDetails => {
+				format!("structures/{}", doodad.sprite)
+			}
+			// DeepSpace and DeepStructures use parallax assets (nebulae, station silhouettes)
 			_ => format!("parallax/{}", doodad.sprite),
 		};
 
-		let size = match doodad.sprite.split('_').next().unwrap_or("") {
-			"asteroid" => doodad_sizes::ASTEROID,
-			"distant" => doodad_sizes::DISTANT,
-			"satellite" => doodad_sizes::SATELLITE,
-			"cargo" => doodad_sizes::CARGO,
-			"solar" => doodad_sizes::SOLAR,
-			"hull" => doodad_sizes::HULL,
-			"wreckage" => doodad_sizes::WRECKAGE,
-			"drone" => doodad_sizes::DRONE,
-			"escape" => doodad_sizes::ESCAPE,
-			"fuel" => doodad_sizes::FUEL,
-			"gas" => doodad_sizes::GAS,
-			"beacon" => doodad_sizes::BEACON,
-			"nav" => doodad_sizes::NAV,
-			"antenna" => doodad_sizes::ANTENNA,
-			"trail" => doodad_sizes::TRAIL,
-			"sparking" => doodad_sizes::SPARKING,
-			"nebula" => parallax::sizes::NEBULA_LARGE,
-			"gas_wisp" => parallax::sizes::GAS_WISP,
-			"station" => parallax::sizes::STATION_SILHOUETTE,
-			"planet" => parallax::sizes::DISTANT_PLANET,
-			_ => doodad_sizes::DEFAULT,
+		// Use explicit size if provided, otherwise auto-detect from sprite prefix
+		let sprite_size = if let Some([w, h]) = doodad.size {
+			Vec2::new(w, h)
+		} else {
+			let auto_size = match doodad.sprite.split('_').next().unwrap_or("") {
+				"asteroid" => doodad_sizes::ASTEROID,
+				"distant" => doodad_sizes::DISTANT,
+				"satellite" => doodad_sizes::SATELLITE,
+				"cargo" => doodad_sizes::CARGO,
+				"solar" => doodad_sizes::SOLAR,
+				"hull" => doodad_sizes::HULL,
+				"wreckage" => doodad_sizes::WRECKAGE,
+				"drone" => doodad_sizes::DRONE,
+				"escape" => doodad_sizes::ESCAPE,
+				"fuel" => doodad_sizes::FUEL,
+				"gas" => doodad_sizes::GAS,
+				"beacon" => doodad_sizes::BEACON,
+				"nav" => doodad_sizes::NAV,
+				"antenna" => doodad_sizes::ANTENNA,
+				"trail" => doodad_sizes::TRAIL,
+				"sparking" => doodad_sizes::SPARKING,
+				"nebula" => parallax::sizes::NEBULA_LARGE,
+				"gas_wisp" => parallax::sizes::GAS_WISP,
+				"station" => parallax::sizes::STATION_SILHOUETTE,
+				"planet" => parallax::sizes::DISTANT_PLANET,
+				_ => doodad_sizes::DEFAULT,
+			};
+			Vec2::splat(auto_size)
 		};
 
 		// Convert DoodadLayer to ParallaxLayer and get z-depth/speed
-		let (z_depth, scroll_speed) = match doodad.layer {
+		let (layer_z, layer_speed) = match doodad.layer {
 			DoodadLayer::DeepSpace => {
 				let layer = ParallaxLayer::DeepSpace;
+				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
+			}
+			DoodadLayer::DeepStructures => {
+				let layer = ParallaxLayer::DeepStructures;
 				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
 			}
 			DoodadLayer::FarField => {
 				let layer = ParallaxLayer::FarField;
 				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
 			}
+			DoodadLayer::MegaStructures => {
+				let layer = ParallaxLayer::MegaStructures;
+				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
+			}
 			DoodadLayer::MidDistance => {
 				let layer = ParallaxLayer::MidDistance;
+				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
+			}
+			DoodadLayer::StructureDetails => {
+				let layer = ParallaxLayer::StructureDetails;
 				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
 			}
 			DoodadLayer::NearBackground => {
@@ -247,13 +383,17 @@ pub fn process_doodads(
 			}
 		};
 
+		// Use explicit z_depth if provided, otherwise use layer default
+		let z_depth = doodad.z_depth.unwrap_or(layer_z);
+		let scroll_speed = layer_speed;
+
 		// Vary drift speed based on doodad index for visual variety
 		let drift_speed = 0.5 + ((doodad_idx % 7) as f32 * 0.3);
 
 		let mut entity = commands.spawn((
 			Sprite {
 				image: asset_server.load(sprite_path),
-				custom_size: Some(Vec2::splat(size)),
+				custom_size: Some(sprite_size),
 				..default()
 			},
 			Transform::from_xyz(doodad.position[0], doodad.position[1], z_depth),
@@ -270,8 +410,11 @@ pub fn process_doodads(
 			// Add parallax entity marker for non-gameplay layers
 			let parallax_layer = match doodad.layer {
 				DoodadLayer::DeepSpace => ParallaxLayer::DeepSpace,
+				DoodadLayer::DeepStructures => ParallaxLayer::DeepStructures,
 				DoodadLayer::FarField => ParallaxLayer::FarField,
+				DoodadLayer::MegaStructures => ParallaxLayer::MegaStructures,
 				DoodadLayer::MidDistance => ParallaxLayer::MidDistance,
+				DoodadLayer::StructureDetails => ParallaxLayer::StructureDetails,
 				DoodadLayer::NearBackground => ParallaxLayer::NearBackground,
 				DoodadLayer::Foreground => ParallaxLayer::Foreground,
 				DoodadLayer::Gameplay => unreachable!(),
@@ -359,18 +502,24 @@ pub fn process_phases(
 ) {
 	if let Some(phase) = level.get_current_phase() {
 		if music_state.current_track.as_ref() != Some(&phase.music) {
-			// Stop current music
+			// Crossfade: fade out current music
 			if let Some(handle) = &music_state.handle {
 				if let Some(instance) = audio_instances.get_mut(handle) {
-					instance.stop(AudioTween::default());
+					let tween = AudioTween::linear(std::time::Duration::from_secs_f32(music_state.crossfade_duration));
+					instance.stop(tween);
 				}
 			}
-			// Play new phase music
-			let path = format!("music/{}", phase.music);
-			let handle = audio.play(asset_server.load(&path)).looped().handle();
+
+			// Play new phase music from selected genre
+			let path = format!("music/{}/{}", music_state.selected_genre, phase.music);
+			let handle = audio.play(asset_server.load(&path))
+				.looped()
+				.with_volume(1.0)  // Start at full volume (fade-in removed for now)
+				.handle();
+
 			music_state.handle = Some(handle);
 			music_state.current_track = Some(phase.music.clone());
-			info!("🎵 Playing: {}", phase.music);
+			info!("🎵 Playing: {}/{} ({})", music_state.selected_genre, phase.music, phase.name);
 		}
 	}
 }
@@ -380,6 +529,9 @@ pub struct DoodadEntity {
 	pub spawn_x: f32,
 	pub drift_speed: f32,
 }
+
+#[derive(Component)]
+pub struct BackdropEntity;
 
 pub fn apply_doodad_drift(
 	mut query: Query<(&mut Transform, &DoodadEntity)>,

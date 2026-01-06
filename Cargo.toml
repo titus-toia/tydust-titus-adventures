@@ -1,0 +1,28 @@
+[package]
+name = "tydust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.15", features = ["x11"] }
+bevy_kira_audio = { version = "0.21", features = ["mp3"] }
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+ron = "0.8"
+
+# Uncomment when ready for Steam integration
+# bevy_steamworks = "0.15"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

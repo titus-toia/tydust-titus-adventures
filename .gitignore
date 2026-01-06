@@ -1,0 +1,64 @@
+# Build
+/target
+/dist
+
+# Python environments
+audiocraft_env/
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets - NEVER commit
+.env
+.env.local
+.env.*
+
+# Generated assets (large, can be recreated)
+assets/doodads/
+assets/music/
+assets/parallax/
+assets/particles/
+generated_imgs/
+
+# Audio generation debris
+audio_ai/
+*.wav
+*.mp3
+*.ogg
+
+# Python generation scripts (one-off tools)
+generate_*.py
+compose_*.py
+fix_*.py
+verify_*.py
+update_*.py
+
+# Summary text files (not markdown)
+*_SUMMARY.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Claude Code
+.claude/
+
+# Temp/scratch
+scripts/
+
+# Backup files
+*.bak
+*.backup
+*.time_backup
+*.orig

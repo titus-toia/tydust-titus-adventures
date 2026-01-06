@@ -13,6 +13,14 @@ pub mod sizes {
 	pub const FIGHTER: f32 = 80.0;
 	pub const HEAVY_GUNSHIP: f32 = 150.0;
 	pub const BOSS: f32 = 300.0;
+	pub const INTERCEPTOR: f32 = 50.0;
+	pub const DRONE: f32 = 40.0;
+	pub const BOMBER: f32 = 120.0;
+	pub const CORVETTE: f32 = 180.0;
+	pub const SMALL_ASTEROID: f32 = 30.0;
+	pub const MEDIUM_ASTEROID: f32 = 60.0;
+	pub const LARGE_ASTEROID: f32 = 120.0;
+	pub const STATION_DEBRIS: f32 = 80.0;
 	pub const LASER_WIDTH: f32 = 5.0;
 	pub const LASER_HEIGHT: f32 = 20.0;
 	#[allow(dead_code)]
