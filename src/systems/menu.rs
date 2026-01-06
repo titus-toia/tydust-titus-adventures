@@ -18,16 +18,17 @@ pub struct WeaponButton {
 #[derive(Component)]
 pub struct StartGameButton;
 
-const BUTTON_WIDTH: f32 = 200.0;
-const BUTTON_HEIGHT: f32 = 280.0;
-const BUTTON_SPACING: f32 = 20.0;
-const SHIP_PREVIEW_SIZE: f32 = 150.0;
+const BUTTON_WIDTH: f32 = 180.0;
+const BUTTON_HEIGHT: f32 = 240.0;
+const BUTTON_SPACING: f32 = 15.0;
+const SHIP_PREVIEW_SIZE: f32 = 120.0;
 
 pub fn setup_ship_selection_menu(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 ) {
-	// Root container
+	let font = asset_server.load("fonts/Orbitron-Variable.ttf");
+	// Root scrollable container
 	commands
 		.spawn((
 			Node {
@@ -35,23 +36,33 @@ pub fn setup_ship_selection_menu(
 				height: Val::Percent(100.0),
 				justify_content: JustifyContent::Center,
 				align_items: AlignItems::Center,
-				flex_direction: FlexDirection::Column,
+				overflow: Overflow::scroll_y(),
 				..default()
 			},
 			BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.9)),
 			MenuUI,
 		))
-		.with_children(|parent| {
+		.with_children(|root| {
+			// Inner content container
+			root.spawn(Node {
+				flex_direction: FlexDirection::Column,
+				justify_content: JustifyContent::Center,
+				align_items: AlignItems::Center,
+				padding: UiRect::all(Val::Px(20.0)),
+				..default()
+			})
+			.with_children(|parent| {
 			// Title
 			parent.spawn((
 				Text::new("SELECT YOUR FIGHTER"),
 				TextFont {
-					font_size: 48.0,
+					font: font.clone(),
+					font_size: 36.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::all(Val::Px(40.0)),
+					margin: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(20.0), Val::Px(15.0)),
 					..default()
 				},
 			));
@@ -68,7 +79,7 @@ pub fn setup_ship_selection_menu(
 				})
 				.with_children(|row| {
 					for ship_type in ShipType::all() {
-						spawn_ship_button(row, ship_type, &asset_server);
+						spawn_ship_button(row, ship_type, &asset_server, &font);
 					}
 				});
 
@@ -76,12 +87,13 @@ pub fn setup_ship_selection_menu(
 			parent.spawn((
 				Text::new("SELECT YOUR WEAPON"),
 				TextFont {
-					font_size: 32.0,
+					font: font.clone(),
+					font_size: 28.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::new(Val::Px(20.0), Val::Px(20.0), Val::Px(40.0), Val::Px(20.0)),
+					margin: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(20.0), Val::Px(15.0)),
 					..default()
 				},
 			));
@@ -97,10 +109,10 @@ pub fn setup_ship_selection_menu(
 					..default()
 				})
 				.with_children(|row| {
-					spawn_weapon_button(row, WeaponType::BasicBlaster, &asset_server);
-					spawn_weapon_button(row, WeaponType::PlasmaCannon, &asset_server);
-					spawn_weapon_button(row, WeaponType::WaveGun, &asset_server);
-					spawn_weapon_button(row, WeaponType::SpreadShot, &asset_server);
+					spawn_weapon_button(row, WeaponType::BasicBlaster, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::PlasmaCannon, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::WaveGun, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::SpreadShot, &asset_server, &font);
 				});
 
 			// Weapon selection container (bottom row)
@@ -115,17 +127,17 @@ pub fn setup_ship_selection_menu(
 					..default()
 				})
 				.with_children(|row| {
-					spawn_weapon_button(row, WeaponType::MissilePods, &asset_server);
-					spawn_weapon_button(row, WeaponType::LaserArray, &asset_server);
-					spawn_weapon_button(row, WeaponType::OrbitalDefense, &asset_server);
+					spawn_weapon_button(row, WeaponType::MissilePods, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::LaserArray, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::OrbitalDefense, &asset_server, &font);
 				});
 
 			// Start button (initially hidden until selection made)
 			parent.spawn((
 				Node {
-					width: Val::Px(300.0),
-					height: Val::Px(60.0),
-					margin: UiRect::all(Val::Px(40.0)),
+					width: Val::Px(280.0),
+					height: Val::Px(55.0),
+					margin: UiRect::new(Val::Px(10.0), Val::Px(10.0), Val::Px(25.0), Val::Px(10.0)),
 					justify_content: JustifyContent::Center,
 					align_items: AlignItems::Center,
 					display: Display::None,
@@ -139,6 +151,7 @@ pub fn setup_ship_selection_menu(
 				button.spawn((
 					Text::new("START MISSION"),
 					TextFont {
+						font: font.clone(),
 						font_size: 24.0,
 						..default()
 					},
@@ -146,12 +159,14 @@ pub fn setup_ship_selection_menu(
 				));
 			});
 		});
+		});
 }
 
 fn spawn_ship_button(
 	parent: &mut ChildBuilder,
 	ship_type: ShipType,
 	asset_server: &Res<AssetServer>,
+	font: &Handle<Font>,
 ) {
 	let stats = ship_type.get_stats();
 	let ship_name = format!("{:?}", ship_type);
@@ -178,12 +193,13 @@ fn spawn_ship_button(
 			button.spawn((
 				Text::new(ship_name.to_uppercase()),
 				TextFont {
-					font_size: 18.0,
+					font: font.clone(),
+					font_size: 16.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::bottom(Val::Px(10.0)),
+					margin: UiRect::bottom(Val::Px(8.0)),
 					..default()
 				},
 			));
@@ -210,6 +226,7 @@ fn spawn_ship_button(
 			button.spawn((
 				Text::new(stats_text),
 				TextFont {
+					font: font.clone(),
 					font_size: 12.0,
 					..default()
 				},
@@ -227,6 +244,7 @@ fn spawn_weapon_button(
 	parent: &mut ChildBuilder,
 	weapon_type: WeaponType,
 	asset_server: &Res<AssetServer>,
+	font: &Handle<Font>,
 ) {
 	let config = weapon_type.config();
 	let weapon_name = format!("{:?}", weapon_type);
@@ -262,12 +280,13 @@ fn spawn_weapon_button(
 			button.spawn((
 				Text::new(weapon_name.to_uppercase()),
 				TextFont {
-					font_size: 18.0,
+					font: font.clone(),
+					font_size: 16.0,
 					..default()
 				},
 				TextColor(Color::srgb(0.9, 0.9, 0.9)),
 				Node {
-					margin: UiRect::bottom(Val::Px(10.0)),
+					margin: UiRect::bottom(Val::Px(8.0)),
 					..default()
 				},
 			));
@@ -294,6 +313,7 @@ fn spawn_weapon_button(
 			button.spawn((
 				Text::new(stats_text),
 				TextFont {
+					font: font.clone(),
 					font_size: 12.0,
 					..default()
 				},
@@ -308,30 +328,23 @@ fn spawn_weapon_button(
 }
 
 pub fn handle_weapon_selection(
-	mut interaction_query: Query<
-		(&Interaction, &WeaponButton, &mut BackgroundColor, &mut BorderColor),
-		Changed<Interaction>,
-	>,
+	interaction_query: Query<(&Interaction, &WeaponButton), Changed<Interaction>>,
+	mut all_weapons: Query<(&WeaponButton, &mut BackgroundColor, &mut BorderColor)>,
 	mut selected_weapon: ResMut<SelectedWeapon>,
 ) {
-	for (interaction, weapon_button, mut bg_color, mut border_color) in &mut interaction_query {
-		match *interaction {
-			Interaction::Pressed => {
-				selected_weapon.weapon_type = weapon_button.weapon_type;
-				info!("Selected weapon: {:?}", weapon_button.weapon_type);
+	for (interaction, weapon_button) in &interaction_query {
+		if *interaction == Interaction::Pressed {
+			selected_weapon.weapon_type = weapon_button.weapon_type;
+			info!("Selected weapon: {:?}", weapon_button.weapon_type);
 
-				// Highlight selected
-				*bg_color = BackgroundColor(Color::srgba(0.3, 0.4, 0.6, 0.9));
-				*border_color = BorderColor(Color::srgb(0.5, 0.7, 1.0));
-			}
-			Interaction::Hovered => {
-				*bg_color = BackgroundColor(Color::srgba(0.2, 0.25, 0.35, 0.9));
-			}
-			Interaction::None => {
-				// Reset if not selected
-				if selected_weapon.weapon_type != weapon_button.weapon_type {
-					*bg_color = BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.9));
-					*border_color = BorderColor(Color::srgb(0.3, 0.3, 0.4));
+			// Update all weapon button styles
+			for (button, mut bg, mut border) in all_weapons.iter_mut() {
+				if button.weapon_type == weapon_button.weapon_type {
+					*bg = BackgroundColor(Color::srgba(0.3, 0.4, 0.6, 0.9));
+					*border = BorderColor(Color::srgb(0.5, 0.7, 1.0));
+				} else {
+					*bg = BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.9));
+					*border = BorderColor(Color::srgb(0.3, 0.3, 0.4));
 				}
 			}
 		}
@@ -339,36 +352,29 @@ pub fn handle_weapon_selection(
 }
 
 pub fn handle_ship_selection(
-	mut interaction_query: Query<
-		(&Interaction, &ShipButton, &mut BackgroundColor, &mut BorderColor),
-		Changed<Interaction>,
-	>,
+	interaction_query: Query<(&Interaction, &ShipButton), Changed<Interaction>>,
+	mut all_ships: Query<(&ShipButton, &mut BackgroundColor, &mut BorderColor)>,
 	mut selected_ship: ResMut<SelectedShip>,
 	mut start_button_query: Query<&mut Node, With<StartGameButton>>,
 ) {
-	for (interaction, ship_button, mut bg_color, mut border_color) in &mut interaction_query {
-		match *interaction {
-			Interaction::Pressed => {
-				selected_ship.ship_type = Some(ship_button.ship_type);
-				info!("Selected ship: {:?}", ship_button.ship_type);
+	for (interaction, ship_button) in &interaction_query {
+		if *interaction == Interaction::Pressed {
+			selected_ship.ship_type = Some(ship_button.ship_type);
+			info!("Selected ship: {:?}", ship_button.ship_type);
 
-				// Show start button
-				if let Ok(mut node) = start_button_query.get_single_mut() {
-					node.display = Display::Flex;
-				}
+			// Show start button
+			if let Ok(mut node) = start_button_query.get_single_mut() {
+				node.display = Display::Flex;
+			}
 
-				// Highlight selected
-				*bg_color = BackgroundColor(Color::srgba(0.3, 0.4, 0.6, 0.9));
-				*border_color = BorderColor(Color::srgb(0.5, 0.7, 1.0));
-			}
-			Interaction::Hovered => {
-				*bg_color = BackgroundColor(Color::srgba(0.2, 0.25, 0.35, 0.9));
-			}
-			Interaction::None => {
-				// Reset if not selected
-				if selected_ship.ship_type != Some(ship_button.ship_type) {
-					*bg_color = BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.9));
-					*border_color = BorderColor(Color::srgb(0.3, 0.3, 0.4));
+			// Update all ship button styles
+			for (button, mut bg, mut border) in all_ships.iter_mut() {
+				if button.ship_type == ship_button.ship_type {
+					*bg = BackgroundColor(Color::srgba(0.3, 0.4, 0.6, 0.9));
+					*border = BorderColor(Color::srgb(0.5, 0.7, 1.0));
+				} else {
+					*bg = BackgroundColor(Color::srgba(0.15, 0.15, 0.2, 0.9));
+					*border = BorderColor(Color::srgb(0.3, 0.3, 0.4));
 				}
 			}
 		}

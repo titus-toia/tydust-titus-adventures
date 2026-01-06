@@ -62,6 +62,8 @@ fn main() {
 			OnEnter(GameState::Playing),
 			(spawn_background, init_parallax_timers, spawn_player, load_level).chain()
 		)
+		// Exit button works in all states
+		.add_systems(Update, exit_button_system)
 		// Playing state: all game systems
 		.add_systems(Update, (
 			scroll_background,
@@ -70,7 +72,6 @@ fn main() {
 			cleanup_parallax,
 			player_movement,
 			toggle_debug_speed,
-			exit_button_system,
 			update_level_timer,
 		).run_if(in_state(GameState::Playing)))
 		.add_systems(Update, (
