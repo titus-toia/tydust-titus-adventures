@@ -1,8 +1,12 @@
 pub mod background;
 pub mod player;
 pub mod weapons;
+pub mod weapon_upgrade;
+pub mod pickups;
 pub mod level;
 pub mod world;
 pub mod parallax;
 pub mod enemies;
 pub mod particles;
+pub mod visual;
+pub mod menu;

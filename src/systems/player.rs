@@ -1,29 +1,51 @@
 use bevy::prelude::*;
-use crate::components::{Player, ParticleEmitter};
-use super::world::{sizes, speeds, player_bounds};
+use crate::components::{Player, ParticleEmitter, ShipType, Weapon, WeaponType};
+use crate::resources::{SelectedShip, SelectedWeapon};
+use super::world::player_bounds;
 
 const TILT_ANGLE: f32 = 0.15;  // ~8.5 degrees, subtle bank
 const TILT_SPEED: f32 = 10.0;  // How fast to tilt
 
-pub fn spawn_player(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn spawn_player(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	selected_ship: Res<SelectedShip>,
+	selected_weapon: Res<SelectedWeapon>,
+) {
+	let ship_type = selected_ship.ship_type.unwrap_or(ShipType::Striker);
+	let stats = ship_type.get_stats();
+
+	let weapon_type = selected_weapon.weapon_type;
+	let weapon_config = weapon_type.config();
+	let weapon_level = if weapon_type == WeaponType::BasicBlaster { 0 } else { 1 };
+
 	commands.spawn((
 		Sprite {
-			image: asset_server.load("sprites/player_ship.png"),
-			custom_size: Some(Vec2::new(sizes::PLAYER, sizes::PLAYER)),
+			image: asset_server.load(ship_type.sprite_path()),
+			custom_size: Some(Vec2::new(stats.size, stats.size)),
 			..default()
 		},
 		Transform::from_xyz(0.0, player_bounds::SPAWN_Y, 1.0),
 		Player {
-			fire_cooldown: Timer::from_seconds(0.15, TimerMode::Repeating),
+			fire_cooldown: Timer::from_seconds(stats.fire_cooldown, TimerMode::Repeating),
+			ship_type,
+		},
+		Weapon {
+			weapon_type,
+			level: weapon_level,
+			fire_cooldown: Timer::from_seconds(weapon_config.base_cooldown, TimerMode::Repeating),
 		},
 		PlayerTilt { target: 0.0, current: 0.0 },
 		ParticleEmitter {
 			spawn_timer: Timer::from_seconds(0.05, TimerMode::Repeating),
-			offset: Vec2::new(0.0, -sizes::PLAYER / 2.0 + 10.0), // Behind ship
+			offset: Vec2::new(0.0, -stats.size / 2.0 + 10.0),
 		},
 	));
 
-	info!("Player ship spawned (size: {} gu)", sizes::PLAYER);
+	info!(
+		"Player ship spawned: {:?} (size: {:.0} gu, speed: {}, fire rate: {})",
+		ship_type, stats.size, stats.speed, stats.fire_cooldown
+	);
 }
 
 #[derive(Component)]
@@ -34,10 +56,13 @@ pub struct PlayerTilt {
 
 pub fn player_movement(
 	keyboard_input: Res<ButtonInput<KeyCode>>,
-	mut query: Query<(&mut Transform, &mut PlayerTilt), With<Player>>,
+	mut query: Query<(&mut Transform, &mut PlayerTilt, &Player), With<Player>>,
 	time: Res<Time>,
 ) {
-	for (mut transform, mut tilt) in query.iter_mut() {
+	for (mut transform, mut tilt, player) in query.iter_mut() {
+		let stats = player.ship_type.get_stats();
+		let speed = stats.speed;
+
 		let mut velocity = Vec3::ZERO;
 
 		if keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA) {
@@ -71,7 +96,7 @@ pub fn player_movement(
 
 		if velocity.length() > 0.0 {
 			velocity = velocity.normalize();
-			transform.translation += velocity * speeds::PLAYER * time.delta_secs();
+			transform.translation += velocity * speed * time.delta_secs();
 		}
 
 		transform.translation.x = transform.translation.x.clamp(player_bounds::MIN_X, player_bounds::MAX_X);
