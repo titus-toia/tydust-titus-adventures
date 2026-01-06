@@ -39,22 +39,22 @@ pub fn fire_weapons(
 
 			match weapon.weapon_type {
 				WeaponType::BasicBlaster => {
-					spawn_basic_projectile(&mut commands, spawn_pos, &weapon, &config, damage);
+					spawn_basic_projectile(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::PlasmaCannon => {
 					spawn_plasma_projectile(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::WaveGun => {
-					spawn_wave_projectile(&mut commands, spawn_pos, &weapon, &config, damage);
+					spawn_wave_projectile(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::SpreadShot => {
-					spawn_spread_projectiles(&mut commands, spawn_pos, &weapon, &config, damage);
+					spawn_spread_projectiles(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::MissilePods => {
-					spawn_missile_projectiles(&mut commands, spawn_pos, &weapon, &config, damage);
+					spawn_missile_projectiles(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::LaserArray => {
-					spawn_laser_beams(&mut commands, spawn_pos, &weapon, &config, damage);
+					spawn_laser_beams(&mut commands, &asset_server, spawn_pos, &weapon, &config, damage);
 				},
 				WeaponType::OrbitalDefense => {
 					// Orbital defense doesn't fire projectiles traditionally
@@ -64,7 +64,17 @@ pub fn fire_weapons(
 
 			spawn_muzzle_flash(&mut commands, &asset_server, spawn_pos, weapon.weapon_type);
 
-			audio.play(asset_server.load("sounds/laser_fire.ogg"));
+			let sound_path = match weapon.weapon_type {
+				WeaponType::BasicBlaster => "sounds/basic_blaster_fire.wav",
+				WeaponType::PlasmaCannon => "sounds/plasma_cannon_fire.wav",
+				WeaponType::WaveGun => "sounds/wave_gun_fire.wav",
+				WeaponType::SpreadShot => "sounds/spread_shot_fire.wav",
+				WeaponType::MissilePods => "sounds/missile_launch.wav",
+				WeaponType::LaserArray => "sounds/laser_array_fire.wav",
+				WeaponType::OrbitalDefense => "sounds/laser_fire.ogg", // Fallback for orbital
+			};
+
+			audio.play(asset_server.load(sound_path));
 			weapon.fire_cooldown.reset();
 		}
 	}
@@ -72,6 +82,7 @@ pub fn fire_weapons(
 
 fn spawn_basic_projectile(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	config: &crate::components::WeaponConfig,
@@ -79,8 +90,8 @@ fn spawn_basic_projectile(
 ) {
 	commands.spawn((
 		Sprite {
-			color: config.projectile_color,
-			custom_size: Some(config.projectile_size),
+			image: asset_server.load("sprites/projectiles/basic_blaster.png"),
+			custom_size: Some(Vec2::new(20.0, 60.0)),
 			..default()
 		},
 		Transform::from_translation(spawn_pos.with_z(PROJECTILE_Z)),
@@ -104,8 +115,8 @@ fn spawn_plasma_projectile(
 ) {
 	commands.spawn((
 		Sprite {
-			color: config.projectile_color,
-			custom_size: Some(config.projectile_size),
+			image: asset_server.load("sprites/projectiles/plasma_cannon.png"),
+			custom_size: Some(Vec2::new(35.0, 80.0)),
 			..default()
 		},
 		Transform::from_translation(spawn_pos.with_z(PROJECTILE_Z)),
@@ -123,6 +134,7 @@ fn spawn_plasma_projectile(
 
 fn spawn_wave_projectile(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	config: &crate::components::WeaponConfig,
@@ -133,8 +145,8 @@ fn spawn_wave_projectile(
 
 	commands.spawn((
 		Sprite {
-			color: config.projectile_color,
-			custom_size: Some(config.projectile_size),
+			image: asset_server.load("sprites/projectiles/wave_gun.png"),
+			custom_size: Some(Vec2::new(40.0, 90.0)),
 			..default()
 		},
 		Transform::from_translation(spawn_pos.with_z(PROJECTILE_Z)),
@@ -259,6 +271,7 @@ pub fn move_projectiles_sine(
 
 fn spawn_spread_projectiles(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	config: &crate::components::WeaponConfig,
@@ -279,11 +292,12 @@ fn spawn_spread_projectiles(
 
 		commands.spawn((
 			Sprite {
-				color: config.projectile_color,
-				custom_size: Some(config.projectile_size),
+				image: asset_server.load("sprites/projectiles/spread_shot.png"),
+				custom_size: Some(Vec2::new(25.0, 50.0)),
 				..default()
 			},
-			Transform::from_translation(spawn_pos.with_z(PROJECTILE_Z)),
+			Transform::from_translation(spawn_pos.with_z(PROJECTILE_Z))
+				.with_rotation(Quat::from_rotation_z(angle)),
 			Projectile {
 				weapon_type: weapon.weapon_type,
 				level: weapon.level,
@@ -300,6 +314,7 @@ fn spawn_spread_projectiles(
 
 fn spawn_missile_projectiles(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	config: &crate::components::WeaponConfig,
@@ -312,8 +327,8 @@ fn spawn_missile_projectiles(
 
 		commands.spawn((
 			Sprite {
-				color: config.projectile_color,
-				custom_size: Some(config.projectile_size),
+				image: asset_server.load("sprites/projectiles/missile.png"),
+				custom_size: Some(Vec2::new(30.0, 70.0)),
 				..default()
 			},
 			Transform::from_translation((spawn_pos + Vec3::new(offset_x, 0.0, 0.0)).with_z(PROJECTILE_Z)),
@@ -333,6 +348,7 @@ fn spawn_missile_projectiles(
 
 fn spawn_laser_beams(
 	commands: &mut Commands,
+	asset_server: &AssetServer,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	config: &crate::components::WeaponConfig,
@@ -345,8 +361,8 @@ fn spawn_laser_beams(
 
 		commands.spawn((
 			Sprite {
-				color: config.projectile_color,
-				custom_size: Some(config.projectile_size),
+				image: asset_server.load("sprites/projectiles/laser_beam.png"),
+				custom_size: Some(Vec2::new(15.0, 100.0)),
 				..default()
 			},
 			Transform::from_translation((spawn_pos + Vec3::new(offset_x, 0.0, 0.0)).with_z(PROJECTILE_Z)),
@@ -399,6 +415,7 @@ pub fn move_homing_projectiles(
 
 pub fn manage_orbital_entities(
 	mut commands: Commands,
+	asset_server: Res<AssetServer>,
 	player_query: Query<(&Transform, &Weapon), With<Player>>,
 	mut orbital_query: Query<(Entity, &mut Transform, &mut OrbitalEntity), Without<Player>>,
 	time: Res<Time>,
@@ -422,8 +439,8 @@ pub fn manage_orbital_entities(
 
 			commands.spawn((
 				Sprite {
-					color: config.projectile_color,
-					custom_size: Some(Vec2::splat(20.0)),
+					image: asset_server.load("sprites/projectiles/orbital_orb.png"),
+					custom_size: Some(Vec2::splat(45.0)),
 					..default()
 				},
 				Transform::from_xyz(0.0, 0.0, 0.6),

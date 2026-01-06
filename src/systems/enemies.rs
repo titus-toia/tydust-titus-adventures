@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::components::{Enemy, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember};
+use crate::components::{Enemy, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyProjectileType};
 use super::world::HALF_WORLD_HEIGHT;
 use super::level::CurrentLevel;
 use std::f32::consts::{PI, FRAC_PI_2};
@@ -41,22 +41,6 @@ pub fn update_enemy_movement(
 	}
 }
 
-pub fn rotate_enemies_toward_player(
-	mut enemies: Query<&mut Transform, (With<Enemy>, Without<Player>)>,
-	player: Query<&Transform, With<Player>>,
-) {
-	let Ok(player_transform) = player.get_single() else { return };
-	let player_pos = player_transform.translation.truncate();
-
-	for mut transform in enemies.iter_mut() {
-		let enemy_pos = transform.translation.truncate();
-		let direction = player_pos - enemy_pos;
-
-		// atan2 gives angle from +X axis, ships face +Y, so subtract PI/2
-		let angle = direction.y.atan2(direction.x) - std::f32::consts::FRAC_PI_2;
-		transform.rotation = Quat::from_rotation_z(angle);
-	}
-}
 
 pub fn cleanup_enemies(
 	mut commands: Commands,
@@ -77,11 +61,18 @@ pub fn execute_enemy_behaviors(
 	time: Res<Time>,
 	player_query: Query<&Transform, With<Player>>,
 	formation_query: Query<&Transform, With<FormationLeader>>,
+	level: Option<Res<CurrentLevel>>,
 ) {
 	let delta = time.delta_secs();
+	let scroll_speed = level
+		.and_then(|l| l.get_current_phase().map(|p| p.scroll_speed))
+		.unwrap_or(100.0);
 
 	for (mut transform, mut behavior_state, mut sprite) in query.iter_mut() {
 		behavior_state.total_time_alive += delta;
+
+		// All enemies scroll down with level
+		transform.translation.y -= scroll_speed * delta;
 
 		if behavior_state.current_index >= behavior_state.behaviors.len() {
 			continue;
@@ -288,6 +279,10 @@ fn execute_behavior(
 				);
 			}
 		}
+
+		BehaviorType::ShootAtPlayer { .. } => {
+			// Enemy shooting handled by separate system
+		}
 	}
 }
 
@@ -299,6 +294,147 @@ pub fn update_formations(
 		if let Ok((leader_transform, _)) = leader_query.get(member.leader) {
 			let target_pos = leader_transform.translation.truncate() + member.offset;
 			member_transform.translation = target_pos.extend(member_transform.translation.z);
+		}
+	}
+}
+
+// === Enemy Shooting System ===
+
+pub fn setup_enemy_shooters(
+	mut commands: Commands,
+	query: Query<(Entity, &EnemyBehavior), Without<EnemyShooter>>,
+) {
+	for (entity, behavior) in query.iter() {
+		for b in &behavior.behaviors {
+			if let BehaviorType::ShootAtPlayer { projectile_type, fire_rate } = &b.behavior_type {
+				commands.entity(entity).insert(EnemyShooter {
+					projectile_type: *projectile_type,
+					fire_timer: Timer::from_seconds(*fire_rate, TimerMode::Repeating),
+					burst_remaining: 0,
+					burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+				});
+				break;
+			}
+			// Also check inside Parallel behaviors
+			if let BehaviorType::Parallel { behaviors } = &b.behavior_type {
+				for sub in behaviors {
+					if let BehaviorType::ShootAtPlayer { projectile_type, fire_rate } = &sub.behavior_type {
+						commands.entity(entity).insert(EnemyShooter {
+							projectile_type: *projectile_type,
+							fire_timer: Timer::from_seconds(*fire_rate, TimerMode::Repeating),
+							burst_remaining: 0,
+							burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
+						});
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+pub fn enemy_shooting(
+	mut commands: Commands,
+	mut shooters: Query<(&Transform, &mut EnemyShooter), With<Enemy>>,
+	player_query: Query<&Transform, With<Player>>,
+	time: Res<Time>,
+) {
+	let Ok(player_transform) = player_query.get_single() else { return };
+	let player_pos = player_transform.translation.truncate();
+
+	for (transform, mut shooter) in shooters.iter_mut() {
+		let enemy_pos = transform.translation.truncate();
+		shooter.fire_timer.tick(time.delta());
+		shooter.burst_timer.tick(time.delta());
+
+		let config = shooter.projectile_type.config();
+
+		// Handle burst shooting
+		if shooter.burst_remaining > 0 && shooter.burst_timer.just_finished() {
+			spawn_enemy_projectiles(&mut commands, enemy_pos, player_pos, &shooter, &config);
+			shooter.burst_remaining -= 1;
+		}
+
+		// Handle regular fire timer
+		if shooter.fire_timer.just_finished() {
+			if config.burst_count > 1 {
+				shooter.burst_remaining = config.burst_count;
+				shooter.burst_timer.reset();
+			} else {
+				spawn_enemy_projectiles(&mut commands, enemy_pos, player_pos, &shooter, &config);
+			}
+		}
+	}
+}
+
+fn spawn_enemy_projectiles(
+	commands: &mut Commands,
+	enemy_pos: Vec2,
+	player_pos: Vec2,
+	shooter: &EnemyShooter,
+	config: &crate::components::EnemyProjectileConfig,
+) {
+	let to_player = (player_pos - enemy_pos).normalize_or_zero();
+	let base_angle = to_player.y.atan2(to_player.x);
+
+	let count = config.count as i32;
+	let half_spread = config.spread_angle / 2.0;
+
+	for i in 0..count {
+		let angle_offset = if count == 1 {
+			0.0
+		} else if config.spread_angle >= std::f32::consts::TAU - 0.1 {
+			// Full circle (Ring pattern)
+			(i as f32 / count as f32) * std::f32::consts::TAU
+		} else {
+			// Spread pattern
+			-half_spread + (i as f32 / (count - 1).max(1) as f32) * config.spread_angle
+		};
+
+		let angle = base_angle + angle_offset;
+		let velocity = Vec2::new(angle.cos(), angle.sin()) * config.speed;
+
+		commands.spawn((
+			Sprite {
+				color: config.color,
+				custom_size: Some(config.size),
+				..default()
+			},
+			Transform::from_xyz(enemy_pos.x, enemy_pos.y, 0.6)
+				.with_rotation(Quat::from_rotation_z(angle - FRAC_PI_2)),
+			EnemyProjectile {
+				damage: config.damage,
+				velocity,
+				lifetime: Timer::from_seconds(5.0, TimerMode::Once),
+			},
+		));
+	}
+}
+
+pub fn move_enemy_projectiles(
+	mut commands: Commands,
+	mut query: Query<(Entity, &mut Transform, &mut EnemyProjectile)>,
+	time: Res<Time>,
+) {
+	let delta = time.delta_secs();
+
+	for (entity, mut transform, mut projectile) in query.iter_mut() {
+		projectile.lifetime.tick(time.delta());
+
+		if projectile.lifetime.finished() {
+			commands.entity(entity).despawn();
+			continue;
+		}
+
+		transform.translation.x += projectile.velocity.x * delta;
+		transform.translation.y += projectile.velocity.y * delta;
+
+		// Despawn if off screen
+		if transform.translation.y < -(HALF_WORLD_HEIGHT + 100.0)
+			|| transform.translation.y > HALF_WORLD_HEIGHT + 100.0
+			|| transform.translation.x.abs() > 800.0
+		{
+			commands.entity(entity).despawn();
 		}
 	}
 }
