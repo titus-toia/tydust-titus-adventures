@@ -6,12 +6,14 @@ use crate::components::{
 	Weapon, WeaponType, Enemy, Health, Player,
 	EnemyHitEvent, ChargeMeter, Collider,
 	LightningBolt, LightningImpact, LightningAoeEffect, PendingBabyWhip, LightningArc,
+	PendingSound, FadingSound,
 };
 
-const STRAIGHT_DISTANCE: f32 = 800.0;
-const CURVE_DISTANCE: f32 = 200.0;
+const VIEWPORT_HEIGHT: f32 = 1000.0;
+const VIEWPORT_TOP: f32 = VIEWPORT_HEIGHT / 2.0; // 500.0
+const CURVE_DISTANCE: f32 = 175.0; // How far the curve section travels
 const MAX_CURVE_ANGLE: f32 = 30.0;
-const VISUAL_END_OFFSET: f32 = 50.0;
+const CURVE_MARGIN: f32 = 225.0; // Start curve this far before viewport edge
 
 struct RaycastResult {
 	hit_enemy: Option<Entity>,
@@ -27,11 +29,24 @@ fn perform_hitscan_ray(
 ) -> RaycastResult {
 	let mut rng = rand::thread_rng();
 
+	// Calculate dynamic straight distance based on player position
+	let player_in_top_quarter = start_pos.y > VIEWPORT_TOP / 2.0; // > 250
+
+	let straight_distance = if player_in_top_quarter {
+		// Top quarter: let it travel far, curve can go off-screen
+		600.0
+	} else {
+		// Bottom 3/4: curve must be visible on screen
+		// Distance to viewport top, minus margin for curve visibility
+		let distance_to_top = VIEWPORT_TOP - start_pos.y;
+		(distance_to_top - CURVE_MARGIN).max(100.0) // At least 100gu straight
+	};
+
 	// Generate random curve angle ±30°
 	let curve_angle_rad = rng.gen_range(-MAX_CURVE_ANGLE.to_radians()..MAX_CURVE_ANGLE.to_radians());
 
 	// Straight section endpoint
-	let straight_end = start_pos + direction * STRAIGHT_DISTANCE;
+	let straight_end = start_pos + direction * straight_distance;
 
 	// Rotate direction by curve angle
 	let cos_a = curve_angle_rad.cos();
@@ -42,7 +57,7 @@ fn perform_hitscan_ray(
 	);
 
 	// Curved section endpoint
-	let ray_end_visual = straight_end + curve_dir * (CURVE_DISTANCE - VISUAL_END_OFFSET);
+	let ray_end_visual = straight_end + curve_dir * CURVE_DISTANCE;
 
 	// Collision detection along ray path
 	let mut closest_hit: Option<(Entity, Vec2, f32)> = None;
@@ -165,8 +180,6 @@ fn execute_aoe_explosion(
 	enemies: &Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	hit_events: &mut EventWriter<EnemyHitEvent>,
 	commands: &mut Commands,
-	audio: &Audio,
-	asset_server: &AssetServer,
 ) {
 	for (entity, transform, _, _) in enemies.iter() {
 		let enemy_pos = transform.translation.truncate();
@@ -186,7 +199,7 @@ fn execute_aoe_explosion(
 			hit_events.send(EnemyHitEvent {
 				enemy: entity,
 				damage: base_damage * 0.5,
-				hit_sound: Some("sounds/lightning/fireworks_crackle.ogg"),
+				hit_sound: Some("sounds/lightning/lightning_wave_light.ogg"),
 			});
 		}
 	}
@@ -198,12 +211,7 @@ fn execute_aoe_explosion(
 		lifetime: Timer::from_seconds(0.25, TimerMode::Once),
 		intensity: 0.8,
 	});
-
-	// AoE explosion sounds: boom followed by crackle
-	audio.play(asset_server.load("sounds/lightning/deep_lightning_boom.ogg"))
-		.with_volume(0.45);
-	audio.play(asset_server.load("sounds/lightning/fireworks_crackle.ogg"))
-		.with_volume(0.4);
+	// Note: boom+crackle sounds are pooled and played once from fire_lightning_weapon
 }
 
 fn try_spawn_delayed_baby_whip(
@@ -286,7 +294,7 @@ fn execute_chain_sequence(
 
 			// Chain arc sound (lighter than main impact)
 			audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-				.with_volume(0.35);
+				.with_volume(0.15);
 
 			// Apply damage
 			let chain_damage = damage * (1.0 - damage_falloff * chain_index as f32);
@@ -318,7 +326,7 @@ fn execute_chain_sequence(
 	}
 
 	// AoE explosion at final position
-	execute_aoe_explosion(current_pos, aoe_radius, damage, &enemies, hit_events, commands, audio, asset_server);
+	execute_aoe_explosion(current_pos, aoe_radius, damage, &enemies, hit_events, commands);
 }
 
 pub fn fire_lightning_weapon(
@@ -421,10 +429,6 @@ pub fn fire_lightning_weapon(
 		if let Some(hit_entity) = ray_result.hit_enemy {
 			spawn_impact_buzz(commands, ray_result.hit_position);
 
-			// Impact sound
-			audio.play(asset_server.load("sounds/lightning/deep_lightning_boom.ogg"))
-				.with_volume(0.5);
-
 			hit_events.send(EnemyHitEvent {
 				enemy: hit_entity,
 				damage: actual_damage,
@@ -472,19 +476,35 @@ pub fn fire_lightning_weapon(
 				enemies,
 				hit_events,
 				commands,
-				audio,
-				asset_server,
 			);
 		}
 	}
 
-	// Audio - main fire
+	// Audio - main fire (0.45 volume)
 	let fire_sound = if is_charged {
 		"sounds/lightning/lightning_charged.ogg"
 	} else {
 		"sounds/lightning/lightning_standard.ogg"
 	};
-	audio.play(asset_server.load(fire_sound));
+	audio.play(asset_server.load(fire_sound)).with_volume(0.25);
+
+	// Pooled boom+crackle sounds (delayed, with fade after 300ms)
+	// Boom: 50ms delay
+	commands.spawn(PendingSound {
+		delay: Timer::from_seconds(0.05, TimerMode::Once),
+		sound_path: "sounds/lightning/deep_lightning_boom.ogg",
+		volume: 0.4,
+		fade_after: Some(0.3),
+		fade_duration: 0.2,
+	});
+	// Crackle: 100ms delay
+	commands.spawn(PendingSound {
+		delay: Timer::from_seconds(0.1, TimerMode::Once),
+		sound_path: "sounds/lightning/fireworks_crackle.ogg",
+		volume: 0.25,
+		fade_after: Some(0.3),
+		fade_duration: 0.15,
+	});
 
 	info!("Lightning hitscan fired: level={}, charged={}, whips={}, max_chains={}",
 		level, is_charged, num_whips, max_chains);
@@ -623,80 +643,70 @@ pub fn render_lightning_impacts(
 	mut gizmos: Gizmos,
 	impacts: Query<&LightningImpact>,
 ) {
+	let mut rng = rand::thread_rng();
+
 	for impact in impacts.iter() {
 		let alpha = impact.lifetime.fraction_remaining();
-		let progress = 1.0 - alpha; // 0 at start, 1 at end
 
-		// Expanding burst radius (starts small, grows to full radius)
-		let burst_radius = impact.radius * progress;
+		// Draw jagged arc branches radiating outward from impact point
+		for i in 0..impact.branch_count {
+			let base_angle = (i as f32 / impact.branch_count as f32) * std::f32::consts::TAU;
+			// Add slight random offset to angle each frame for crackling effect
+			let angle = base_angle + rng.gen_range(-0.15..0.15);
+			let direction = Vec2::new(angle.cos(), angle.sin());
 
-		// Draw smooth glowing rings (no branches, just concentric circles)
-		let ring_count = 4;
-		for ring in 0..ring_count {
-			let ring_progress = ring as f32 / ring_count as f32;
-			let ring_radius = burst_radius * (1.0 - ring_progress * 0.5);
+			// Branch endpoint
+			let branch_end = impact.position + direction * impact.radius;
 
-			// Ring opacity decreases with progress
-			let ring_alpha = alpha * impact.intensity * (1.0 - ring_progress);
+			// Generate jagged path with 5-6 segments
+			let segment_count = 5;
+			let mut points = vec![impact.position];
 
-			// Inner bright core ring
-			let core_color = Color::srgba(
-				0.9,
-				0.98,
-				1.0,
-				ring_alpha * 0.7
-			);
+			for j in 1..segment_count {
+				let t = j as f32 / segment_count as f32;
+				let base_point = impact.position.lerp(branch_end, t);
 
-			// Draw circle as many small line segments
-			let segments = 32;
-			for i in 0..segments {
-				let angle1 = (i as f32 / segments as f32) * std::f32::consts::TAU;
-				let angle2 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
-
-				let p1 = impact.position + Vec2::new(angle1.cos(), angle1.sin()) * ring_radius;
-				let p2 = impact.position + Vec2::new(angle2.cos(), angle2.sin()) * ring_radius;
-
-				gizmos.line_2d(p1, p2, core_color);
+				// Perpendicular displacement for jaggedness
+				let perpendicular = Vec2::new(-direction.y, direction.x);
+				let displacement = rng.gen_range(-12.0..12.0) * (1.0 - t * 0.5); // Less jag near end
+				points.push(base_point + perpendicular * displacement);
 			}
+			points.push(branch_end);
 
-			// Outer glow halo
-			let glow_radius = ring_radius * 1.3;
-			let glow_color = Color::srgba(
-				0.6,
-				0.8,
-				1.0,
-				ring_alpha * 0.3
-			);
+			// Draw with multi-layer glow
+			for w in points.windows(2) {
+				let p1 = w[0];
+				let p2 = w[1];
 
-			for i in 0..segments {
-				let angle1 = (i as f32 / segments as f32) * std::f32::consts::TAU;
-				let angle2 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
+				// Outer glow (wider, dimmer)
+				let outer_color = Color::srgba(0.4, 0.7, 1.0, alpha * impact.intensity * 0.3);
+				gizmos.line_2d(p1 + Vec2::new(-2.0, 0.0), p2 + Vec2::new(-2.0, 0.0), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(2.0, 0.0), p2 + Vec2::new(2.0, 0.0), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(0.0, -2.0), p2 + Vec2::new(0.0, -2.0), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(0.0, 2.0), p2 + Vec2::new(0.0, 2.0), outer_color);
 
-				let p1 = impact.position + Vec2::new(angle1.cos(), angle1.sin()) * glow_radius;
-				let p2 = impact.position + Vec2::new(angle2.cos(), angle2.sin()) * glow_radius;
+				// Middle glow
+				let mid_color = Color::srgba(0.6, 0.85, 1.0, alpha * impact.intensity * 0.6);
+				gizmos.line_2d(p1, p2, mid_color);
 
-				gizmos.line_2d(p1, p2, glow_color);
+				// Bright core
+				let core_color = Color::srgba(0.9, 0.98, 1.0, alpha * impact.intensity * 0.9);
+				gizmos.line_2d(
+					p1 + Vec2::new(0.3, 0.3),
+					p2 + Vec2::new(0.3, 0.3),
+					core_color
+				);
 			}
 		}
 
-		// Center bright flash
-		let center_glow = Color::srgba(
-			0.95,
-			1.0,
-			1.0,
-			alpha * impact.intensity * 0.8
-		);
-
-		// Small bright center burst
-		let center_segments = 16;
-		for i in 0..center_segments {
-			let angle1 = (i as f32 / center_segments as f32) * std::f32::consts::TAU;
-			let angle2 = ((i + 1) as f32 / center_segments as f32) * std::f32::consts::TAU;
-
-			let p1 = impact.position + Vec2::new(angle1.cos(), angle1.sin()) * 5.0;
-			let p2 = impact.position + Vec2::new(angle2.cos(), angle2.sin()) * 5.0;
-
-			gizmos.line_2d(p1, p2, center_glow);
+		// Small bright center flash
+		let center_color = Color::srgba(1.0, 1.0, 1.0, alpha * impact.intensity);
+		let center_radius = 6.0;
+		for i in 0..8 {
+			let angle = (i as f32 / 8.0) * std::f32::consts::TAU;
+			let p1 = impact.position + Vec2::new(angle.cos(), angle.sin()) * 2.0;
+			let p2 = impact.position + Vec2::new(angle.cos(), angle.sin()) * center_radius;
+			gizmos.line_2d(p1, p2, center_color);
 		}
 	}
 }
@@ -705,28 +715,102 @@ pub fn render_lightning_aoe(
 	mut gizmos: Gizmos,
 	aoe_effects: Query<&LightningAoeEffect>,
 ) {
+	let mut rng = rand::thread_rng();
+
 	for aoe in aoe_effects.iter() {
 		let alpha = aoe.lifetime.fraction_remaining();
+		let progress = 1.0 - alpha; // 0 at start, 1 at end
 
-		// Draw expanding shimmer rings
-		let ring_count = 3;
-		for ring in 0..ring_count {
-			let ring_radius = aoe.radius * (0.5 + ring as f32 * 0.25);
-			let ring_alpha = alpha * (1.0 - ring as f32 / ring_count as f32);
+		// Expanding shockwave radius
+		let shockwave_radius = aoe.radius * (0.3 + progress * 0.7);
 
-			let color = Color::srgba(0.4, 0.6, 0.8, ring_alpha * 0.5);
+		// === Electric Tendrils radiating outward ===
+		let tendril_count = 12;
+		for i in 0..tendril_count {
+			let base_angle = (i as f32 / tendril_count as f32) * std::f32::consts::TAU;
+			// Rotate slightly each frame for swirling effect
+			let angle = base_angle + rng.gen_range(-0.2..0.2);
+			let direction = Vec2::new(angle.cos(), angle.sin());
 
-			// Draw circle approximation
-			let segments = 32;
-			for i in 0..segments {
-				let angle1 = (i as f32 / segments as f32) * std::f32::consts::TAU;
-				let angle2 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
+			// Tendril length varies - some reach full radius, some shorter
+			let tendril_length = shockwave_radius * rng.gen_range(0.6..1.0);
+			let tendril_end = aoe.position + direction * tendril_length;
 
-				let p1 = aoe.position + Vec2::new(angle1.cos(), angle1.sin()) * ring_radius;
-				let p2 = aoe.position + Vec2::new(angle2.cos(), angle2.sin()) * ring_radius;
+			// Generate jagged tendril path
+			let segment_count = 4;
+			let mut points = vec![aoe.position];
 
-				gizmos.line_2d(p1, p2, color);
+			for j in 1..segment_count {
+				let t = j as f32 / segment_count as f32;
+				let base_point = aoe.position.lerp(tendril_end, t);
+				let perpendicular = Vec2::new(-direction.y, direction.x);
+				let displacement = rng.gen_range(-8.0..8.0);
+				points.push(base_point + perpendicular * displacement);
 			}
+			points.push(tendril_end);
+
+			// Draw tendril with glow
+			for w in points.windows(2) {
+				let p1 = w[0];
+				let p2 = w[1];
+
+				// Outer glow
+				let outer = Color::srgba(0.3, 0.5, 0.9, alpha * 0.25);
+				gizmos.line_2d(p1 + Vec2::new(-1.5, 0.0), p2 + Vec2::new(-1.5, 0.0), outer);
+				gizmos.line_2d(p1 + Vec2::new(1.5, 0.0), p2 + Vec2::new(1.5, 0.0), outer);
+
+				// Core
+				let core = Color::srgba(0.7, 0.85, 1.0, alpha * 0.7);
+				gizmos.line_2d(p1, p2, core);
+			}
+
+			// Spark at tendril tip
+			if rng.gen_bool(0.4) {
+				let spark_color = Color::srgba(1.0, 1.0, 1.0, alpha * 0.9);
+				let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
+				gizmos.line_2d(tendril_end, tendril_end + spark_dir * 8.0, spark_color);
+			}
+		}
+
+		// === Expanding shockwave ring ===
+		let ring_color = Color::srgba(0.5, 0.7, 1.0, alpha * 0.4);
+		let segments = 24;
+		for i in 0..segments {
+			let angle1 = (i as f32 / segments as f32) * std::f32::consts::TAU;
+			let angle2 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
+
+			// Add wobble to the ring
+			let wobble1 = 1.0 + rng.gen_range(-0.05..0.05);
+			let wobble2 = 1.0 + rng.gen_range(-0.05..0.05);
+
+			let p1 = aoe.position + Vec2::new(angle1.cos(), angle1.sin()) * shockwave_radius * wobble1;
+			let p2 = aoe.position + Vec2::new(angle2.cos(), angle2.sin()) * shockwave_radius * wobble2;
+
+			gizmos.line_2d(p1, p2, ring_color);
+		}
+
+		// === Central bright flash (fades quickly) ===
+		let flash_alpha = (alpha * 3.0).min(1.0); // Bright at start, fades fast
+		let flash_color = Color::srgba(0.9, 0.95, 1.0, flash_alpha * 0.8);
+		let flash_radius = 15.0 * (1.0 - progress * 0.5);
+
+		for i in 0..6 {
+			let angle = (i as f32 / 6.0) * std::f32::consts::TAU + rng.gen_range(-0.1..0.1);
+			let p1 = aoe.position;
+			let p2 = aoe.position + Vec2::new(angle.cos(), angle.sin()) * flash_radius;
+			gizmos.line_2d(p1, p2, flash_color);
+		}
+
+		// === Random sparks popping off ===
+		let spark_count = (8.0 * alpha) as usize; // More sparks at start
+		for _ in 0..spark_count {
+			let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+			let dist = rng.gen_range(0.2..0.9) * shockwave_radius;
+			let spark_pos = aoe.position + Vec2::new(angle.cos(), angle.sin()) * dist;
+
+			let spark_color = Color::srgba(0.8, 0.9, 1.0, alpha * 0.6);
+			let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
+			gizmos.line_2d(spark_pos, spark_pos + spark_dir * 5.0, spark_color);
 		}
 	}
 }
@@ -766,7 +850,7 @@ pub fn spawn_pending_baby_whips(
 
 			// Baby whip fire sound (sparkly glitter effect)
 			audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
-				.with_volume(0.35);
+				.with_volume(0.2);
 
 			// If hit enemy, execute chain
 			if let Some(hit_entity) = ray_result.hit_enemy {
@@ -774,7 +858,7 @@ pub fn spawn_pending_baby_whips(
 
 				// Baby whip impact (quieter than main impact)
 				audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-					.with_volume(0.4);
+					.with_volume(0.15);
 
 				hit_events.send(EnemyHitEvent {
 					enemy: hit_entity,
@@ -913,6 +997,55 @@ pub fn render_lightning_arcs(
 				arc.intensity * fade * 0.8
 			);
 			gizmos.line_2d(window[0], window[1], core);
+		}
+	}
+}
+
+pub fn process_pending_sounds(
+	mut commands: Commands,
+	time: Res<Time>,
+	mut pending: Query<(Entity, &mut PendingSound)>,
+	audio: Res<Audio>,
+	asset_server: Res<AssetServer>,
+	mut audio_instances: ResMut<Assets<AudioInstance>>,
+) {
+	for (entity, mut sound) in pending.iter_mut() {
+		sound.delay.tick(time.delta());
+
+		if sound.delay.finished() {
+			// Play the sound and get the instance handle
+			let handle = audio.play(asset_server.load(sound.sound_path))
+				.with_volume(sound.volume as f64)
+				.handle();
+
+			// If fade is configured, spawn a FadingSound to handle it
+			if let Some(fade_after) = sound.fade_after {
+				commands.spawn(FadingSound {
+					fade_timer: Timer::from_seconds(fade_after, TimerMode::Once),
+					instance: handle,
+				});
+			}
+
+			commands.entity(entity).despawn();
+		}
+	}
+}
+
+pub fn process_fading_sounds(
+	mut commands: Commands,
+	time: Res<Time>,
+	mut fading: Query<(Entity, &mut FadingSound)>,
+	mut audio_instances: ResMut<Assets<AudioInstance>>,
+) {
+	for (entity, mut sound) in fading.iter_mut() {
+		sound.fade_timer.tick(time.delta());
+
+		if sound.fade_timer.finished() {
+			// Start fade out
+			if let Some(instance) = audio_instances.get_mut(&sound.instance) {
+				instance.stop(AudioTween::linear(std::time::Duration::from_millis(150)));
+			}
+			commands.entity(entity).despawn();
 		}
 	}
 }

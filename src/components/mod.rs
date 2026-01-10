@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_kira_audio::AudioInstance;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -350,6 +351,21 @@ pub struct LightningArc {
 	pub lifetime: Timer,
 	pub thickness: f32,
 	pub intensity: f32,
+}
+
+#[derive(Component)]
+pub struct PendingSound {
+	pub delay: Timer,
+	pub sound_path: &'static str,
+	pub volume: f32,
+	pub fade_after: Option<f32>, // Start fading after this many seconds
+	pub fade_duration: f32,
+}
+
+#[derive(Component)]
+pub struct FadingSound {
+	pub fade_timer: Timer,
+	pub instance: Handle<AudioInstance>,
 }
 
 #[derive(Component)]

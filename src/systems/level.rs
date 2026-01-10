@@ -176,6 +176,7 @@ pub struct CurrentLevel {
 	pub processed_waves: Vec<usize>,
 	pub processed_doodads: Vec<usize>,
 	pub processed_structures: Vec<usize>,
+	pub spawned_enemies: std::collections::HashSet<(usize, usize)>,  // (wave_idx, enemy_idx)
 }
 
 impl CurrentLevel {
@@ -224,6 +225,7 @@ impl CurrentLevel {
 			processed_waves,
 			processed_doodads,
 			processed_structures,
+			spawned_enemies: std::collections::HashSet::new(),
 		}
 	}
 
@@ -366,19 +368,61 @@ pub fn process_enemy_waves(
 	use crate::level::{FormationRole, EnemySpawn};
 
 	let current_distance = level.distance;
+	let scroll_speed = level.get_scroll_speed();
 
 	let mut waves_to_process = Vec::new();
 	for (wave_idx, wave) in level.data.enemy_waves.iter().enumerate() {
-		// Spawn wave if we've reached its distance and haven't spawned it yet
-		if !level.processed_waves.contains(&wave_idx)
-			&& current_distance >= wave.spawn_distance
-		{
-			waves_to_process.push((wave_idx, wave.clone()));
+		// Check if we should spawn any enemies in this wave
+		// Each enemy may have a different spawn offset based on its Y position
+		if !level.processed_waves.contains(&wave_idx) {
+			// Check if ANY enemy in this wave should spawn
+			let should_spawn = wave.enemies.iter().any(|enemy| {
+				// Calculate adjusted spawn distance based on target Y position
+				// YAML Y position determines WHEN to spawn (higher Y = spawn later/closer to spawn_distance)
+				// All enemies spawn at Y=600, then scroll down with velocity=-100
+				let target_y = enemy.position[1];
+				let spawn_y = 600.0;
+				let distance_to_travel = spawn_y - target_y;  // How far to scroll before reaching target Y
+				let velocity_y: f32 = 100.0;  // Scroll velocity (abs value)
+				let time_to_reach_target = distance_to_travel / velocity_y;
+				let distance_offset = time_to_reach_target * scroll_speed;  // Convert time to GU distance
+
+				// Spawn early enough so enemy reaches target Y position when player reaches spawn_distance
+				let adjusted_spawn_distance = wave.spawn_distance - distance_offset;
+
+				current_distance >= adjusted_spawn_distance
+			});
+
+			if should_spawn {
+				waves_to_process.push((wave_idx, wave.clone()));
+			}
 		}
 	}
 
 	for (wave_idx, wave) in waves_to_process {
-		for enemy in &wave.enemies {
+		let mut all_enemies_spawned = true;
+
+		for (enemy_idx, enemy) in wave.enemies.iter().enumerate() {
+			// Skip if this specific enemy already spawned
+			if level.spawned_enemies.contains(&(wave_idx, enemy_idx)) {
+				continue;
+			}
+
+			// Calculate if THIS specific enemy should spawn based on its Y position
+			let target_y = enemy.position[1];
+			let spawn_y = 600.0;
+			let distance_to_travel = spawn_y - target_y;
+			let velocity_y: f32 = 100.0;  // Scroll velocity (abs value)
+			let time_to_reach_target = distance_to_travel / velocity_y;
+			let distance_offset = time_to_reach_target * scroll_speed;
+			let adjusted_spawn_distance = wave.spawn_distance - distance_offset;
+
+			// Skip this enemy if it's not time to spawn yet
+			if current_distance < adjusted_spawn_distance {
+				all_enemies_spawned = false;
+				continue;
+			}
+
 			let (sprite_path, size, enemy_type) = match enemy.enemy_type.as_str() {
 				"Scout" => ("enemies/scout.png", sizes::SCOUT, EnemyType::Scout),
 				"Fighter" => ("enemies/fighter.png", sizes::FIGHTER, EnemyType::Fighter),
@@ -401,20 +445,24 @@ pub fn process_enemy_waves(
 			}
 
 			if !behaviors.is_empty() {
+				// Always spawn enemies above viewport (Y=600) so they scroll into view naturally
+				// YAML Y position is ignored - enemies enter from top of screen
+				let spawn_y = 600.0;  // Above viewport top edge (Y=500)
+
 				let mut entity_commands = commands.spawn((
 					Sprite {
 						image: asset_server.load(sprite_path),
 						custom_size: Some(Vec2::splat(size)),
 						..default()
 					},
-					Transform::from_xyz(enemy.position[0], enemy.position[1], 0.5),
+					Transform::from_xyz(enemy.position[0], spawn_y, 0.5),
 					Enemy { enemy_type },
 					EnemyBehavior {
 						behaviors: behaviors.clone(),
 						current_index: 0,
 						behavior_start_time: 0.0,
 						total_time_alive: 0.0,
-						spawn_position: Vec2::new(enemy.position[0], enemy.position[1]),
+						spawn_position: Vec2::new(enemy.position[0], spawn_y),
 					},
 					Health::for_enemy_type(enemy_type),
 					Collider::for_enemy_type(enemy_type),
@@ -446,9 +494,12 @@ pub fn process_enemy_waves(
 					}
 				}
 
+				// Mark this enemy as spawned
+				level.spawned_enemies.insert((wave_idx, enemy_idx));
+
 				info!(
-					"✨ Spawned {:?} at ({:.1}, {:.1}) with {} behaviors",
-					enemy_type, enemy.position[0], enemy.position[1], behaviors.len()
+					"✨ Spawned {:?} at X={:.1}, Y=600 (scroll to target Y={:.1}) - dist={:.1}→{:.1}",
+					enemy_type, enemy.position[0], target_y, wave.spawn_distance, adjusted_spawn_distance
 				);
 				if enemy_type == EnemyType::Boss {
 					info!("🎯 BOSS SPAWNED! Position: ({:.1}, {:.1}), Behaviors: {:?}",
@@ -484,6 +535,9 @@ pub fn process_enemy_waves(
 					Collider::for_enemy_type(enemy_type),
 				));
 
+				// Mark this enemy as spawned
+				level.spawned_enemies.insert((wave_idx, enemy_idx));
+
 				info!(
 					"Spawned {:?} at ({:.1}, {:.1}) with {:?} (legacy)",
 					enemy_type, enemy.position[0], enemy.position[1], movement_pattern
@@ -491,7 +545,10 @@ pub fn process_enemy_waves(
 			}
 		}
 
-		level.processed_waves.push(wave_idx);
+		// Only mark wave as processed if ALL enemies in it have spawned
+		if all_enemies_spawned {
+			level.processed_waves.push(wave_idx);
+		}
 	}
 }
 

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::components::{Enemy, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyPreviousPosition, EnemyProjectileType};
+use crate::components::{Enemy, EnemyType, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyPreviousPosition, EnemyProjectileType};
 use super::world::HALF_WORLD_HEIGHT;
 use super::level::CurrentLevel;
 use std::f32::consts::{PI, FRAC_PI_2};
@@ -446,22 +446,32 @@ pub fn init_enemy_rotation(
 }
 
 pub fn rotate_enemies_to_movement(
-	mut query: Query<(&mut Transform, &mut EnemyPreviousPosition), With<Enemy>>,
+	mut query: Query<(&mut Transform, &mut EnemyPreviousPosition, &Enemy), With<Enemy>>,
 	time: Res<Time>,
 ) {
 	let delta = time.delta_secs();
 	if delta < 0.001 { return; }
 
-	for (mut transform, mut prev_pos) in query.iter_mut() {
+	for (mut transform, mut prev_pos, enemy) in query.iter_mut() {
 		let current_pos = transform.translation;
 		let movement = current_pos - prev_pos.0;
 
-		// Only rotate if moving significantly
-		if movement.length() > 0.5 {
-			let direction = movement.truncate();
-			// Calculate angle (0 degrees = pointing up)
-			let target_angle = direction.y.atan2(direction.x) - FRAC_PI_2;
-			transform.rotation = Quat::from_rotation_z(target_angle);
+		// Asteroids tumble slowly instead of facing movement direction
+		if matches!(enemy.enemy_type, EnemyType::SmallAsteroid | EnemyType::MediumAsteroid | EnemyType::LargeAsteroid | EnemyType::StationDebris) {
+			// Slow tumble rotation for asteroids
+			let tumble_speed = 0.3;  // radians per second
+			let current_rotation = transform.rotation.to_euler(bevy::math::EulerRot::XYZ).2;
+			let new_rotation = current_rotation + tumble_speed * delta;
+			transform.rotation = Quat::from_rotation_z(new_rotation);
+		} else {
+			// Ships rotate to face movement direction
+			// Only rotate if moving significantly
+			if movement.length() > 0.5 {
+				let direction = movement.truncate();
+				// Calculate angle (0 degrees = pointing up)
+				let target_angle = direction.y.atan2(direction.x) - FRAC_PI_2;
+				transform.rotation = Quat::from_rotation_z(target_angle);
+			}
 		}
 
 		prev_pos.0 = current_pos;
