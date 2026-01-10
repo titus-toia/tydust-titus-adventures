@@ -1,13 +1,15 @@
 use bevy::prelude::*;
 use crate::components::{ScrollingBackground, BackgroundTile};
 use super::world::{WORLD_HEIGHT, HALF_WORLD_HEIGHT};
-use super::level::DebugSpeed;
+use super::level::{DebugSpeed, GamePaused};
 
 pub fn scroll_background(
 	time: Res<Time>,
 	debug_speed: Res<DebugSpeed>,
+	paused: Res<GamePaused>,
 	mut query: Query<(&mut Transform, &ScrollingBackground), With<BackgroundTile>>,
 ) {
+	if paused.0 { return; }
 	let multiplier = if debug_speed.enabled { debug_speed.multiplier } else { 1.0 };
 	for (mut transform, bg) in query.iter_mut() {
 		transform.translation.y -= bg.speed * multiplier * time.delta_secs();

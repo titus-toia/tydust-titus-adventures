@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use rand::Rng;
-use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType, PlayerHitEvent};
+use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType, PlayerHitEvent, EnemyHitEvent, Enemy};
 
 pub fn spawn_engine_particles(
 	mut commands: Commands,
@@ -86,14 +86,14 @@ pub fn spawn_explosion_particles(
 	let mut rng = rand::thread_rng();
 
 	for event in death_events.read() {
-		// Scale explosion based on enemy type
-		let (particle_count, size_range, speed_range) = match event.enemy_type {
-			EnemyType::Boss => (30, 25.0..45.0, 150.0..300.0),
-			EnemyType::HeavyGunship | EnemyType::Corvette => (20, 20.0..35.0, 120.0..250.0),
-			EnemyType::LargeAsteroid => (18, 18.0..30.0, 100.0..200.0),
-			EnemyType::MediumAsteroid | EnemyType::Bomber => (14, 15.0..25.0, 80.0..180.0),
-			EnemyType::Fighter | EnemyType::StationDebris => (12, 12.0..22.0, 70.0..160.0),
-			_ => (10, 10.0..18.0, 60.0..140.0),
+		// Scale explosion based on enemy type - more dramatic explosions
+		let (particle_count, size_range, speed_range, lifetime_range) = match event.enemy_type {
+			EnemyType::Boss => (60, 30.0..60.0, 200.0..400.0, 0.5..0.9),
+			EnemyType::HeavyGunship | EnemyType::Corvette => (40, 25.0..45.0, 150.0..320.0, 0.4..0.7),
+			EnemyType::LargeAsteroid => (35, 22.0..38.0, 130.0..280.0, 0.4..0.7),
+			EnemyType::MediumAsteroid | EnemyType::Bomber => (28, 18.0..32.0, 110.0..240.0, 0.35..0.6),
+			EnemyType::Fighter | EnemyType::StationDebris => (22, 15.0..28.0, 90.0..200.0, 0.3..0.55),
+			_ => (18, 12.0..24.0, 70.0..170.0, 0.3..0.5),
 		};
 
 		for _ in 0..particle_count {
@@ -102,7 +102,7 @@ pub fn spawn_explosion_particles(
 			let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
 
 			let size = rng.gen_range(size_range.clone());
-			let lifetime = rng.gen_range(0.3..0.6);
+			let lifetime = rng.gen_range(lifetime_range.clone());
 
 			// Mix of orange/yellow explosion colors
 			let sprite = match rng.gen_range(0..3) {
@@ -118,6 +118,59 @@ pub fn spawn_explosion_particles(
 					..default()
 				},
 				Transform::from_xyz(event.position.x, event.position.y, 1.0),
+				Particle {
+					lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+					velocity,
+				},
+			));
+		}
+	}
+}
+
+pub fn spawn_enemy_hit_particles(
+	mut commands: Commands,
+	mut hit_events: EventReader<EnemyHitEvent>,
+	enemy_query: Query<(&Transform, &Enemy)>,
+	asset_server: Res<AssetServer>,
+) {
+	let mut rng = rand::thread_rng();
+
+	for event in hit_events.read() {
+		let Ok((enemy_transform, enemy)) = enemy_query.get(event.enemy) else { continue };
+		let pos = enemy_transform.translation.truncate();
+
+		// Scale hit particles by enemy size
+		let (particle_count, size_range) = match enemy.enemy_type {
+			EnemyType::Boss => (12, 12.0..20.0),
+			EnemyType::HeavyGunship | EnemyType::Corvette => (8, 10.0..16.0),
+			EnemyType::LargeAsteroid => (7, 9.0..14.0),
+			EnemyType::MediumAsteroid | EnemyType::Bomber => (6, 8.0..12.0),
+			_ => (5, 6.0..10.0),
+		};
+
+		// Small directional burst at impact point
+		for _ in 0..particle_count {
+			let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+			let speed = rng.gen_range(60.0..120.0);
+			let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+
+			let size = rng.gen_range(size_range.clone());
+			let lifetime = rng.gen_range(0.15..0.3);
+
+			// Orange/white impact sparks
+			let sprite = if rng.gen_bool(0.6) {
+				"particles/spark_white.png"
+			} else {
+				"particles/flame_orange.png"
+			};
+
+			commands.spawn((
+				Sprite {
+					image: asset_server.load(sprite),
+					custom_size: Some(Vec2::splat(size)),
+					..default()
+				},
+				Transform::from_xyz(pos.x, pos.y, 0.95),
 				Particle {
 					lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
 					velocity,

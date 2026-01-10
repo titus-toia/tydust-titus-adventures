@@ -3,12 +3,11 @@
 
 pub const WORLD_HEIGHT: f32 = 1000.0;
 #[allow(dead_code)]
-pub const PLAY_WIDTH: f32 = 750.0;
+pub const PLAY_WIDTH: f32 = 1333.0;  // 4:3 aspect ratio
 pub const HALF_WORLD_HEIGHT: f32 = 500.0;
-pub const HALF_PLAY_WIDTH: f32 = 375.0;
+pub const HALF_PLAY_WIDTH: f32 = 666.5;  // 4:3 aspect ratio
 
 pub mod sizes {
-	pub const PLAYER: f32 = 175.0;
 	pub const SCOUT: f32 = 60.0;
 	pub const FIGHTER: f32 = 80.0;
 	pub const HEAVY_GUNSHIP: f32 = 150.0;
@@ -21,8 +20,6 @@ pub mod sizes {
 	pub const MEDIUM_ASTEROID: f32 = 60.0;
 	pub const LARGE_ASTEROID: f32 = 120.0;
 	pub const STATION_DEBRIS: f32 = 80.0;
-	pub const LASER_WIDTH: f32 = 5.0;
-	pub const LASER_HEIGHT: f32 = 20.0;
 	#[allow(dead_code)]
 	pub const POWER_UP: f32 = 40.0;
 }
@@ -48,8 +45,6 @@ pub mod doodad_sizes {
 }
 
 pub mod speeds {
-	pub const PLAYER: f32 = 520.0;
-	pub const LASER: f32 = 1300.0;
 	#[allow(dead_code)]
 	pub const BACKGROUND_SLOW: f32 = 65.0;
 	#[allow(dead_code)]
@@ -58,10 +53,10 @@ pub mod speeds {
 
 pub mod player_bounds {
 	use super::*;
-	pub const SPAWN_Y: f32 = -390.0;
-	// Tuned: ship edges can just touch/slightly exceed screen edges
-	pub const MIN_Y: f32 = -470.0;  // ~20 gu of ship off bottom
-	pub const MAX_Y: f32 = 475.0;   // ~25 gu of ship off top
+	pub const SPAWN_Y: f32 = 0.0;  // Center of visible area
+	// 4:3 playable area: X ±666.5 (1333 wide), Y ±500 (1000 tall)
+	pub const MIN_Y: f32 = -500.0;  // Bottom of visible area
+	pub const MAX_Y: f32 = 500.0;   // Top of visible area
 	pub const MIN_X: f32 = -HALF_PLAY_WIDTH;
 	pub const MAX_X: f32 = HALF_PLAY_WIDTH;
 }

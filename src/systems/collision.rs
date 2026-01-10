@@ -24,6 +24,7 @@ pub fn check_projectile_enemy_collisions(
 				hit_events.send(EnemyHitEvent {
 					enemy: enemy_entity,
 					damage: projectile.damage,
+					hit_sound: None,
 				});
 				commands.entity(proj_entity).despawn();
 				break;
@@ -42,7 +43,14 @@ pub fn apply_enemy_damage(
 		if let Ok((mut health, transform, enemy)) = enemies.get_mut(event.enemy) {
 			health.current -= event.damage;
 
+			if enemy.enemy_type == crate::components::EnemyType::Boss {
+				info!("💥 Boss hit! Damage: {:.1}, HP: {:.1}/{:.1}", event.damage, health.current, health.max);
+			}
+
 			if health.current <= 0.0 {
+				if enemy.enemy_type == crate::components::EnemyType::Boss {
+					info!("☠️  BOSS DESTROYED!");
+				}
 				death_events.send(EnemyDeathEvent {
 					position: transform.translation.truncate(),
 					enemy_type: enemy.enemy_type,
@@ -140,8 +148,15 @@ pub fn play_enemy_hit_sound(
 	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
 ) {
-	for _ in hit_events.read() {
-		audio.play(asset_server.load("sounds/enemy_hit.ogg")).with_volume(0.6);
+	for event in hit_events.read() {
+		let sound_path = event.hit_sound.unwrap_or("sounds/enemy_hit.ogg");
+		let volume = match event.hit_sound {
+			Some("sounds/lightning/lightning_wave_light.ogg") => 0.4,
+			Some("sounds/lightning/deep_lightning_boom.ogg") => 0.5,
+			Some("sounds/lightning/fireworks_crackle.ogg") => 0.4,
+			_ => 0.6,
+		};
+		audio.play(asset_server.load(sound_path)).with_volume(volume);
 	}
 }
 

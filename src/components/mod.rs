@@ -8,13 +8,21 @@ pub struct ScrollingBackground {
 }
 
 #[derive(Component)]
+pub struct DistanceLocked {
+	pub spawn_distance: f32,
+	pub base_y: f32,
+	pub speed_ratio: f32,
+	pub y_offset: f32,  // Additional Y offset for tiling
+}
+
+#[derive(Component)]
 pub struct BackgroundTile;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParallaxLayer {
 	DeepSpace,
-	DeepStructures,
 	FarField,
+	DeepStructures,
 	MegaStructures,
 	MidDistance,
 	StructureDetails,
@@ -26,10 +34,10 @@ impl ParallaxLayer {
 	pub fn z_depth(&self) -> f32 {
 		match self {
 			ParallaxLayer::DeepSpace => -9.5,
-			ParallaxLayer::DeepStructures => -8.0,
-			ParallaxLayer::FarField => -9.0,
-			ParallaxLayer::MegaStructures => -6.0,
-			ParallaxLayer::MidDistance => -7.0,
+			ParallaxLayer::FarField => -8.0,
+			ParallaxLayer::DeepStructures => -7.5,
+			ParallaxLayer::MegaStructures => -7.0,
+			ParallaxLayer::MidDistance => -6.0,
 			ParallaxLayer::StructureDetails => -4.0,
 			ParallaxLayer::NearBackground => -3.0,
 			ParallaxLayer::Foreground => 2.5,
@@ -39,8 +47,8 @@ impl ParallaxLayer {
 	pub fn speed_multiplier(&self) -> f32 {
 		match self {
 			ParallaxLayer::DeepSpace => 0.0,       // Static - infinitely far (nebulae, stars)
-			ParallaxLayer::DeepStructures => 0.05, // Barely perceptible drift
-			ParallaxLayer::FarField => 0.1,        // Very distant objects
+			ParallaxLayer::FarField => 0.075,      // Very distant objects
+			ParallaxLayer::DeepStructures => 0.15, // Distant structures with visible movement
 			ParallaxLayer::MegaStructures => 0.4,  // Large distant structures
 			ParallaxLayer::MidDistance => 0.6,
 			ParallaxLayer::StructureDetails => 0.8,
@@ -58,66 +66,66 @@ pub struct ParallaxEntity {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ShipType {
-	Interceptor,
-	Striker,
-	Vanguard,
-	Corsair,
-	Sentinel,
+	Wraith,
+	Tempest,
+	Anvil,
+	Talon,
+	Bastion,
 }
 
 impl ShipType {
 	pub fn get_stats(&self) -> ShipStats {
 		match self {
-			ShipType::Interceptor => ShipStats {
+			ShipType::Wraith => ShipStats {
 				speed: 620.0,
 				fire_cooldown: 0.18,
-				size: 65.0,
-				description: "Maximum speed and agility",
+				size: 84.5,
+				description: "Speed-focused interceptor from Apex Dynamics",
 			},
-			ShipType::Striker => ShipStats {
+			ShipType::Tempest => ShipStats {
 				speed: 520.0,
 				fire_cooldown: 0.15,
-				size: 65.0,
-				description: "Balanced performance",
+				size: 84.5,
+				description: "Balanced performance fighter from Vortex Dynamics",
 			},
-			ShipType::Vanguard => ShipStats {
+			ShipType::Anvil => ShipStats {
 				speed: 450.0,
 				fire_cooldown: 0.12,
-				size: 68.0,
-				description: "Heavy firepower, reduced mobility",
+				size: 88.4,
+				description: "Heavy weapons platform from Forge Industrial",
 			},
-			ShipType::Corsair => ShipStats {
+			ShipType::Talon => ShipStats {
 				speed: 580.0,
 				fire_cooldown: 0.16,
-				size: 65.0,
-				description: "Quick bursts, high maneuverability",
+				size: 84.5,
+				description: "Agile strike fighter from Helix Aerospace",
 			},
-			ShipType::Sentinel => ShipStats {
+			ShipType::Bastion => ShipStats {
 				speed: 490.0,
 				fire_cooldown: 0.14,
-				size: 66.0,
-				description: "Sustained fire capability",
+				size: 85.8,
+				description: "Reliable combat platform from Sentinel Systems",
 			},
 		}
 	}
 
 	pub fn sprite_path(&self) -> &'static str {
 		match self {
-			ShipType::Interceptor => "sprites/ships/interceptor.png",
-			ShipType::Striker => "sprites/ships/striker.png",
-			ShipType::Vanguard => "sprites/ships/vanguard.png",
-			ShipType::Corsair => "sprites/ships/corsair.png",
-			ShipType::Sentinel => "sprites/ships/sentinel.png",
+			ShipType::Wraith => "sprites/ships/wraith.png",
+			ShipType::Tempest => "sprites/ships/tempest.png",
+			ShipType::Anvil => "sprites/ships/anvil.png",
+			ShipType::Talon => "sprites/ships/talon.png",
+			ShipType::Bastion => "sprites/ships/bastion.png",
 		}
 	}
 
 	pub fn all() -> [ShipType; 5] {
 		[
-			ShipType::Interceptor,
-			ShipType::Striker,
-			ShipType::Vanguard,
-			ShipType::Corsair,
-			ShipType::Sentinel,
+			ShipType::Wraith,
+			ShipType::Tempest,
+			ShipType::Anvil,
+			ShipType::Talon,
+			ShipType::Bastion,
 		]
 	}
 }
@@ -136,11 +144,6 @@ pub struct Player {
 	pub ship_type: ShipType,
 }
 
-#[derive(Component)]
-pub struct Laser {
-	pub speed: f32,
-}
-
 // === Weapon System Components ===
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -152,6 +155,7 @@ pub enum WeaponType {
 	MissilePods,
 	LaserArray,
 	OrbitalDefense,
+	LightningChain,
 }
 
 pub struct WeaponConfig {
@@ -238,6 +242,16 @@ impl WeaponType {
 				projectile_color: Color::srgb(1.0, 0.8, 0.0),
 				max_level: 6,
 			},
+			WeaponType::LightningChain => WeaponConfig {
+				base_damage: 25.0,
+				damage_per_level: 2.5,
+				base_cooldown: 0.4,
+				cooldown_reduction_per_level: 0.01,
+				projectile_speed: 1200.0,
+				projectile_size: Vec2::new(30.0, 70.0),
+				projectile_color: Color::srgb(0.6, 0.8, 1.0),
+				max_level: 10,
+			},
 		}
 	}
 }
@@ -282,6 +296,60 @@ pub struct OrbitalEntity {
 	pub radius: f32,
 	pub rotation_speed: f32,
 	pub fire_timer: Timer,
+}
+
+// === Lightning Chain Components ===
+
+#[derive(Component)]
+pub struct LightningBolt {
+	pub start: Vec2,
+	pub end: Vec2,
+	pub curve_point: Vec2,
+	pub lifetime: Timer,
+	pub thickness_start: f32,
+	pub thickness_end: f32,
+	pub intensity: f32,
+	pub is_baby: bool,
+	pub recursion_depth: u8,
+}
+
+#[derive(Component)]
+pub struct LightningImpact {
+	pub position: Vec2,
+	pub lifetime: Timer,
+	pub branch_count: u8,
+	pub radius: f32,
+	pub intensity: f32,
+}
+
+#[derive(Component)]
+pub struct LightningAoeEffect {
+	pub position: Vec2,
+	pub radius: f32,
+	pub lifetime: Timer,
+	pub intensity: f32,
+}
+
+#[derive(Component)]
+pub struct PendingBabyWhip {
+	pub delay_timer: Timer,
+	pub spawn_from: Vec2,
+	pub direction: Vec2,
+	pub parent_damage: f32,
+	pub parent_level: u8,
+	pub parent_chain_range: f32,
+	pub parent_aoe_radius: f32,
+	pub recursion_depth: u8,
+	pub baby_spawn_chance: f32,
+}
+
+#[derive(Component)]
+pub struct LightningArc {
+	pub start: Vec2,
+	pub end: Vec2,
+	pub lifetime: Timer,
+	pub thickness: f32,
+	pub intensity: f32,
 }
 
 #[derive(Component)]
@@ -598,7 +666,7 @@ impl Health {
 			EnemyType::Boss => 500.0,
 			EnemyType::SmallAsteroid => 5.0,
 			EnemyType::MediumAsteroid => 15.0,
-			EnemyType::LargeAsteroid => 30.0,
+			EnemyType::LargeAsteroid => 225.0,
 			EnemyType::StationDebris => 20.0,
 		};
 		Self::new(max)
@@ -685,10 +753,32 @@ impl ContactDamage {
 pub struct EnemyHitEvent {
 	pub enemy: Entity,
 	pub damage: f32,
+	pub hit_sound: Option<&'static str>, // Optional custom hit sound (None = default)
 }
 
 #[derive(Event)]
 pub struct EnemyDeathEvent {
 	pub position: Vec2,
 	pub enemy_type: EnemyType,
+}
+
+#[derive(Resource)]
+pub struct ChargeMeter {
+	pub current: f32,
+	pub max: f32,
+	pub recharge_rate: f32,
+	pub is_charging: bool,
+	pub charge_consumed_this_frame: bool,
+}
+
+impl Default for ChargeMeter {
+	fn default() -> Self {
+		Self {
+			current: 2.0,
+			max: 2.0,
+			recharge_rate: 0.5,
+			is_charging: false,
+			charge_consumed_this_frame: false,
+		}
+	}
 }

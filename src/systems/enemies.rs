@@ -44,11 +44,12 @@ pub fn update_enemy_movement(
 
 pub fn cleanup_enemies(
 	mut commands: Commands,
-	query: Query<(Entity, &Transform), With<Enemy>>,
+	query: Query<(Entity, &Transform, &Enemy), With<Enemy>>,
 ) {
 	let despawn_y = -(HALF_WORLD_HEIGHT + 200.0);
-	for (entity, transform) in query.iter() {
+	for (entity, transform, enemy) in query.iter() {
 		if transform.translation.y < despawn_y {
+			info!("🗑️  Despawning {:?} at y={:.1} (below {:.1})", enemy.enemy_type, transform.translation.y, despawn_y);
 			commands.entity(entity).despawn();
 		}
 	}
@@ -80,6 +81,12 @@ pub fn execute_enemy_behaviors(
 
 		let current = &behavior_state.behaviors[behavior_state.current_index];
 		let elapsed = behavior_state.total_time_alive - behavior_state.behavior_start_time;
+
+// 		// Debug logging for boss every 0.5s
+// 		if transform.translation.y > 600.0 && (behavior_state.total_time_alive * 2.0) as i32 % 1 == 0 {
+// 			info!("🎯 Boss behavior update: pos=({:.1}, {:.1}), behavior={:?}, elapsed={:.2}s",
+// 				transform.translation.x, transform.translation.y, current.behavior_type, elapsed);
+// 		}
 
 		let should_advance = match current.duration {
 			Some(dur) => elapsed >= dur,
@@ -470,6 +477,6 @@ pub fn shimmer_enemies(
 	for (mut sprite, _enemy) in query.iter_mut() {
 		// Shimmer effect - pulsing between 0.8 and 1.3
 		let shimmer = 1.05 + ((elapsed * 3.5).sin() * 0.25);
-		sprite.color = Color::srgb(shimmer, shimmer, shimmer);
+		sprite.color = Color::srgba(shimmer, shimmer, shimmer, 1.0);
 	}
 }

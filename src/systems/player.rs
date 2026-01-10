@@ -12,7 +12,7 @@ pub fn spawn_player(
 	selected_ship: Res<SelectedShip>,
 	selected_weapon: Res<SelectedWeapon>,
 ) {
-	let ship_type = selected_ship.ship_type.unwrap_or(ShipType::Striker);
+	let ship_type = selected_ship.ship_type.unwrap_or(ShipType::Tempest);
 	let stats = ship_type.get_stats();
 
 	let weapon_type = selected_weapon.weapon_type;

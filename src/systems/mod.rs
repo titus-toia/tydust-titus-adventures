@@ -1,6 +1,7 @@
 pub mod background;
 pub mod player;
 pub mod weapons;
+pub mod lightning;
 pub mod weapon_upgrade;
 pub mod pickups;
 pub mod level;
@@ -11,3 +12,4 @@ pub mod particles;
 pub mod visual;
 pub mod menu;
 pub mod collision;
+pub mod info_overlay;

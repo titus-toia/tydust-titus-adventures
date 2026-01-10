@@ -130,6 +130,7 @@ pub fn setup_ship_selection_menu(
 					spawn_weapon_button(row, WeaponType::MissilePods, &asset_server, &font);
 					spawn_weapon_button(row, WeaponType::LaserArray, &asset_server, &font);
 					spawn_weapon_button(row, WeaponType::OrbitalDefense, &asset_server, &font);
+					spawn_weapon_button(row, WeaponType::LightningChain, &asset_server, &font);
 				});
 
 			// Start button (initially hidden until selection made)
@@ -256,6 +257,7 @@ fn spawn_weapon_button(
 		WeaponType::MissilePods => ("Homing missiles, auto-targeting", "1-6", "sprites/weapons/missile_pods.png"),
 		WeaponType::LaserArray => ("Rapid-fire beams, continuous DPS", "1-6", "sprites/weapons/laser_array.png"),
 		WeaponType::OrbitalDefense => ("Rotating orbs, offense + defense", "1-6", "sprites/weapons/orbital_defense.png"),
+		WeaponType::LightningChain => ("Chain lightning whips, recursive chaos", "1-10", "sprites/weapons/lightning_chain.png"),
 	};
 
 	parent

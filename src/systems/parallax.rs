@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use rand::Rng;
-use crate::components::{ParallaxLayer, ParallaxEntity, ScrollingBackground};
+use crate::components::{ParallaxLayer, ParallaxEntity, ScrollingBackground, DistanceLocked};
 use super::world::{HALF_WORLD_HEIGHT, HALF_PLAY_WIDTH, parallax};
-use super::level::DebugSpeed;
+use super::level::{DebugSpeed, GamePaused};
 
 #[derive(Resource)]
 pub struct ParallaxSpawnTimers {
@@ -63,12 +63,12 @@ fn spawn_near_background(
 	let speed = parallax::BASE_SCROLL_SPEED * layer.speed_multiplier();
 
 	let sprites = [
-		("parallax/passing_rock_1.png", parallax::sizes::PASSING_ROCK),
-		("parallax/passing_rock_2.png", parallax::sizes::PASSING_ROCK),
-		("parallax/passing_rock_3.png", parallax::sizes::PASSING_ROCK),
-		("parallax/metal_chunk_1.png", parallax::sizes::METAL_CHUNK),
-		("parallax/metal_chunk_2.png", parallax::sizes::METAL_CHUNK),
-		("parallax/dust_cloud_1.png", parallax::sizes::DUST_CLOUD),
+		("doodads/ambient/passing_rock_1.png", parallax::sizes::PASSING_ROCK),
+		("doodads/ambient/passing_rock_2.png", parallax::sizes::PASSING_ROCK),
+		("doodads/ambient/passing_rock_3.png", parallax::sizes::PASSING_ROCK),
+		("doodads/ambient/metal_chunk_1.png", parallax::sizes::METAL_CHUNK),
+		("doodads/ambient/metal_chunk_2.png", parallax::sizes::METAL_CHUNK),
+		("doodads/ambient/dust_cloud_1.png", parallax::sizes::DUST_CLOUD),
 	];
 
 	let (sprite_path, size) = sprites[rng.gen_range(0..sprites.len())];
@@ -99,10 +99,10 @@ fn spawn_foreground(
 	let speed = parallax::BASE_SCROLL_SPEED * layer.speed_multiplier();
 
 	let sprites = [
-		("parallax/streak_dust_1.png", parallax::sizes::STREAK_DUST),
-		("parallax/streak_dust_2.png", parallax::sizes::STREAK_DUST),
-		("parallax/spark_streak_1.png", parallax::sizes::SPARK_STREAK),
-		("parallax/micro_rock_1.png", parallax::sizes::MICRO_ROCK),
+		("doodads/ambient/streak_dust_1.png", parallax::sizes::STREAK_DUST),
+		("doodads/ambient/streak_dust_2.png", parallax::sizes::STREAK_DUST),
+		("doodads/ambient/spark_streak_1.png", parallax::sizes::SPARK_STREAK),
+		("doodads/ambient/micro_rock_1.png", parallax::sizes::MICRO_ROCK),
 	];
 
 	let (sprite_path, size) = sprites[rng.gen_range(0..sprites.len())];
@@ -125,8 +125,10 @@ fn spawn_foreground(
 pub fn scroll_parallax(
 	time: Res<Time>,
 	debug_speed: Res<DebugSpeed>,
-	mut query: Query<(&mut Transform, &ScrollingBackground), With<ParallaxEntity>>,
+	paused: Res<GamePaused>,
+	mut query: Query<(&mut Transform, &ScrollingBackground), (With<ParallaxEntity>, Without<DistanceLocked>)>,
 ) {
+	if paused.0 { return; }
 	let multiplier = if debug_speed.enabled { debug_speed.multiplier } else { 1.0 };
 	for (mut transform, bg) in query.iter_mut() {
 		transform.translation.y -= bg.speed * multiplier * time.delta_secs();
@@ -135,10 +137,21 @@ pub fn scroll_parallax(
 
 pub fn cleanup_parallax(
 	mut commands: Commands,
-	query: Query<(Entity, &Transform), With<ParallaxEntity>>,
+	query: Query<(Entity, &Transform, &Sprite), With<ParallaxEntity>>,
 ) {
-	let despawn_y = -(HALF_WORLD_HEIGHT + 200.0);
-	for (entity, transform) in query.iter() {
+	let base_despawn_y = -(HALF_WORLD_HEIGHT + 200.0);
+	for (entity, transform, sprite) in query.iter() {
+		// Account for sprite height - despawn only when entire sprite is off-screen
+		let sprite_half_height = if let Some(size) = sprite.custom_size {
+			// Use custom_size height scaled by transform, plus extra buffer
+			(size.y * transform.scale.y) * 0.5 + 300.0
+		} else {
+			// Unknown size - use very conservative buffer
+			1000.0
+		};
+
+		let despawn_y = base_despawn_y - sprite_half_height;
+
 		if transform.translation.y < despawn_y {
 			commands.entity(entity).despawn();
 		}

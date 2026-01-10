@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use rand::Rng;
-use crate::components::{Player, Weapon, Projectile, SineMotion, WeaponType, Particle, HomingProjectile, OrbitalEntity, Enemy, AngledShot};
+use crate::components::{Player, Weapon, Projectile, SineMotion, WeaponType, Particle, HomingProjectile, OrbitalEntity, Enemy, AngledShot, ChargeMeter, Health, Collider, EnemyHitEvent};
 use super::world::{HALF_WORLD_HEIGHT};
+use super::lightning;
 use std::f32::consts::{PI, FRAC_PI_2};
 
 const PROJECTILE_Z: f32 = 0.5;
@@ -15,6 +16,9 @@ pub fn fire_weapons(
 	mut commands: Commands,
 	mut query: Query<(&Transform, &mut Weapon), With<Player>>,
 	time: Res<Time>,
+	mut charge_meter: ResMut<ChargeMeter>,
+	enemies: Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
+	mut hit_events: EventWriter<EnemyHitEvent>,
 ) {
 	if !keyboard_input.pressed(KeyCode::Space) {
 		return;
@@ -60,6 +64,19 @@ pub fn fire_weapons(
 					// Orbital defense doesn't fire projectiles traditionally
 					// It spawns/maintains orbs that are handled separately
 				},
+				WeaponType::LightningChain => {
+					lightning::fire_lightning_weapon(
+						&mut commands,
+						&asset_server,
+						&audio,
+						spawn_pos,
+						&weapon,
+						damage,
+						&mut charge_meter,
+						&enemies,
+						&mut hit_events,
+					);
+				},
 			}
 
 			spawn_muzzle_flash(&mut commands, &asset_server, spawn_pos, weapon.weapon_type);
@@ -72,6 +89,7 @@ pub fn fire_weapons(
 				WeaponType::MissilePods => "sounds/missile_launch.ogg",
 				WeaponType::LaserArray => "sounds/laser_array_fire.ogg",
 				WeaponType::OrbitalDefense => "sounds/orbital_fire.ogg",
+				WeaponType::LightningChain => "sounds/lightning_fire.ogg",
 			};
 
 			audio.play(asset_server.load(sound_path));
@@ -208,6 +226,7 @@ fn spawn_muzzle_flash(
 		WeaponType::MissilePods => ("particles/exhaust_cyan.png", 3, 14.0),
 		WeaponType::LaserArray => ("particles/spark_white.png", 6, 8.0),
 		WeaponType::OrbitalDefense => ("particles/spark_white.png", 2, 10.0),
+		WeaponType::LightningChain => ("particles/electric_arc.png", 5, 14.0),
 	};
 
 	for _ in 0..count {

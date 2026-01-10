@@ -1,8 +1,25 @@
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use std::fs;
-use crate::level::LevelData;
+use crate::level::{LevelData, LevelDataV2, LevelDataV3};
+use crate::components::DistanceLocked;
 use super::world::{sizes, doodad_sizes};
+
+#[derive(Resource, Default)]
+pub struct SelectedLevel {
+	pub level_number: u32,
+	pub start_distance: f32,
+}
+
+impl SelectedLevel {
+	pub fn new(level: u32) -> Self {
+		Self { level_number: level, start_distance: 0.0 }
+	}
+
+	pub fn with_start_distance(level: u32, start_distance: f32) -> Self {
+		Self { level_number: level, start_distance }
+	}
+}
 
 #[derive(Resource)]
 pub struct MusicState {
@@ -23,10 +40,57 @@ impl Default for MusicState {
 	}
 }
 
+#[derive(Resource, Default)]
+pub struct TitleMusicState {
+	pub handle: Option<Handle<AudioInstance>>,
+	pub current_track: Option<String>,
+}
+
 impl MusicState {
 	pub fn pick_random_genre() -> String {
-		let genres = vec!["chiptune", "darkwave", "industrial", "orchestral-rock", "synthwave"];
-		genres[rand::random::<usize>() % genres.len()].to_string()
+		// Scan assets/music/ for available genre directories
+		// Skip directories starting with _ (reserved for technical music)
+		if let Ok(entries) = fs::read_dir("assets/music") {
+			let genres: Vec<String> = entries
+				.filter_map(|entry| entry.ok())
+				.filter(|entry| entry.path().is_dir())
+				.filter_map(|entry| {
+					entry.file_name().to_str().map(|s| s.to_string())
+				})
+				.filter(|name| !name.starts_with('_'))  // Skip _prefixed dirs
+				.collect();
+
+			if !genres.is_empty() {
+				return genres[rand::random::<usize>() % genres.len()].clone();
+			}
+		}
+
+		// Fallback to default if scan fails
+		"orchestral-rock".to_string()
+	}
+
+	// Pick random variant of a track (e.g., phase1_calm.mp3 vs phase1_calm_2.mp3)
+	fn pick_track_variant(base_path: &str) -> String {
+		use std::path::Path;
+
+		// Extract directory and filename
+		let path = Path::new(base_path);
+		let parent = path.parent().unwrap_or(Path::new(""));
+		let file_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+		let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("mp3");
+
+		// Look for variants: base.mp3, base_2.mp3, base_3.mp3, etc.
+		let mut variants = vec![base_path.to_string()];
+
+		for i in 2..=10 {  // Check up to _10
+			let variant_path = parent.join(format!("{}_{}.{}", file_stem, i, extension));
+			if variant_path.exists() {
+				variants.push(variant_path.to_str().unwrap_or(base_path).to_string());
+			}
+		}
+
+		// Pick random variant
+		variants[rand::random::<usize>() % variants.len()].clone()
 	}
 }
 
@@ -39,6 +103,52 @@ pub struct DebugSpeed {
 impl DebugSpeed {
 	pub fn new() -> Self {
 		Self { enabled: false, multiplier: 10.0 }
+	}
+}
+
+#[derive(Resource)]
+pub struct MusicEnabled {
+	pub enabled: bool,
+}
+
+impl Default for MusicEnabled {
+	fn default() -> Self {
+		Self { enabled: true }
+	}
+}
+
+impl MusicEnabled {
+	pub fn new(enabled: bool) -> Self {
+		Self { enabled }
+	}
+}
+
+#[derive(Resource, Default)]
+pub struct GamePaused(pub bool);
+
+#[derive(Resource, Default)]
+pub struct InfoOverlayEnabled(pub bool);
+
+pub fn toggle_pause(
+	keyboard: Res<ButtonInput<KeyCode>>,
+	mut paused: ResMut<GamePaused>,
+) {
+	if keyboard.just_pressed(KeyCode::KeyQ) {
+		paused.0 = !paused.0;
+		if paused.0 {
+			info!("⏸ PAUSED - press Q to resume");
+		} else {
+			info!("▶ RESUMED");
+		}
+	}
+}
+
+pub fn toggle_info_overlay(
+	keyboard: Res<ButtonInput<KeyCode>>,
+	mut info_enabled: ResMut<InfoOverlayEnabled>,
+) {
+	if keyboard.just_pressed(KeyCode::F3) {
+		info_enabled.0 = !info_enabled.0;
 	}
 }
 
@@ -60,19 +170,60 @@ pub fn toggle_debug_speed(
 pub struct CurrentLevel {
 	pub data: LevelData,
 	pub distance: f32,  // Total distance traveled in GU
+	pub last_milestone: u32,  // Last logged 1000 GU milestone
+	pub time_elapsed: f32,  // Time elapsed since level start (seconds)
 	pub processed_events: Vec<usize>,
 	pub processed_waves: Vec<usize>,
 	pub processed_doodads: Vec<usize>,
+	pub processed_structures: Vec<usize>,
 }
 
 impl CurrentLevel {
 	pub fn new(data: LevelData) -> Self {
+		Self::with_start_distance(data, 0.0)
+	}
+
+	pub fn with_start_distance(data: LevelData, start_distance: f32) -> Self {
+		// Pre-mark items before start_distance as processed (skip them)
+		let processed_doodads: Vec<usize> = data.doodads.iter()
+			.enumerate()
+			.filter(|(_, d)| d.spawn_distance < start_distance)
+			.map(|(i, _)| i)
+			.collect();
+
+		let processed_waves: Vec<usize> = data.enemy_waves.iter()
+			.enumerate()
+			.filter(|(_, w)| w.spawn_distance < start_distance)
+			.map(|(i, _)| i)
+			.collect();
+
+		let processed_events: Vec<usize> = data.events.iter()
+			.enumerate()
+			.filter(|(_, e)| e.distance < start_distance)
+			.map(|(i, _)| i)
+			.collect();
+
+		let processed_structures: Vec<usize> = data.structures.iter()
+			.enumerate()
+			.filter(|(_, s)| s.spawn_distance < start_distance)
+			.map(|(i, _)| i)
+			.collect();
+
+		if start_distance > 0.0 {
+			info!("Starting at distance {}: skipping {} doodads, {} waves, {} events, {} structures",
+				start_distance, processed_doodads.len(), processed_waves.len(),
+				processed_events.len(), processed_structures.len());
+		}
+
 		Self {
 			data,
-			distance: 0.0,
-			processed_events: Vec::new(),
-			processed_waves: Vec::new(),
-			processed_doodads: Vec::new(),
+			distance: start_distance,
+			last_milestone: (start_distance / 1000.0) as u32,
+			time_elapsed: 0.0,
+			processed_events,
+			processed_waves,
+			processed_doodads,
+			processed_structures,
 		}
 	}
 
@@ -89,44 +240,95 @@ impl CurrentLevel {
 	}
 }
 
-pub fn load_level(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let yaml_path = "assets/level-defs/level1.yaml";
+pub fn load_level(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	selected_level: Option<Res<SelectedLevel>>,
+) {
+	let (level_num, start_distance) = selected_level
+		.map(|l| (l.level_number, l.start_distance))
+		.unwrap_or((1, 0.0));
+	let yaml_path = format!("assets/level-defs/level{}.yaml", level_num);
 
-	match fs::read_to_string(yaml_path) {
+	// Try working directory first (for cargo run), then exe directory (for distribution)
+	let yaml_content = fs::read_to_string(&yaml_path).or_else(|_| {
+		let exe_dir = std::env::current_exe()
+			.ok()
+			.and_then(|p| p.parent().map(|p| p.to_path_buf()))
+			.unwrap_or_default();
+		fs::read_to_string(exe_dir.join(&yaml_path))
+	});
+
+	match yaml_content {
 		Ok(yaml_str) => {
-			match serde_yaml::from_str::<LevelData>(&yaml_str) {
-				Ok(level) => {
-					info!("✓ Loaded level: {}", level.name);
-
-					// Spawn backdrop items (static deep space elements)
-					for (i, item) in level.backdrop.iter().enumerate() {
-						let sprite_path = format!("parallax/{}", item.sprite);
-						let size = item.size.map(|s| Vec2::new(s[0], s[1]))
-							.unwrap_or(Vec2::new(800.0, 800.0));
-
-						commands.spawn((
-							Sprite {
-								image: asset_server.load(&sprite_path),
-								custom_size: Some(size),
-								color: Color::srgba(1.0, 1.0, 1.0, item.alpha),
-								..default()
-							},
-							// z=-9.5: behind stars (-9.0) but in front of background tiles (-10.0)
-						Transform::from_xyz(item.position[0], item.position[1], -9.5 + (i as f32 * 0.01)),
-							BackdropEntity,
-						));
-						info!("Spawned backdrop: {} at ({}, {})", item.sprite, item.position[0], item.position[1]);
+			// Try V3 (geography/sections), then V2 (zones), then V1 (raw doodads)
+			let level = match serde_yaml::from_str::<LevelDataV3>(&yaml_str) {
+				Ok(v3_level) if !v3_level.sections.is_empty() => {
+					info!("✓ Loaded V3 geography-based level with {} sections", v3_level.sections.len());
+					v3_level.to_level_data()
+				}
+				_ => {
+					match serde_yaml::from_str::<LevelDataV2>(&yaml_str) {
+						Ok(v2_level) if !v2_level.zones.is_empty() => {
+							info!("✓ Loaded V2 zone-based level with {} zones", v2_level.zones.len());
+							v2_level.to_level_data()
+						}
+						_ => serde_yaml::from_str::<LevelData>(&yaml_str).expect("Failed to parse level YAML")
 					}
+				}
+			};
 
-					commands.insert_resource(CurrentLevel::new(level));
-				}
-				Err(e) => {
-					error!("Failed to parse level YAML: {}", e);
-				}
+			// Expand geography into doodads (tiles are doodads)
+			let mut expanded_level = level.clone();
+			let mut geo_doodads = Vec::new();
+			for geo in &expanded_level.geography {
+				geo_doodads.extend(geo.expand_to_doodads());
 			}
+			expanded_level.doodads.extend(geo_doodads);
+			info!("✓ Expanded {} geography elements into doodads", expanded_level.geography.len());
+
+			// Expand structure_grids into structures
+			let grid_count = expanded_level.structure_grids.len();
+			let mut grid_structures = Vec::new();
+			for grid in &expanded_level.structure_grids {
+				grid_structures.extend(grid.expand_to_structures());
+			}
+			let grid_structure_count = grid_structures.len();
+			expanded_level.structures.extend(grid_structures);
+			if grid_count > 0 {
+				info!("✓ Expanded {} structure grids into {} structures",
+					grid_count, grid_structure_count);
+			}
+
+			// Keep structures separate - don't merge into doodads
+			info!("✓ Loaded {} structures (processed separately)", expanded_level.structures.len());
+
+			info!("✓ Loaded level: {} ({} doodads from {} geography + manual, {} waves)",
+				expanded_level.name, expanded_level.doodads.len(), expanded_level.geography.len(), expanded_level.enemy_waves.len());
+
+			// Spawn backdrop items (static deep space elements)
+			for (i, item) in expanded_level.backdrop.iter().enumerate() {
+				let sprite_path = format!("backdrop/{}", item.sprite);
+				let size = item.size.map(|s| Vec2::new(s[0], s[1]))
+					.unwrap_or(Vec2::new(800.0, 800.0));
+
+				commands.spawn((
+					Sprite {
+						image: asset_server.load(&sprite_path),
+						custom_size: Some(size),
+						color: Color::srgba(1.0, 1.0, 1.0, item.alpha),
+						..default()
+					},
+					Transform::from_xyz(item.position[0], item.position[1], -9.5 + (i as f32 * 0.01)),
+					BackdropEntity,
+				));
+				info!("Spawned backdrop: {} at ({}, {})", item.sprite, item.position[0], item.position[1]);
+			}
+
+			commands.insert_resource(CurrentLevel::with_start_distance(expanded_level, start_distance));
 		}
 		Err(e) => {
-			error!("Failed to read level file: {}", e);
+			error!("Failed to read level file {}: {}", yaml_path, e);
 		}
 	}
 }
@@ -135,12 +337,23 @@ pub fn update_level_timer(
 	mut level: ResMut<CurrentLevel>,
 	time: Res<Time>,
 	debug_speed: Res<DebugSpeed>,
+	paused: Res<GamePaused>,
 ) {
+	if paused.0 { return; }
+
 	let mut scroll_speed = level.get_scroll_speed();
 	if debug_speed.enabled {
 		scroll_speed *= debug_speed.multiplier;
 	}
 	level.distance += scroll_speed * time.delta_secs();
+	level.time_elapsed += time.delta_secs();
+
+	// Log milestone every 1000 GU
+	let milestone = (level.distance / 1000.0) as u32;
+	if milestone > level.last_milestone {
+		info!("📍 Distance: {} GU", milestone * 1000);
+		level.last_milestone = milestone;
+	}
 }
 
 pub fn process_enemy_waves(
@@ -153,14 +366,12 @@ pub fn process_enemy_waves(
 	use crate::level::{FormationRole, EnemySpawn};
 
 	let current_distance = level.distance;
-	let scroll_speed = level.get_scroll_speed();
-	let distance_threshold = scroll_speed * 0.1;
 
 	let mut waves_to_process = Vec::new();
 	for (wave_idx, wave) in level.data.enemy_waves.iter().enumerate() {
+		// Spawn wave if we've reached its distance and haven't spawned it yet
 		if !level.processed_waves.contains(&wave_idx)
 			&& current_distance >= wave.spawn_distance
-			&& current_distance < wave.spawn_distance + distance_threshold
 		{
 			waves_to_process.push((wave_idx, wave.clone()));
 		}
@@ -236,9 +447,13 @@ pub fn process_enemy_waves(
 				}
 
 				info!(
-					"Spawned {:?} at ({:.1}, {:.1}) with {} behaviors",
+					"✨ Spawned {:?} at ({:.1}, {:.1}) with {} behaviors",
 					enemy_type, enemy.position[0], enemy.position[1], behaviors.len()
 				);
+				if enemy_type == EnemyType::Boss {
+					info!("🎯 BOSS SPAWNED! Position: ({:.1}, {:.1}), Behaviors: {:?}",
+						enemy.position[0], enemy.position[1], behaviors);
+				}
 			} else {
 				let movement_pattern = if let Some(ref movement) = enemy.movement {
 					match movement.as_str() {
@@ -285,65 +500,157 @@ pub fn process_doodads(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 ) {
-	use crate::components::{ScrollingBackground, ParallaxLayer, ParallaxEntity};
+	use crate::components::{ScrollingBackground, ParallaxLayer, ParallaxEntity, DistanceLocked};
 	use crate::level::DoodadLayer;
 	use super::world::parallax;
 
 	let current_distance = level.distance;
 	let scroll_speed = level.get_scroll_speed();
-	let distance_threshold = scroll_speed * 0.1;
+	let base_threshold = scroll_speed * 10.0;  // Buffer for asset loading
 
-	// Collect doodads to process
-	let mut doodads_to_process = Vec::new();
-	for (doodad_idx, doodad) in level.data.doodads.iter().enumerate() {
-		if !level.processed_doodads.contains(&doodad_idx)
-			&& current_distance >= doodad.spawn_distance
-			&& current_distance < doodad.spawn_distance + distance_threshold
-		{
-			doodads_to_process.push((doodad_idx, doodad.clone()));
+	// ========== PROCESS STRUCTURES (from structures: section) ==========
+	// Convert to doodads with structures/ path prefix, then process together
+	let mut structures_to_process = Vec::new();
+	for (idx, structure) in level.data.structures.iter().enumerate() {
+		if !level.processed_structures.contains(&idx) {
+			let size_buffer = structure.size.map(|[w, h]| w.max(h) * 2.0).unwrap_or(0.0);
+			let distance_threshold = base_threshold + size_buffer;
+
+			if structure.spawn_distance <= current_distance + distance_threshold
+				&& structure.spawn_distance > current_distance - distance_threshold
+			{
+				// Resolve path: structures default to structures/
+				let sprite_path = if structure.sprite.starts_with("structures/")
+					|| structure.sprite.starts_with("doodads/")
+					|| structure.sprite.starts_with("far/")
+					|| structure.sprite.starts_with("tiles/")
+				{
+					structure.sprite.clone()
+				} else {
+					format!("structures/{}", structure.sprite)
+				};
+
+				let mut doodad = structure.to_doodad();
+				doodad.sprite = sprite_path;  // Override with resolved path
+				structures_to_process.push((idx, doodad));
+			}
 		}
 	}
 
-	// Process collected doodads
-	for (doodad_idx, doodad) in doodads_to_process {
-		// Determine sprite path based on layer
-		let sprite_path = match doodad.layer {
-			DoodadLayer::Gameplay | DoodadLayer::FarField => format!("doodads/{}", doodad.sprite),
-			DoodadLayer::MegaStructures | DoodadLayer::StructureDetails => {
-				format!("structures/{}", doodad.sprite)
+	// Mark structures as processed
+	for (idx, _) in &structures_to_process {
+		level.processed_structures.push(*idx);
+	}
+
+	// ========== PROCESS DOODADS (from doodads: section) ==========
+	let mut doodads_to_process: Vec<(usize, crate::level::DoodadSpawn)> = Vec::new();
+	for (doodad_idx, doodad) in level.data.doodads.iter().enumerate() {
+		if !level.processed_doodads.contains(&doodad_idx) {
+			let size_buffer = doodad.size.map(|[w, h]| w.max(h) * 2.0).unwrap_or(0.0);
+			let distance_threshold = base_threshold + size_buffer;
+
+			if doodad.spawn_distance <= current_distance + distance_threshold
+				&& doodad.spawn_distance > current_distance - distance_threshold
+			{
+				// Resolve path: doodads default to doodads/
+				let sprite_path = if doodad.sprite.starts_with("doodads/")
+					|| doodad.sprite.starts_with("structures/")
+					|| doodad.sprite.starts_with("far/")
+					|| doodad.sprite.starts_with("tiles/")
+					|| doodad.sprite.starts_with("backdrop/")
+				{
+					doodad.sprite.clone()
+				} else {
+					format!("doodads/{}", doodad.sprite)
+				};
+
+				let mut resolved_doodad = doodad.clone();
+				resolved_doodad.sprite = sprite_path;
+				doodads_to_process.push((doodad_idx, resolved_doodad));
 			}
-			// DeepSpace and DeepStructures use parallax assets (nebulae, station silhouettes)
-			_ => format!("parallax/{}", doodad.sprite),
+		}
+	}
+
+	// Mark doodads as processed
+	for (idx, _) in &doodads_to_process {
+		level.processed_doodads.push(*idx);
+	}
+
+	// ========== SPAWN ALL (structures + doodads combined) ==========
+	// Track source: true = structure (always Y=800), false = doodad (can use custom Y)
+	let all_to_spawn: Vec<(crate::level::DoodadSpawn, bool)> = structures_to_process.into_iter()
+		.map(|(_, d)| (d, true))  // structures
+		.chain(doodads_to_process.into_iter().map(|(_, d)| (d, false)))  // doodads
+		.collect();
+
+	for (doodad, is_structure) in all_to_spawn {
+		let sprite_path = doodad.sprite.clone();
+
+		// Get layer speed multiplier first (needed for spawn Y calculation)
+		let speed_multiplier = match doodad.layer {
+			DoodadLayer::DeepSpace => ParallaxLayer::DeepSpace.speed_multiplier(),
+			DoodadLayer::FarField => ParallaxLayer::FarField.speed_multiplier(),
+			DoodadLayer::DeepStructures => ParallaxLayer::DeepStructures.speed_multiplier(),
+			DoodadLayer::MegaStructures => ParallaxLayer::MegaStructures.speed_multiplier(),
+			DoodadLayer::MidDistance => ParallaxLayer::MidDistance.speed_multiplier(),
+			DoodadLayer::StructureDetails => ParallaxLayer::StructureDetails.speed_multiplier(),
+			DoodadLayer::NearBackground => ParallaxLayer::NearBackground.speed_multiplier(),
+			DoodadLayer::Gameplay => 1.0,
+			DoodadLayer::Foreground => ParallaxLayer::Foreground.speed_multiplier(),
 		};
 
-		// Use explicit size if provided, otherwise auto-detect from sprite prefix
-		let sprite_size = if let Some([w, h]) = doodad.size {
-			Vec2::new(w, h)
+		// Calculate depth-based scale (farthest 2 layers stay 1.0x, others scale by speed)
+		let depth_scale = if speed_multiplier <= 0.1 {
+			1.0  // Farthest layers (DeepSpace, FarField) = full size backdrops
 		} else {
-			let auto_size = match doodad.sprite.split('_').next().unwrap_or("") {
-				"asteroid" => doodad_sizes::ASTEROID,
-				"distant" => doodad_sizes::DISTANT,
-				"satellite" => doodad_sizes::SATELLITE,
-				"cargo" => doodad_sizes::CARGO,
-				"solar" => doodad_sizes::SOLAR,
-				"hull" => doodad_sizes::HULL,
-				"wreckage" => doodad_sizes::WRECKAGE,
-				"drone" => doodad_sizes::DRONE,
-				"escape" => doodad_sizes::ESCAPE,
-				"fuel" => doodad_sizes::FUEL,
-				"gas" => doodad_sizes::GAS,
-				"beacon" => doodad_sizes::BEACON,
-				"nav" => doodad_sizes::NAV,
-				"antenna" => doodad_sizes::ANTENNA,
-				"trail" => doodad_sizes::TRAIL,
-				"sparking" => doodad_sizes::SPARKING,
-				"nebula" => parallax::sizes::NEBULA_LARGE,
-				"gas_wisp" => parallax::sizes::GAS_WISP,
-				"station" => parallax::sizes::STATION_SILHOUETTE,
-				"planet" => parallax::sizes::DISTANT_PLANET,
-				_ => doodad_sizes::DEFAULT,
-			};
-			Vec2::splat(auto_size)
+			// Linear interpolation: 0.2x at speed=0.2 to 1.0x at speed=1.0
+			0.2 + (speed_multiplier * 0.8)
+		};
+
+		// Calculate spawn Y position
+		// For structures: compensate for any distance already traveled past spawn_distance
+		// Use RENDERED height (source height * depth_scale) for proper positioning
+		let spawn_y = if is_structure {
+			let distance_past = (current_distance - doodad.spawn_distance).max(0.0);
+			let source_height = doodad.size.map(|[_, h]| h).unwrap_or(0.0);
+			let rendered_height = source_height * depth_scale;
+			// Push up by half rendered height so bottom edge starts at 800, then apply Y offset
+			800.0 + (rendered_height / 2.0) - distance_past * speed_multiplier + doodad.position.y()
+		} else if doodad.spawn_distance > 1000.0 {
+			800.0
+		} else {
+			doodad.position.y()
+		};
+
+		// Determine custom_size (if explicit size provided or auto-detected)
+		let custom_size = if let Some([w, h]) = doodad.size {
+			// Explicit size provided - use it directly (scaling via Transform)
+			Some(Vec2::new(w, h))
+		} else {
+			// Try auto-detection for known sprite types
+			match doodad.sprite.split('_').next().unwrap_or("") {
+				"asteroid" => Some(Vec2::splat(doodad_sizes::ASTEROID)),
+				"distant" => Some(Vec2::splat(doodad_sizes::DISTANT)),
+				"satellite" => Some(Vec2::splat(doodad_sizes::SATELLITE)),
+				"cargo" => Some(Vec2::splat(doodad_sizes::CARGO)),
+				"solar" => Some(Vec2::splat(doodad_sizes::SOLAR)),
+				"hull" => Some(Vec2::splat(doodad_sizes::HULL)),
+				"wreckage" => Some(Vec2::splat(doodad_sizes::WRECKAGE)),
+				"drone" => Some(Vec2::splat(doodad_sizes::DRONE)),
+				"escape" => Some(Vec2::splat(doodad_sizes::ESCAPE)),
+				"fuel" => Some(Vec2::splat(doodad_sizes::FUEL)),
+				"gas" => Some(Vec2::splat(doodad_sizes::GAS)),
+				"beacon" => Some(Vec2::splat(doodad_sizes::BEACON)),
+				"nav" => Some(Vec2::splat(doodad_sizes::NAV)),
+				"antenna" => Some(Vec2::splat(doodad_sizes::ANTENNA)),
+				"trail" => Some(Vec2::splat(doodad_sizes::TRAIL)),
+				"sparking" => Some(Vec2::splat(doodad_sizes::SPARKING)),
+				"nebula" => Some(Vec2::splat(parallax::sizes::NEBULA_LARGE)),
+				"gas_wisp" => Some(Vec2::splat(parallax::sizes::GAS_WISP)),
+				"station" => Some(Vec2::splat(parallax::sizes::STATION_SILHOUETTE)),
+				"planet" => Some(Vec2::splat(parallax::sizes::DISTANT_PLANET)),
+				_ => None,  // Unknown - use native image size
+			}
 		};
 
 		// Convert DoodadLayer to ParallaxLayer and get z-depth/speed
@@ -352,12 +659,12 @@ pub fn process_doodads(
 				let layer = ParallaxLayer::DeepSpace;
 				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
 			}
-			DoodadLayer::DeepStructures => {
-				let layer = ParallaxLayer::DeepStructures;
-				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
-			}
 			DoodadLayer::FarField => {
 				let layer = ParallaxLayer::FarField;
+				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
+			}
+			DoodadLayer::DeepStructures => {
+				let layer = ParallaxLayer::DeepStructures;
 				(layer.z_depth(), parallax::BASE_SCROLL_SPEED * layer.speed_multiplier())
 			}
 			DoodadLayer::MegaStructures => {
@@ -383,35 +690,67 @@ pub fn process_doodads(
 			}
 		};
 
-		// Use explicit z_depth if provided, otherwise use layer default
-		let z_depth = doodad.z_depth.unwrap_or(layer_z);
+		// Calculate z-depth: explicit z_depth > z_order > auto-calculation
+		let z_order_offset = doodad.z_order as f32 * 0.001;  // Each z_order step = 0.001 z-depth
+		let z_depth = if let Some(explicit_z) = doodad.z_depth {
+			explicit_z + z_order_offset
+		} else if doodad.sprite.starts_with("isometric/") {
+			// Isometric: X-based depth + z_order
+			let iso_offset = doodad.position.x() * 0.001;
+			layer_z + iso_offset + z_order_offset
+		} else {
+			// Non-isometric: layer z + z_order + small unique offset
+			let unique_offset = (doodad.spawn_distance * 0.00001) % 0.05;
+			layer_z + z_order_offset + unique_offset
+		};
 		let scroll_speed = layer_speed;
 
-		// Vary drift speed based on doodad index for visual variety
-		let drift_speed = 0.5 + ((doodad_idx % 7) as f32 * 0.3);
+		// Static tiles (from geography) should not drift, other doodads should
+		let is_tile = sprite_path.starts_with("tiles/");
+		let drift_speed = if is_tile {
+			0.0  // Static structures don't drift
+		} else {
+			0.5 + ((doodad.spawn_distance as u32 % 7) as f32 * 0.3)  // Vary drift for visual variety
+		};
 
 		let mut entity = commands.spawn((
 			Sprite {
-				image: asset_server.load(sprite_path),
-				custom_size: Some(sprite_size),
+				image: asset_server.load(sprite_path.clone()),
+				custom_size,  // None = use native image size
 				..default()
 			},
-			Transform::from_xyz(doodad.position[0], doodad.position[1], z_depth),
-			ScrollingBackground { speed: scroll_speed },
+			Transform::from_xyz(doodad.position.x(), spawn_y, z_depth)
+				.with_rotation(Quat::from_rotation_z(doodad.rotation.to_radians()))
+				.with_scale(Vec3::splat(depth_scale)),
 		));
 
-		// Only add drift component for gameplay layer doodads
+		// STRUCTURES: use distance-locked positioning for object permanence
+		// DOODADS: use time-based scrolling (transient, don't need permanence)
+		if is_structure {
+			entity.insert(DistanceLocked {
+				spawn_distance: doodad.spawn_distance,
+				base_y: 800.0,  // Horizon line where bottom edge spawns
+				speed_ratio: speed_multiplier,  // How fast structure scrolls vs distance
+				y_offset: doodad.position.y(),  // Vertical offset for tiling
+			});
+		} else {
+			entity.insert(ScrollingBackground { speed: scroll_speed });
+		}
+
+		// Add drift component for gameplay layer doodads
 		if doodad.layer == DoodadLayer::Gameplay {
 			entity.insert(DoodadEntity {
-				spawn_x: doodad.position[0],
+				spawn_x: doodad.position.x(),
 				drift_speed,
 			});
 		} else {
-			// Add parallax entity marker for non-gameplay layers
+			// Add parallax entity marker for non-gameplay layers (used for visual effects)
+			// Note: scroll_parallax requires BOTH ParallaxEntity AND ScrollingBackground,
+			// so structures (which have DistanceLocked instead) won't be double-scrolled
 			let parallax_layer = match doodad.layer {
 				DoodadLayer::DeepSpace => ParallaxLayer::DeepSpace,
-				DoodadLayer::DeepStructures => ParallaxLayer::DeepStructures,
 				DoodadLayer::FarField => ParallaxLayer::FarField,
+				DoodadLayer::DeepStructures => ParallaxLayer::DeepStructures,
 				DoodadLayer::MegaStructures => ParallaxLayer::MegaStructures,
 				DoodadLayer::MidDistance => ParallaxLayer::MidDistance,
 				DoodadLayer::StructureDetails => ParallaxLayer::StructureDetails,
@@ -422,12 +761,55 @@ pub fn process_doodads(
 			entity.insert(ParallaxEntity { layer: parallax_layer });
 		}
 
-		info!(
-			"Spawned {:?} doodad {} at ({:.1}, {:.1}) z={:.1}",
-			doodad.layer, doodad.sprite, doodad.position[0], doodad.position[1], z_depth
-		);
+		if let Some(size) = custom_size {
+			info!(
+				"Spawned {:?} doodad '{}' at ({:.1}, {:.1}) z={:.1} | custom_size=({:.0}, {:.0}) × depth_scale={:.2}",
+				doodad.layer,
+				doodad.sprite,
+				doodad.position.x(),
+				spawn_y,
+				z_depth,
+				size.x,
+				size.y,
+				depth_scale
+			);
+		} else {
+			info!(
+				"Spawned {:?} doodad '{}' at ({:.1}, {:.1}) z={:.1} | native size × depth_scale={:.2}",
+				doodad.layer,
+				doodad.sprite,
+				doodad.position.x(),
+				spawn_y,
+				z_depth,
+				depth_scale
+			);
+		}
+	}
+}
 
-		level.processed_doodads.push(doodad_idx);
+pub fn update_distance_locked(
+	level: Res<CurrentLevel>,
+	mut query: Query<(&mut Transform, &DistanceLocked, &Sprite)>,
+) {
+	let current_distance = level.distance;
+
+	for (mut transform, locked, sprite) in query.iter_mut() {
+		// Calculate distance traveled past spawn point
+		let distance_past = (current_distance - locked.spawn_distance).max(0.0);
+
+		// Calculate rendered height for proper centering
+		let rendered_height = if let Some(size) = sprite.custom_size {
+			size.y * transform.scale.y
+		} else {
+			0.0
+		};
+
+		// Calculate Y position based on distance, with vertical offset for tiling
+		// base_y is where bottom edge spawns, so push up by half rendered height, then add offset
+		let target_y = locked.base_y + (rendered_height / 2.0) - (distance_past * locked.speed_ratio) + locked.y_offset;
+
+		// Update Y position (keep X and Z unchanged)
+		transform.translation.y = target_y;
 	}
 }
 
@@ -499,9 +881,27 @@ pub fn process_phases(
 	asset_server: Res<AssetServer>,
 	mut music_state: ResMut<MusicState>,
 	mut audio_instances: ResMut<Assets<AudioInstance>>,
+	music_enabled: Res<MusicEnabled>,
 ) {
+	// Skip music if disabled
+	if !music_enabled.enabled {
+		return;
+	}
+
 	if let Some(phase) = level.get_current_phase() {
-		if music_state.current_track.as_ref() != Some(&phase.music) {
+		// Build the expected full path for comparison
+		let base_path = if phase.music.contains('/') {
+			format!("music/{}", phase.music)
+		} else {
+			format!("music/{}/{}", music_state.selected_genre, phase.music)
+		};
+
+		// Check if we need to change tracks (compare against any variant)
+		let needs_change = music_state.current_track.as_ref()
+			.map(|current| !current.starts_with(&base_path.trim_end_matches(".mp3")))
+			.unwrap_or(true);
+
+		if needs_change {
 			// Crossfade: fade out current music
 			if let Some(handle) = &music_state.handle {
 				if let Some(instance) = audio_instances.get_mut(handle) {
@@ -511,16 +911,77 @@ pub fn process_phases(
 			}
 
 			// Play new phase music from selected genre
-			let path = format!("music/{}/{}", music_state.selected_genre, phase.music);
-			let handle = audio.play(asset_server.load(&path))
+			let base_path = if phase.music.contains('/') {
+				// Music path already includes genre (e.g., "orchestral-rock/phase1_calm.mp3")
+				format!("music/{}", phase.music)
+			} else {
+				// Legacy format - prepend selected genre
+				format!("music/{}/{}", music_state.selected_genre, phase.music)
+			};
+
+			// Pick random variant if multiple exist (_2, _3, etc.)
+			let final_path = MusicState::pick_track_variant(&base_path);
+
+			let handle = audio.play(asset_server.load(&final_path))
 				.looped()
 				.with_volume(1.0)  // Start at full volume (fade-in removed for now)
 				.handle();
 
 			music_state.handle = Some(handle);
-			music_state.current_track = Some(phase.music.clone());
-			info!("🎵 Playing: {}/{} ({})", music_state.selected_genre, phase.music, phase.name);
+			music_state.current_track = Some(final_path.clone());  // Store full path
+			info!("🎵 Playing: {} ({})", final_path, phase.name);
 		}
+	}
+}
+
+pub fn play_title_music(
+	audio: Res<Audio>,
+	asset_server: Res<AssetServer>,
+	mut title_music_state: ResMut<TitleMusicState>,
+	music_enabled: Res<MusicEnabled>,
+) {
+	if !music_enabled.enabled {
+		return;
+	}
+
+	// Pick random track from _title directory
+	if let Ok(entries) = fs::read_dir("assets/music/_title") {
+		let tracks: Vec<String> = entries
+			.filter_map(|entry| entry.ok())
+			.filter(|entry| entry.path().is_file())
+			.filter_map(|entry| {
+				entry.file_name().to_str().map(|s| s.to_string())
+			})
+			.filter(|name| name.ends_with(".mp3") || name.ends_with(".ogg"))
+			.collect();
+
+		if !tracks.is_empty() {
+			let selected = &tracks[rand::random::<usize>() % tracks.len()];
+			let path = format!("music/_title/{}", selected);
+
+			let handle = audio.play(asset_server.load(&path))
+				.looped()
+				.with_volume(1.0)
+				.handle();
+
+			title_music_state.handle = Some(handle);
+			title_music_state.current_track = Some(selected.clone());
+			info!("🎵 Title music: {}", path);
+		}
+	}
+}
+
+pub fn stop_title_music(
+	mut title_music_state: ResMut<TitleMusicState>,
+	mut audio_instances: ResMut<Assets<AudioInstance>>,
+) {
+	if let Some(handle) = &title_music_state.handle {
+		if let Some(instance) = audio_instances.get_mut(handle) {
+			let tween = AudioTween::linear(std::time::Duration::from_secs_f32(0.5));
+			instance.stop(tween);
+		}
+		title_music_state.handle = None;
+		title_music_state.current_track = None;
 	}
 }
 
@@ -541,5 +1002,41 @@ pub fn apply_doodad_drift(
 		// Apply sine wave horizontal drift/meander
 		let drift = (time.elapsed_secs() * doodad.drift_speed).sin() * 80.0;
 		transform.translation.x = doodad.spawn_x + drift;
+	}
+}
+
+pub fn scroll_doodads(
+	mut query: Query<(&mut Transform, &crate::components::ScrollingBackground), With<DoodadEntity>>,
+	time: Res<Time>,
+	debug_speed: Res<DebugSpeed>,
+	paused: Res<GamePaused>,
+) {
+	if paused.0 { return; }
+	let multiplier = if debug_speed.enabled { debug_speed.multiplier } else { 1.0 };
+	for (mut transform, bg) in query.iter_mut() {
+		transform.translation.y -= bg.speed * multiplier * time.delta_secs();
+	}
+}
+
+pub fn cleanup_doodads(
+	mut commands: Commands,
+	query: Query<(Entity, &Transform, &Sprite), With<DoodadEntity>>,
+) {
+	let base_despawn_y = -(super::world::HALF_WORLD_HEIGHT + 200.0);
+	for (entity, transform, sprite) in query.iter() {
+		// Account for sprite height - despawn only when entire sprite is off-screen
+		let sprite_half_height = if let Some(size) = sprite.custom_size {
+			// Use custom_size height scaled by transform, plus extra buffer
+			(size.y * transform.scale.y) * 0.5 + 300.0
+		} else {
+			// Unknown size - use very conservative buffer
+			1000.0
+		};
+
+		let despawn_y = base_despawn_y - sprite_half_height;
+
+		if transform.translation.y < despawn_y {
+			commands.entity(entity).despawn();
+		}
 	}
 }
