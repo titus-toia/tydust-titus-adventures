@@ -81,18 +81,20 @@ pub fn fire_weapons(
 
 			spawn_muzzle_flash(&mut commands, &asset_server, spawn_pos, weapon.weapon_type);
 
-			let sound_path = match weapon.weapon_type {
-				WeaponType::BasicBlaster => "sounds/basic_blaster_fire.ogg",
-				WeaponType::PlasmaCannon => "sounds/plasma_cannon_fire.ogg",
-				WeaponType::WaveGun => "sounds/wave_gun_fire.ogg",
-				WeaponType::SpreadShot => "sounds/spread_shot_fire.ogg",
-				WeaponType::MissilePods => "sounds/missile_launch.ogg",
-				WeaponType::LaserArray => "sounds/laser_array_fire.ogg",
-				WeaponType::OrbitalDefense => "sounds/orbital_fire.ogg",
-				WeaponType::LightningChain => "sounds/lightning_fire.ogg",
-			};
-
-			audio.play(asset_server.load(sound_path));
+			// Lightning has its own audio handling in lightning.rs
+			if weapon.weapon_type != WeaponType::LightningChain {
+				let sound_path = match weapon.weapon_type {
+					WeaponType::BasicBlaster => "sounds/basic_blaster_fire.ogg",
+					WeaponType::PlasmaCannon => "sounds/plasma_cannon_fire.ogg",
+					WeaponType::WaveGun => "sounds/wave_gun_fire.ogg",
+					WeaponType::SpreadShot => "sounds/spread_shot_fire.ogg",
+					WeaponType::MissilePods => "sounds/missile_launch.ogg",
+					WeaponType::LaserArray => "sounds/laser_array_fire.ogg",
+					WeaponType::OrbitalDefense => "sounds/orbital_fire.ogg",
+					WeaponType::LightningChain => unreachable!(),
+				};
+				audio.play(asset_server.load(sound_path));
+			}
 			weapon.fire_cooldown.reset();
 		}
 	}

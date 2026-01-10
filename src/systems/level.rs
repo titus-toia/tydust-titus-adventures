@@ -152,6 +152,58 @@ pub fn toggle_info_overlay(
 	}
 }
 
+pub fn toggle_music(
+	keyboard: Res<ButtonInput<KeyCode>>,
+	mut music_enabled: ResMut<MusicEnabled>,
+	mut music_state: ResMut<MusicState>,
+	mut title_music_state: ResMut<TitleMusicState>,
+	mut audio_instances: ResMut<Assets<AudioInstance>>,
+) {
+	if keyboard.just_pressed(KeyCode::KeyM) {
+		music_enabled.enabled = !music_enabled.enabled;
+
+		if music_enabled.enabled {
+			info!("🎵 Music enabled");
+
+			// Stop any currently playing music first to prevent overlapping tracks
+			if let Some(handle) = &music_state.handle {
+				if let Some(instance) = audio_instances.get_mut(handle) {
+					instance.stop(bevy_kira_audio::AudioTween::default());
+				}
+			}
+
+			if let Some(handle) = &title_music_state.handle {
+				if let Some(instance) = audio_instances.get_mut(handle) {
+					instance.stop(bevy_kira_audio::AudioTween::default());
+				}
+			}
+
+			// Reset music state to trigger immediate playback
+			music_state.handle = None;
+			music_state.current_track = None;
+		} else {
+			info!("🔇 Music disabled");
+
+			// Stop currently playing music
+			if let Some(handle) = &music_state.handle {
+				if let Some(instance) = audio_instances.get_mut(handle) {
+					instance.stop(bevy_kira_audio::AudioTween::default());
+				}
+			}
+
+			if let Some(handle) = &title_music_state.handle {
+				if let Some(instance) = audio_instances.get_mut(handle) {
+					instance.stop(bevy_kira_audio::AudioTween::default());
+				}
+			}
+
+			// Clear handles
+			music_state.handle = None;
+			title_music_state.handle = None;
+		}
+	}
+}
+
 pub fn toggle_debug_speed(
 	keyboard: Res<ButtonInput<KeyCode>>,
 	mut debug_speed: ResMut<DebugSpeed>,

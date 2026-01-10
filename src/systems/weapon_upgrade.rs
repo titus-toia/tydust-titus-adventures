@@ -56,15 +56,10 @@ pub fn handle_player_hit(
 
 			weapon.level = weapon.level.saturating_sub(2);
 
+			// Keep weapon type, just reset to level 1 instead of reverting to BasicBlaster
 			if weapon.level == 0 {
-				weapon.weapon_type = WeaponType::BasicBlaster;
-				weapon.level = 0;
-				let config = weapon.weapon_type.config();
-				weapon.fire_cooldown = Timer::from_seconds(
-					config.base_cooldown,
-					TimerMode::Repeating
-				);
-				info!("Weapon downgraded to BasicBlaster");
+				weapon.level = 1;
+				info!("{:?} reset to Level 1 (you kept your weapon!)", weapon.weapon_type);
 			} else {
 				info!("{:?} downgraded to Level {}", weapon.weapon_type, weapon.level);
 			}

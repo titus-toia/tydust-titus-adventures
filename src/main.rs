@@ -13,7 +13,7 @@ use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
 use systems::weapons::{fire_weapons, move_projectiles_straight, move_projectiles_sine, move_angled_projectiles, move_homing_projectiles, manage_orbital_entities, orbital_auto_fire, cleanup_projectiles};
 use systems::lightning::{update_charge_meter, render_lightning_bolts, render_lightning_arcs, spawn_pending_baby_whips, cleanup_lightning_visuals, render_lightning_impacts, render_lightning_aoe, process_pending_sounds, process_fading_sounds};
-use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, update_distance_locked, process_level_events, process_tutorials, process_phases, apply_doodad_drift, scroll_doodads, cleanup_doodads, MusicState, TitleMusicState, MusicEnabled, DebugSpeed, toggle_debug_speed, SelectedLevel, GamePaused, toggle_pause, InfoOverlayEnabled, toggle_info_overlay, play_title_music, stop_title_music};
+use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, update_distance_locked, process_level_events, process_tutorials, process_phases, apply_doodad_drift, scroll_doodads, cleanup_doodads, MusicState, TitleMusicState, MusicEnabled, DebugSpeed, toggle_debug_speed, toggle_music, SelectedLevel, GamePaused, toggle_pause, InfoOverlayEnabled, toggle_info_overlay, play_title_music, stop_title_music};
 use systems::parallax::{init_parallax_timers, spawn_procedural_parallax, scroll_parallax, cleanup_parallax};
 use systems::enemies::{update_enemy_movement, cleanup_enemies, execute_enemy_behaviors, update_formations, setup_enemy_shooters, enemy_shooting, move_enemy_projectiles, init_enemy_rotation, rotate_enemies_to_movement, shimmer_enemies};
 use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_weapon_selection, handle_start_game, cleanup_menu};
@@ -117,7 +117,7 @@ fn main() {
 		.add_systems(OnEnter(GameState::ShipSelection), (setup_ship_selection_menu, play_title_music))
 		.add_systems(
 			Update,
-			(handle_ship_selection, handle_weapon_selection, handle_start_game)
+			(handle_ship_selection, handle_weapon_selection, handle_start_game, toggle_music)
 				.run_if(in_state(GameState::ShipSelection))
 		)
 		.add_systems(OnExit(GameState::ShipSelection), (cleanup_menu, stop_title_music))
@@ -138,6 +138,7 @@ fn main() {
 			toggle_debug_speed,
 			toggle_pause,
 			toggle_info_overlay,
+			toggle_music,
 			update_level_timer,
 			update_info_overlay,
 			toggle_info_overlay_visibility,

@@ -224,25 +224,32 @@ fn try_spawn_delayed_baby_whip(
 	aoe_radius: f32,
 	baby_spawn_chance: f32,
 	recursion_depth: u8,
-) {
+) -> bool {
 	if recursion_depth >= 3 {
-		return; // Max recursion depth
+		return false;
 	}
 
 	let mut rng = rand::thread_rng();
 	if rng.gen::<f32>() > baby_spawn_chance {
-		return; // Didn't spawn
+		return false;
 	}
 
-	// Calculate perpendicular spawn direction
+	// Highway off-ramp effect: spawn earlier, blend direction
 	let chain_dir = (target_pos - parent_pos).normalize();
 	let perpendicular = Vec2::new(-chain_dir.y, chain_dir.x);
 	let side = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
 
+	// Blend: 40% along parent direction + 60% perpendicular = smooth curve out
+	let blended_dir = (chain_dir * 0.4 + perpendicular * side * 0.6).normalize();
+
+	// Spawn earlier along chain (30%) so the curve starts sooner
+	let spawn_point = parent_pos.lerp(target_pos, 0.3);
+
 	commands.spawn(PendingBabyWhip {
 		delay_timer: Timer::from_seconds(rng.gen_range(0.1..0.2), TimerMode::Once),
-		spawn_from: parent_pos.lerp(target_pos, 0.5),
-		direction: perpendicular * side,
+		spawn_from: spawn_point,
+		direction: blended_dir,
+		parent_chain_dir: chain_dir,
 		parent_damage: parent_damage * 0.50,
 		parent_level,
 		parent_chain_range: chain_range * 0.8,
@@ -250,6 +257,7 @@ fn try_spawn_delayed_baby_whip(
 		recursion_depth: recursion_depth + 1,
 		baby_spawn_chance: baby_spawn_chance * 0.6,
 	});
+	true
 }
 
 fn execute_chain_sequence(
@@ -306,8 +314,8 @@ fn execute_chain_sequence(
 
 			already_hit.insert(target_entity);
 
-			// Spawn baby whip with delay
-			try_spawn_delayed_baby_whip(
+			// Spawn baby whip with delay - if spawned, add extended arc so baby doesn't appear from nowhere
+			let baby_spawned = try_spawn_delayed_baby_whip(
 				commands,
 				current_pos,
 				target_pos,
@@ -318,6 +326,17 @@ fn execute_chain_sequence(
 				baby_spawn_chance,
 				recursion_depth,
 			);
+
+			if baby_spawned {
+				// Extended "ghost" arc that lingers until baby fires
+				commands.spawn(LightningArc {
+					start: current_pos,
+					end: target_pos,
+					lifetime: Timer::from_seconds(0.45, TimerMode::Once), // Longer for smooth baby transition
+					thickness: 1.0,
+					intensity: 0.4, // Dimmer, like a fading afterimage
+				});
+			}
 
 			current_pos = target_pos;
 		} else {
@@ -435,6 +454,16 @@ pub fn fire_lightning_weapon(
 				hit_sound: Some("sounds/lightning/lightning_wave_light.ogg"),
 			});
 
+			// Always discharge at initial hit point
+			execute_aoe_explosion(
+				ray_result.hit_position,
+				aoe_radius,
+				actual_damage * 0.5, // Half damage for initial discharge
+				enemies,
+				hit_events,
+				commands,
+			);
+
 			let mut already_hit = HashSet::new();
 			already_hit.insert(hit_entity);
 
@@ -467,6 +496,16 @@ pub fn fire_lightning_weapon(
 				audio,
 				asset_server,
 			);
+
+			// Always discharge at bolt's visual end too
+			execute_aoe_explosion(
+				ray_result.ray_end_visual,
+				aoe_radius,
+				actual_damage * 0.3, // Reduced damage at end
+				enemies,
+				hit_events,
+				commands,
+			);
 		} else {
 			// No hit, AoE at end of bolt
 			execute_aoe_explosion(
@@ -486,25 +525,18 @@ pub fn fire_lightning_weapon(
 	} else {
 		"sounds/lightning/lightning_standard.ogg"
 	};
-	audio.play(asset_server.load(fire_sound)).with_volume(0.25);
+	audio.play(asset_server.load(fire_sound)).with_volume(0.42);
 
 	// Pooled boom+crackle sounds (delayed, with fade after 300ms)
 	// Boom: 50ms delay
 	commands.spawn(PendingSound {
 		delay: Timer::from_seconds(0.05, TimerMode::Once),
-		sound_path: "sounds/lightning/deep_lightning_boom.ogg",
-		volume: 0.4,
+		sound_path: "sounds/lightning/deeper_boom_final.ogg",
+		volume: 1.5,
 		fade_after: Some(0.3),
 		fade_duration: 0.2,
 	});
-	// Crackle: 100ms delay
-	commands.spawn(PendingSound {
-		delay: Timer::from_seconds(0.1, TimerMode::Once),
-		sound_path: "sounds/lightning/fireworks_crackle.ogg",
-		volume: 0.25,
-		fade_after: Some(0.3),
-		fade_duration: 0.15,
-	});
+	// Crackle: removed for now (may use on discharge later)
 
 	info!("Lightning hitscan fired: level={}, charged={}, whips={}, max_chains={}",
 		level, is_charged, num_whips, max_chains);
@@ -549,34 +581,44 @@ fn generate_curved_lightning_path(
 	let mut rng = rand::thread_rng();
 	let mut segments = vec![start];
 
+	// Random phase offset for sine wave (different each frame = flowing effect)
+	let phase = rng.gen_range(0.0..std::f32::consts::TAU);
+	let wave_freq = rng.gen_range(2.5..4.0); // How many waves along the bolt
+
 	let straight_ratio = 0.8;
 	let straight_segments = (segment_count as f32 * straight_ratio) as usize;
 	let curve_segments = segment_count - straight_segments;
 
-	// Straight section
+	// Straight section with sinusoidal curve + small jitter
 	for i in 1..straight_segments {
 		let t = i as f32 / straight_segments as f32;
 		let base_point = start.lerp(curve_point, t);
 
 		let direction = (curve_point - start).normalize();
 		let perpendicular = Vec2::new(-direction.y, direction.x);
-		let offset = perpendicular * rng.gen_range(-displacement..displacement);
 
-		segments.push(base_point + offset);
+		// Smooth sine wave for flowing curve
+		let wave = (t * wave_freq * std::f32::consts::TAU + phase).sin() * displacement * 0.7;
+		// Small random jitter on top
+		let jitter = rng.gen_range(-displacement * 0.4..displacement * 0.4);
+
+		segments.push(base_point + perpendicular * (wave + jitter));
 	}
 
 	segments.push(curve_point);
 
-	// Curved section
+	// Curved section - more dramatic wave
 	for i in 1..curve_segments {
 		let t = i as f32 / curve_segments as f32;
 		let base_point = curve_point.lerp(end, t);
 
 		let direction = (end - curve_point).normalize();
 		let perpendicular = Vec2::new(-direction.y, direction.x);
-		let offset = perpendicular * rng.gen_range(-displacement * 1.5..displacement * 1.5);
 
-		segments.push(base_point + offset);
+		let wave = (t * wave_freq * 1.5 * std::f32::consts::TAU + phase).sin() * displacement;
+		let jitter = rng.gen_range(-displacement * 0.5..displacement * 0.5);
+
+		segments.push(base_point + perpendicular * (wave + jitter));
 	}
 
 	segments.push(end);
@@ -599,41 +641,51 @@ pub fn render_lightning_bolts(
 			if bolt.is_baby { 10.0 } else { 15.0 },
 		);
 
-		// Multi-layer lightning rendering for visual impact
+		// Multi-layer lightning rendering - sci-fi power conduit style
 		for (i, window) in segments.windows(2).enumerate() {
 			let t = i as f32 / (segments.len() - 1) as f32;
 			let thickness = bolt.thickness_start + (bolt.thickness_end - bolt.thickness_start) * t;
 
-			// Outer glow layer (blue, large spread)
-			let outer_glow = Color::srgba(0.3, 0.6, 1.0, alpha * 0.2);
-			for offset in (-3..=3).map(|o| o as f32 * 1.5) {
+			// Wide outer glow (deep blue, ethereal)
+			let outer_glow = Color::srgba(0.1, 0.3, 0.9, alpha * 0.15);
+			for offset in (-5..=5).map(|o| o as f32 * 2.0) {
 				gizmos.line_2d(
-					window[0] + Vec2::new(offset, 0.0),
-					window[1] + Vec2::new(offset, 0.0),
+					window[0] + Vec2::new(offset, offset * 0.3),
+					window[1] + Vec2::new(offset, offset * 0.3),
 					outer_glow,
 				);
 			}
 
-			// Middle glow (brighter cyan)
-			let middle_glow = Color::srgba(0.5, 0.8, 1.0, alpha * 0.5);
-			for offset in [-thickness * 0.8, 0.0, thickness * 0.8] {
+			// Mid-outer glow (electric blue)
+			let mid_outer = Color::srgba(0.2, 0.5, 1.0, alpha * 0.25);
+			for offset in (-3..=3).map(|o| o as f32 * 1.2) {
 				gizmos.line_2d(
 					window[0] + Vec2::new(offset, 0.0),
 					window[1] + Vec2::new(offset, 0.0),
-					middle_glow,
+					mid_outer,
 				);
 			}
 
-			// Main core (bright cyan)
-			let core_color = Color::srgba(0.8, 0.95, 1.0, alpha * bolt.intensity);
+			// Inner glow (bright blue-white)
+			let inner_glow = Color::srgba(0.4, 0.7, 1.0, alpha * 0.6);
+			for offset in [-thickness * 0.5, 0.0, thickness * 0.5] {
+				gizmos.line_2d(
+					window[0] + Vec2::new(offset, 0.0),
+					window[1] + Vec2::new(offset, 0.0),
+					inner_glow,
+				);
+			}
+
+			// Hot core (near-white with blue tint)
+			let core_color = Color::srgba(0.7, 0.85, 1.0, alpha * bolt.intensity);
 			gizmos.line_2d(window[0], window[1], core_color);
 
-			// Inner bright white core for extra punch
-			let inner_core = Color::srgba(0.95, 1.0, 1.0, alpha * bolt.intensity * 0.7);
+			// Blazing center (pure white-blue)
+			let center = Color::srgba(0.9, 0.95, 1.0, alpha * bolt.intensity * 0.9);
 			gizmos.line_2d(
-				window[0] + Vec2::new(0.5, 0.0),
-				window[1] + Vec2::new(0.5, 0.0),
-				inner_core,
+				window[0] + Vec2::new(0.3, 0.0),
+				window[1] + Vec2::new(0.3, 0.0),
+				center,
 			);
 		}
 	}
@@ -673,24 +725,24 @@ pub fn render_lightning_impacts(
 			}
 			points.push(branch_end);
 
-			// Draw with multi-layer glow
+			// Draw with blue glow layers
 			for w in points.windows(2) {
 				let p1 = w[0];
 				let p2 = w[1];
 
-				// Outer glow (wider, dimmer)
-				let outer_color = Color::srgba(0.4, 0.7, 1.0, alpha * impact.intensity * 0.3);
-				gizmos.line_2d(p1 + Vec2::new(-2.0, 0.0), p2 + Vec2::new(-2.0, 0.0), outer_color);
-				gizmos.line_2d(p1 + Vec2::new(2.0, 0.0), p2 + Vec2::new(2.0, 0.0), outer_color);
-				gizmos.line_2d(p1 + Vec2::new(0.0, -2.0), p2 + Vec2::new(0.0, -2.0), outer_color);
-				gizmos.line_2d(p1 + Vec2::new(0.0, 2.0), p2 + Vec2::new(0.0, 2.0), outer_color);
+				// Outer glow (deep blue)
+				let outer_color = Color::srgba(0.15, 0.4, 0.95, alpha * impact.intensity * 0.25);
+				gizmos.line_2d(p1 + Vec2::new(-2.5, 0.0), p2 + Vec2::new(-2.5, 0.0), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(2.5, 0.0), p2 + Vec2::new(2.5, 0.0), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(0.0, -2.5), p2 + Vec2::new(0.0, -2.5), outer_color);
+				gizmos.line_2d(p1 + Vec2::new(0.0, 2.5), p2 + Vec2::new(0.0, 2.5), outer_color);
 
-				// Middle glow
-				let mid_color = Color::srgba(0.6, 0.85, 1.0, alpha * impact.intensity * 0.6);
+				// Middle glow (electric blue)
+				let mid_color = Color::srgba(0.3, 0.6, 1.0, alpha * impact.intensity * 0.5);
 				gizmos.line_2d(p1, p2, mid_color);
 
-				// Bright core
-				let core_color = Color::srgba(0.9, 0.98, 1.0, alpha * impact.intensity * 0.9);
+				// Bright core (blue-white)
+				let core_color = Color::srgba(0.7, 0.85, 1.0, alpha * impact.intensity * 0.85);
 				gizmos.line_2d(
 					p1 + Vec2::new(0.3, 0.3),
 					p2 + Vec2::new(0.3, 0.3),
@@ -699,8 +751,8 @@ pub fn render_lightning_impacts(
 			}
 		}
 
-		// Small bright center flash
-		let center_color = Color::srgba(1.0, 1.0, 1.0, alpha * impact.intensity);
+		// Central flash (blue-white)
+		let center_color = Color::srgba(0.8, 0.9, 1.0, alpha * impact.intensity);
 		let center_radius = 6.0;
 		for i in 0..8 {
 			let angle = (i as f32 / 8.0) * std::f32::consts::TAU;
@@ -719,98 +771,79 @@ pub fn render_lightning_aoe(
 
 	for aoe in aoe_effects.iter() {
 		let alpha = aoe.lifetime.fraction_remaining();
-		let progress = 1.0 - alpha; // 0 at start, 1 at end
+		let progress = 1.0 - alpha;
 
-		// Expanding shockwave radius
-		let shockwave_radius = aoe.radius * (0.3 + progress * 0.7);
+		// Expanding radius for the chaos
+		let chaos_radius = aoe.radius * (0.4 + progress * 0.6);
 
-		// === Electric Tendrils radiating outward ===
-		let tendril_count = 12;
-		for i in 0..tendril_count {
-			let base_angle = (i as f32 / tendril_count as f32) * std::f32::consts::TAU;
-			// Rotate slightly each frame for swirling effect
-			let angle = base_angle + rng.gen_range(-0.2..0.2);
-			let direction = Vec2::new(angle.cos(), angle.sin());
+		// === Chaotic jagged lightning arcs (no circle, just random bolts) ===
+		let arc_count = 16 + (8.0 * alpha) as usize; // More arcs at start
+		for _ in 0..arc_count {
+			// Random start point near center
+			let start_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+			let start_dist = rng.gen_range(0.0..chaos_radius * 0.3);
+			let start = aoe.position + Vec2::new(start_angle.cos(), start_angle.sin()) * start_dist;
 
-			// Tendril length varies - some reach full radius, some shorter
-			let tendril_length = shockwave_radius * rng.gen_range(0.6..1.0);
-			let tendril_end = aoe.position + direction * tendril_length;
+			// Random end point at edge
+			let end_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+			let end_dist = rng.gen_range(0.5..1.0) * chaos_radius;
+			let end = aoe.position + Vec2::new(end_angle.cos(), end_angle.sin()) * end_dist;
 
-			// Generate jagged tendril path
-			let segment_count = 4;
-			let mut points = vec![aoe.position];
+			// Generate curvy jagged path
+			let direction = (end - start).normalize_or_zero();
+			let perpendicular = Vec2::new(-direction.y, direction.x);
+			let segment_count = rng.gen_range(3..6);
+			let mut points = vec![start];
+
+			// Sine wave + jitter for organic flow
+			let phase = rng.gen_range(0.0..std::f32::consts::TAU);
+			let wave_amp = rng.gen_range(5.0..15.0);
 
 			for j in 1..segment_count {
 				let t = j as f32 / segment_count as f32;
-				let base_point = aoe.position.lerp(tendril_end, t);
-				let perpendicular = Vec2::new(-direction.y, direction.x);
-				let displacement = rng.gen_range(-8.0..8.0);
-				points.push(base_point + perpendicular * displacement);
+				let base_point = start.lerp(end, t);
+				let wave = (t * 2.0 * std::f32::consts::TAU + phase).sin() * wave_amp * (1.0 - t);
+				let jitter = rng.gen_range(-6.0..6.0);
+				points.push(base_point + perpendicular * (wave + jitter));
 			}
-			points.push(tendril_end);
+			points.push(end);
 
-			// Draw tendril with glow
+			// Draw with blue glow
 			for w in points.windows(2) {
 				let p1 = w[0];
 				let p2 = w[1];
 
-				// Outer glow
-				let outer = Color::srgba(0.3, 0.5, 0.9, alpha * 0.25);
-				gizmos.line_2d(p1 + Vec2::new(-1.5, 0.0), p2 + Vec2::new(-1.5, 0.0), outer);
-				gizmos.line_2d(p1 + Vec2::new(1.5, 0.0), p2 + Vec2::new(1.5, 0.0), outer);
+				// Outer glow (deep blue)
+				let outer = Color::srgba(0.1, 0.3, 0.9, alpha * 0.2);
+				gizmos.line_2d(p1 + Vec2::new(-2.0, 0.0), p2 + Vec2::new(-2.0, 0.0), outer);
+				gizmos.line_2d(p1 + Vec2::new(2.0, 0.0), p2 + Vec2::new(2.0, 0.0), outer);
 
-				// Core
-				let core = Color::srgba(0.7, 0.85, 1.0, alpha * 0.7);
-				gizmos.line_2d(p1, p2, core);
+				// Mid glow (electric blue)
+				let mid = Color::srgba(0.3, 0.5, 1.0, alpha * 0.4);
+				gizmos.line_2d(p1, p2, mid);
+
+				// Core (bright blue-white)
+				let core = Color::srgba(0.6, 0.8, 1.0, alpha * 0.7);
+				gizmos.line_2d(p1 + Vec2::new(0.5, 0.0), p2 + Vec2::new(0.5, 0.0), core);
 			}
 
-			// Spark at tendril tip
-			if rng.gen_bool(0.4) {
-				let spark_color = Color::srgba(1.0, 1.0, 1.0, alpha * 0.9);
+			// Spark at end (50% chance)
+			if rng.gen_bool(0.5) {
+				let spark_color = Color::srgba(0.8, 0.9, 1.0, alpha * 0.8);
 				let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
-				gizmos.line_2d(tendril_end, tendril_end + spark_dir * 8.0, spark_color);
+				gizmos.line_2d(end, end + spark_dir * rng.gen_range(4.0..10.0), spark_color);
 			}
 		}
 
-		// === Expanding shockwave ring ===
-		let ring_color = Color::srgba(0.5, 0.7, 1.0, alpha * 0.4);
-		let segments = 24;
-		for i in 0..segments {
-			let angle1 = (i as f32 / segments as f32) * std::f32::consts::TAU;
-			let angle2 = ((i + 1) as f32 / segments as f32) * std::f32::consts::TAU;
-
-			// Add wobble to the ring
-			let wobble1 = 1.0 + rng.gen_range(-0.05..0.05);
-			let wobble2 = 1.0 + rng.gen_range(-0.05..0.05);
-
-			let p1 = aoe.position + Vec2::new(angle1.cos(), angle1.sin()) * shockwave_radius * wobble1;
-			let p2 = aoe.position + Vec2::new(angle2.cos(), angle2.sin()) * shockwave_radius * wobble2;
-
-			gizmos.line_2d(p1, p2, ring_color);
-		}
-
-		// === Central bright flash (fades quickly) ===
-		let flash_alpha = (alpha * 3.0).min(1.0); // Bright at start, fades fast
-		let flash_color = Color::srgba(0.9, 0.95, 1.0, flash_alpha * 0.8);
-		let flash_radius = 15.0 * (1.0 - progress * 0.5);
-
-		for i in 0..6 {
-			let angle = (i as f32 / 6.0) * std::f32::consts::TAU + rng.gen_range(-0.1..0.1);
-			let p1 = aoe.position;
-			let p2 = aoe.position + Vec2::new(angle.cos(), angle.sin()) * flash_radius;
-			gizmos.line_2d(p1, p2, flash_color);
-		}
-
-		// === Random sparks popping off ===
-		let spark_count = (8.0 * alpha) as usize; // More sparks at start
-		for _ in 0..spark_count {
+		// === Central bright flash ===
+		let flash_alpha = (alpha * 2.5).min(1.0);
+		let flash_color = Color::srgba(0.7, 0.85, 1.0, flash_alpha * 0.7);
+		for _ in 0..8 {
 			let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-			let dist = rng.gen_range(0.2..0.9) * shockwave_radius;
-			let spark_pos = aoe.position + Vec2::new(angle.cos(), angle.sin()) * dist;
-
-			let spark_color = Color::srgba(0.8, 0.9, 1.0, alpha * 0.6);
-			let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
-			gizmos.line_2d(spark_pos, spark_pos + spark_dir * 5.0, spark_color);
+			let length = rng.gen_range(8.0..20.0);
+			let p1 = aoe.position;
+			let p2 = aoe.position + Vec2::new(angle.cos(), angle.sin()) * length;
+			gizmos.line_2d(p1, p2, flash_color);
 		}
 	}
 }

@@ -336,6 +336,7 @@ pub struct PendingBabyWhip {
 	pub delay_timer: Timer,
 	pub spawn_from: Vec2,
 	pub direction: Vec2,
+	pub parent_chain_dir: Vec2, // For highway-ramp curve effect
 	pub parent_damage: f32,
 	pub parent_level: u8,
 	pub parent_chain_range: f32,
