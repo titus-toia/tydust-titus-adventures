@@ -6,20 +6,48 @@ use crate::components::{
 	Weapon, WeaponType, Enemy, Health, Player,
 	EnemyHitEvent, ChargeMeter, Collider,
 	LightningBolt, LightningImpact, LightningAoeEffect, PendingBabyWhip, LightningArc,
-	PendingSound, FadingSound,
+	LightningGlitter, PendingSound, FadingSound,
 };
 
 const VIEWPORT_HEIGHT: f32 = 1000.0;
 const VIEWPORT_TOP: f32 = VIEWPORT_HEIGHT / 2.0; // 500.0
-const CURVE_DISTANCE: f32 = 175.0; // How far the curve section travels
-const MAX_CURVE_ANGLE: f32 = 40.0; // More dramatic curve (was 30)
-const CURVE_MARGIN: f32 = 225.0; // Start curve this far before viewport edge
+
+// Whip curve tuning
+const BOW_OFFSET_MIN: f32 = 25.0;  // Min perpendicular bow on "straight" section
+const BOW_OFFSET_MAX: f32 = 45.0;  // Max perpendicular bow
+const DRIFT_ANGLE_MIN: f32 = 8.0;  // Early drift phase (degrees)
+const DRIFT_ANGLE_MAX: f32 = 12.0;
+const DRIFT_DISTANCE: f32 = 60.0;  // Drift before commit
+const COMMIT_ANGLE_MIN: f32 = 28.0; // Firm commit phase (degrees)
+const COMMIT_ANGLE_MAX: f32 = 45.0;
+const BOOM_ZONE_BELOW_TOP: f32 = 75.0; // Target Y: this many units below viewport top
+const COMMIT_DISTANCE_MIN: f32 = 60.0;  // Minimum commit travel (visual consistency)
+const COMMIT_DISTANCE_MAX: f32 = 180.0; // Maximum commit travel
+
+// Glitter effect tuning (tiny sparks)
+const GLITTER_COUNT_MIN: u32 = 180;
+const GLITTER_COUNT_MAX: u32 = 280;
+const GLITTER_SPEED_MIN: f32 = 5.0;    // Very slow drift
+const GLITTER_SPEED_MAX: f32 = 20.0;
+const GLITTER_LIFETIME_MIN: f32 = 0.4;
+const GLITTER_LIFETIME_MAX: f32 = 0.7;
+const GLITTER_SIZE_MIN: f32 = 1.5;     // Spark arm length
+const GLITTER_SIZE_MAX: f32 = 3.5;
 
 struct RaycastResult {
 	hit_enemy: Option<Entity>,
 	hit_position: Vec2,
 	ray_end_visual: Vec2,
-	curve_point: Vec2,
+	straight_end: Vec2,     // End of bowed section
+	drift_end: Vec2,        // Where drift transitions to commit
+	bow_control: Vec2,      // Bezier control point for bowed "straight" section
+	curve_side: f32,        // -1.0 or 1.0, locked at fire time
+}
+
+/// Sample a quadratic bezier curve: B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2
+fn sample_bezier(p0: Vec2, p1: Vec2, p2: Vec2, t: f32) -> Vec2 {
+	let inv_t = 1.0 - t;
+	inv_t * inv_t * p0 + 2.0 * inv_t * t * p1 + t * t * p2
 }
 
 fn perform_hitscan_ray(
@@ -29,71 +57,102 @@ fn perform_hitscan_ray(
 ) -> RaycastResult {
 	let mut rng = rand::thread_rng();
 
-	// Calculate dynamic straight distance based on player position
-	let player_in_top_quarter = start_pos.y > VIEWPORT_TOP / 2.0; // > 250
+	// Lock curve direction at fire time (left or right)
+	let curve_side: f32 = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+	let perpendicular = Vec2::new(-direction.y, direction.x) * curve_side;
 
-	let straight_distance = if player_in_top_quarter {
-		// Top quarter: let it travel far, curve can go off-screen
-		600.0
+	// Target Y for boom zone (consistent position near top)
+	let target_boom_y = VIEWPORT_TOP - BOOM_ZONE_BELOW_TOP;
+
+	// Calculate straight distance to get most of the way there
+	// Leave room for drift + commit to finish the journey
+	let distance_to_target = target_boom_y - start_pos.y;
+	let straight_distance = (distance_to_target - DRIFT_DISTANCE - 50.0).max(100.0);
+
+	// === PHASE 1: Bowed "straight" section ===
+	// Endpoints are the same, but path bows out via bezier control point
+	let bow_offset = rng.gen_range(BOW_OFFSET_MIN..BOW_OFFSET_MAX);
+	let straight_end = start_pos + direction * straight_distance;
+	let bow_control = start_pos.lerp(straight_end, 0.5) + perpendicular * bow_offset;
+
+	// === PHASE 2: Drift section (gentle angle, same direction as bow) ===
+	let drift_angle = rng.gen_range(DRIFT_ANGLE_MIN..DRIFT_ANGLE_MAX).to_radians() * curve_side;
+	let drift_dir = rotate_direction(direction, drift_angle);
+	let drift_end = straight_end + drift_dir * DRIFT_DISTANCE;
+
+	// === PHASE 3: Commit section - calculate distance to land at target Y ===
+	let commit_angle = rng.gen_range(COMMIT_ANGLE_MIN..COMMIT_ANGLE_MAX).to_radians() * curve_side;
+	let commit_dir = rotate_direction(direction, commit_angle);
+
+	// How much Y do we need to travel to reach target?
+	let y_remaining = target_boom_y - drift_end.y;
+
+	// Calculate commit distance based on Y component of commit_dir
+	// commit_dir.y is how much Y we gain per unit of travel
+	let commit_distance = if commit_dir.y.abs() > 0.01 && y_remaining > 0.0 {
+		// Solve: drift_end.y + commit_dir.y * distance = target_boom_y
+		(y_remaining / commit_dir.y).clamp(COMMIT_DISTANCE_MIN, COMMIT_DISTANCE_MAX)
 	} else {
-		// Bottom 3/4: curve must be visible on screen
-		// Distance to viewport top, minus margin for curve visibility
-		let distance_to_top = VIEWPORT_TOP - start_pos.y;
-		(distance_to_top - CURVE_MARGIN).max(100.0) // At least 100gu straight
+		// Fallback if commit is mostly horizontal or we're past target
+		COMMIT_DISTANCE_MIN
 	};
 
-	// Generate random curve angle ±30°
-	let curve_angle_rad = rng.gen_range(-MAX_CURVE_ANGLE.to_radians()..MAX_CURVE_ANGLE.to_radians());
+	let ray_end_visual = drift_end + commit_dir * commit_distance;
 
-	// Straight section endpoint
-	let straight_end = start_pos + direction * straight_distance;
-
-	// Rotate direction by curve angle
-	let cos_a = curve_angle_rad.cos();
-	let sin_a = curve_angle_rad.sin();
-	let curve_dir = Vec2::new(
-		direction.x * cos_a - direction.y * sin_a,
-		direction.x * sin_a + direction.y * cos_a,
-	);
-
-	// Curved section endpoint
-	let ray_end_visual = straight_end + curve_dir * CURVE_DISTANCE;
-
-	// Collision detection along ray path
+	// Collision detection along the full path
 	let mut closest_hit: Option<(Entity, Vec2, f32)> = None;
+	let mut accumulated_dist = 0.0;
 
-	// Sample straight section (40 points)
-	for i in 0..=40 {
+	// Sample bowed section (bezier curve, 40 points)
+	let mut prev_point = start_pos;
+	for i in 1..=40 {
 		let t = i as f32 / 40.0;
-		let sample_point = start_pos.lerp(straight_end, t);
+		let sample_point = sample_bezier(start_pos, bow_control, straight_end, t);
+		accumulated_dist += prev_point.distance(sample_point);
+		prev_point = sample_point;
 
 		for (entity, transform, _, collider) in enemies.iter() {
 			let enemy_pos = transform.translation.truncate();
-			let dist = sample_point.distance(enemy_pos);
-
-			if dist < collider.radius {
-				let ray_dist = start_pos.distance(sample_point);
-				if closest_hit.is_none() || ray_dist < closest_hit.as_ref().unwrap().2 {
-					closest_hit = Some((entity, enemy_pos, ray_dist));
+			if sample_point.distance(enemy_pos) < collider.radius {
+				if closest_hit.is_none() || accumulated_dist < closest_hit.as_ref().unwrap().2 {
+					closest_hit = Some((entity, enemy_pos, accumulated_dist));
 				}
 			}
 		}
 	}
 
-	// Sample curved section (20 points), only if no hit yet
+	// Sample drift section (15 points)
 	if closest_hit.is_none() {
-		for i in 0..=20 {
-			let t = i as f32 / 20.0;
-			let sample_point = straight_end.lerp(ray_end_visual, t);
+		for i in 1..=15 {
+			let t = i as f32 / 15.0;
+			let sample_point = straight_end.lerp(drift_end, t);
+			accumulated_dist += prev_point.distance(sample_point);
+			prev_point = sample_point;
 
 			for (entity, transform, _, collider) in enemies.iter() {
 				let enemy_pos = transform.translation.truncate();
-				let dist = sample_point.distance(enemy_pos);
+				if sample_point.distance(enemy_pos) < collider.radius {
+					if closest_hit.is_none() || accumulated_dist < closest_hit.as_ref().unwrap().2 {
+						closest_hit = Some((entity, enemy_pos, accumulated_dist));
+					}
+				}
+			}
+		}
+	}
 
-				if dist < collider.radius {
-					let ray_dist = start_pos.distance(sample_point);
-					if closest_hit.is_none() || ray_dist < closest_hit.as_ref().unwrap().2 {
-						closest_hit = Some((entity, enemy_pos, ray_dist));
+	// Sample commit section (20 points)
+	if closest_hit.is_none() {
+		for i in 1..=20 {
+			let t = i as f32 / 20.0;
+			let sample_point = drift_end.lerp(ray_end_visual, t);
+			accumulated_dist += prev_point.distance(sample_point);
+			prev_point = sample_point;
+
+			for (entity, transform, _, collider) in enemies.iter() {
+				let enemy_pos = transform.translation.truncate();
+				if sample_point.distance(enemy_pos) < collider.radius {
+					if closest_hit.is_none() || accumulated_dist < closest_hit.as_ref().unwrap().2 {
+						closest_hit = Some((entity, enemy_pos, accumulated_dist));
 					}
 				}
 			}
@@ -104,7 +163,10 @@ fn perform_hitscan_ray(
 		hit_enemy: closest_hit.map(|(e, _, _)| e),
 		hit_position: closest_hit.map(|(_, pos, _)| pos).unwrap_or(ray_end_visual),
 		ray_end_visual,
-		curve_point: straight_end,
+		straight_end,
+		drift_end,
+		bow_control,
+		curve_side,
 	}
 }
 
@@ -173,6 +235,58 @@ fn spawn_impact_buzz(commands: &mut Commands, position: Vec2) {
 	});
 }
 
+fn spawn_glitter_burst(commands: &mut Commands, center: Vec2, radius: f32, incoming_direction: Option<Vec2>) {
+	let mut rng = rand::thread_rng();
+	let count = rng.gen_range(GLITTER_COUNT_MIN..=GLITTER_COUNT_MAX);
+
+	// Oval stretch: longer along incoming direction, narrower perpendicular
+	let forward = incoming_direction.unwrap_or(Vec2::Y).normalize();
+	let perpendicular = Vec2::new(-forward.y, forward.x);
+	let forward_stretch = 1.4;  // Stretch along bolt direction
+	let perp_stretch = 0.7;     // Compress perpendicular
+
+	for _ in 0..count {
+		// Very slow random drift (firefly wander)
+		let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+		let speed = rng.gen_range(GLITTER_SPEED_MIN..GLITTER_SPEED_MAX);
+		let velocity = Vec2::new(angle.cos(), angle.sin()) * speed;
+
+		// Spread in OVAL matching AoE shape
+		let spawn_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+		let spawn_dist = rng.gen_range(0.0..radius);
+
+		// Unit circle point
+		let circle_point = Vec2::new(spawn_angle.cos(), spawn_angle.sin());
+
+		// Project onto forward/perpendicular axes and apply stretch
+		let forward_component = circle_point.dot(forward) * forward_stretch;
+		let perp_component = circle_point.dot(perpendicular) * perp_stretch;
+
+		// Reconstruct position in world space
+		let oval_offset = (forward * forward_component + perpendicular * perp_component) * spawn_dist;
+		let position = center + oval_offset;
+
+		let lifetime = rng.gen_range(GLITTER_LIFETIME_MIN..GLITTER_LIFETIME_MAX);
+		let size = rng.gen_range(GLITTER_SIZE_MIN..GLITTER_SIZE_MAX);
+		let color_temp = rng.gen_range(0.0..1.0);
+
+		// Random phase and speed for sine wave twinkle
+		let phase = rng.gen_range(0.0..std::f32::consts::TAU);
+		let twinkle_speed = rng.gen_range(8.0..16.0);
+
+		commands.spawn(LightningGlitter {
+			position,
+			velocity,
+			lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+			initial_intensity: rng.gen_range(0.8..1.0),
+			color_temp,
+			size,
+			phase,
+			twinkle_speed,
+		});
+	}
+}
+
 fn execute_aoe_explosion(
 	center: Vec2,
 	radius: f32,
@@ -215,6 +329,11 @@ fn execute_aoe_explosion(
 		incoming_direction,
 		is_final_zone,
 	});
+
+	// Spawn glitter burst for final zones (incandescent firework dots)
+	if is_final_zone {
+		spawn_glitter_burst(commands, center, radius, incoming_direction);
+	}
 }
 
 fn try_spawn_delayed_baby_whip(
@@ -438,7 +557,9 @@ pub fn fire_lightning_weapon(
 		commands.spawn(LightningBolt {
 			start: spawn_pos.truncate(),
 			end: ray_result.ray_end_visual,
-			curve_point: ray_result.curve_point,
+			bow_control: ray_result.bow_control,
+			straight_end: ray_result.straight_end,
+			drift_end: ray_result.drift_end,
 			lifetime: Timer::from_seconds(0.15, TimerMode::Once),
 			thickness_start: 2.0,
 			thickness_end: 4.0,
@@ -503,8 +624,8 @@ pub fn fire_lightning_weapon(
 			);
 
 			// Main finale discharge at bolt's visual end
-			// Use the curve's final tangent direction (end - curve_point)
-			let final_direction = (ray_result.ray_end_visual - ray_result.curve_point).normalize_or_zero();
+			// Use the commit section's direction (end - drift_end)
+			let final_direction = (ray_result.ray_end_visual - ray_result.drift_end).normalize_or_zero();
 			execute_aoe_explosion(
 				ray_result.ray_end_visual,
 				aoe_radius,
@@ -517,7 +638,7 @@ pub fn fire_lightning_weapon(
 			);
 		} else {
 			// No hit - full finale AoE at end of bolt
-			let final_direction = (ray_result.ray_end_visual - ray_result.curve_point).normalize_or_zero();
+			let final_direction = (ray_result.ray_end_visual - ray_result.drift_end).normalize_or_zero();
 			execute_aoe_explosion(
 				ray_result.ray_end_visual,
 				aoe_radius,
@@ -531,13 +652,23 @@ pub fn fire_lightning_weapon(
 		}
 	}
 
-	// Audio - main fire (0.45 volume)
+	// Audio - main fire sounds (one per whip, staggered by 15ms)
 	let fire_sound = if is_charged {
 		"sounds/lightning/lightning_charged.ogg"
 	} else {
 		"sounds/lightning/lightning_standard.ogg"
 	};
-	audio.play(asset_server.load(fire_sound)).with_volume(0.42);
+
+	for whip_index in 0..num_whips {
+		let delay_secs = (whip_index as f32) * 0.015; // 15ms per whip
+		commands.spawn(PendingSound {
+			delay: Timer::from_seconds(delay_secs, TimerMode::Once),
+			sound_path: fire_sound,
+			volume: 0.42,
+			fade_after: None,
+			fade_duration: 0.0,
+		});
+	}
 
 	// Pooled boom+crackle sounds (delayed, with fade after 300ms)
 	// Boom: 50ms delay
@@ -584,56 +715,62 @@ pub fn update_charge_meter(
 }
 
 fn generate_curved_lightning_path(
-	start: Vec2,
-	end: Vec2,
-	curve_point: Vec2,
-	segment_count: usize,
+	bolt: &LightningBolt,
 	displacement: f32,
 ) -> Vec<Vec2> {
 	let mut rng = rand::thread_rng();
-	let mut segments = vec![start];
+	let mut segments = vec![bolt.start];
 
 	// Random phase offset for sine wave (different each frame = flowing effect)
 	let phase = rng.gen_range(0.0..std::f32::consts::TAU);
-	let wave_freq = rng.gen_range(2.5..4.0); // How many waves along the bolt
+	let wave_freq = rng.gen_range(2.5..4.0);
 
-	let straight_ratio = 0.8;
-	let straight_segments = (segment_count as f32 * straight_ratio) as usize;
-	let curve_segments = segment_count - straight_segments;
+	// === PHASE 1: Bowed section (bezier curve from start to straight_end) ===
+	let bow_segments = 16;
+	for i in 1..bow_segments {
+		let t = i as f32 / bow_segments as f32;
+		let base_point = sample_bezier(bolt.start, bolt.bow_control, bolt.straight_end, t);
 
-	// Straight section with sinusoidal curve + small jitter
-	for i in 1..straight_segments {
-		let t = i as f32 / straight_segments as f32;
-		let base_point = start.lerp(curve_point, t);
-
-		let direction = (curve_point - start).normalize();
+		// Add small jitter perpendicular to the curve
+		let direction = (bolt.straight_end - bolt.start).normalize();
 		let perpendicular = Vec2::new(-direction.y, direction.x);
+		let wave = (t * wave_freq * std::f32::consts::TAU + phase).sin() * displacement * 0.5;
+		let jitter = rng.gen_range(-displacement * 0.3..displacement * 0.3);
 
-		// Smooth sine wave for flowing curve
-		let wave = (t * wave_freq * std::f32::consts::TAU + phase).sin() * displacement * 0.7;
-		// Small random jitter on top
+		segments.push(base_point + perpendicular * (wave + jitter));
+	}
+	segments.push(bolt.straight_end);
+
+	// === PHASE 2: Drift section (straight_end to drift_end) ===
+	let drift_segments = 5;
+	for i in 1..drift_segments {
+		let t = i as f32 / drift_segments as f32;
+		let base_point = bolt.straight_end.lerp(bolt.drift_end, t);
+
+		let direction = (bolt.drift_end - bolt.straight_end).normalize();
+		let perpendicular = Vec2::new(-direction.y, direction.x);
+		let wave = (t * wave_freq * 1.2 * std::f32::consts::TAU + phase).sin() * displacement * 0.7;
 		let jitter = rng.gen_range(-displacement * 0.4..displacement * 0.4);
 
 		segments.push(base_point + perpendicular * (wave + jitter));
 	}
+	segments.push(bolt.drift_end);
 
-	segments.push(curve_point);
+	// === PHASE 3: Commit section (drift_end to end) ===
+	let commit_segments = 8;
+	for i in 1..commit_segments {
+		let t = i as f32 / commit_segments as f32;
+		let base_point = bolt.drift_end.lerp(bolt.end, t);
 
-	// Curved section - more dramatic wave
-	for i in 1..curve_segments {
-		let t = i as f32 / curve_segments as f32;
-		let base_point = curve_point.lerp(end, t);
-
-		let direction = (end - curve_point).normalize();
+		let direction = (bolt.end - bolt.drift_end).normalize();
 		let perpendicular = Vec2::new(-direction.y, direction.x);
-
 		let wave = (t * wave_freq * 1.5 * std::f32::consts::TAU + phase).sin() * displacement;
 		let jitter = rng.gen_range(-displacement * 0.5..displacement * 0.5);
 
 		segments.push(base_point + perpendicular * (wave + jitter));
 	}
+	segments.push(bolt.end);
 
-	segments.push(end);
 	segments
 }
 
@@ -645,13 +782,8 @@ pub fn render_lightning_bolts(
 		let alpha = bolt.lifetime.fraction_remaining();
 
 		// Generate jagged path every frame
-		let segments = generate_curved_lightning_path(
-			bolt.start,
-			bolt.end,
-			bolt.curve_point,
-			25,
-			if bolt.is_baby { 10.0 } else { 15.0 },
-		);
+		let displacement = if bolt.is_baby { 10.0 } else { 15.0 };
+		let segments = generate_curved_lightning_path(bolt, displacement);
 
 		// Multi-layer lightning rendering - sci-fi power conduit style
 		for (i, window) in segments.windows(2).enumerate() {
@@ -934,7 +1066,9 @@ pub fn spawn_pending_baby_whips(
 			commands.spawn(LightningBolt {
 				start: pending_whip.spawn_from,
 				end: ray_result.ray_end_visual,
-				curve_point: ray_result.curve_point,
+				bow_control: ray_result.bow_control,
+				straight_end: ray_result.straight_end,
+				drift_end: ray_result.drift_end,
 				lifetime: Timer::from_seconds(0.12, TimerMode::Once),
 				thickness_start: 1.5,
 				thickness_end: 2.5,
@@ -1037,6 +1171,7 @@ pub fn cleanup_lightning_visuals(
 	mut impacts: Query<(Entity, &mut LightningImpact)>,
 	mut aoe_effects: Query<(Entity, &mut LightningAoeEffect)>,
 	mut arcs: Query<(Entity, &mut LightningArc)>,
+	mut glitter: Query<(Entity, &mut LightningGlitter)>,
 ) {
 	for (entity, mut bolt) in bolts.iter_mut() {
 		bolt.lifetime.tick(time.delta());
@@ -1062,6 +1197,13 @@ pub fn cleanup_lightning_visuals(
 	for (entity, mut arc) in arcs.iter_mut() {
 		arc.lifetime.tick(time.delta());
 		if arc.lifetime.finished() {
+			commands.entity(entity).despawn();
+		}
+	}
+
+	for (entity, mut g) in glitter.iter_mut() {
+		g.lifetime.tick(time.delta());
+		if g.lifetime.finished() {
 			commands.entity(entity).despawn();
 		}
 	}
@@ -1181,5 +1323,87 @@ pub fn process_fading_sounds(
 			}
 			commands.entity(entity).despawn();
 		}
+	}
+}
+
+pub fn update_lightning_glitter(
+	time: Res<Time>,
+	mut glitter: Query<&mut LightningGlitter>,
+) {
+	let dt = time.delta_secs();
+	for mut g in glitter.iter_mut() {
+		// Drift outward
+		let vel = g.velocity;
+		g.position += vel * dt;
+		// Slow down over time (air resistance feel)
+		g.velocity *= 0.97;
+	}
+}
+
+pub fn render_lightning_glitter(
+	mut gizmos: Gizmos,
+	glitter: Query<&LightningGlitter>,
+) {
+	let mut rng = rand::thread_rng();
+
+	for g in glitter.iter() {
+		let life_remaining = g.lifetime.fraction_remaining();
+
+		// Aggressive random flicker: chaotic electric static
+		// 25% chance to go very dim, 10% chance to blink off entirely
+		let flicker = if rng.gen_bool(0.10) {
+			0.0 // Blink off
+		} else if rng.gen_bool(0.25) {
+			rng.gen_range(0.1..0.3) // Very dim
+		} else {
+			rng.gen_range(0.7..1.0) // Bright
+		};
+
+		let base_alpha = life_remaining * g.initial_intensity * flicker;
+
+		// Skip off/dim sparks
+		if base_alpha < 0.1 {
+			continue;
+		}
+
+		// Neon electric colors: cyan (0.0) → white-blue (1.0)
+		let (r, g_col, b) = if g.color_temp < 0.5 {
+			let t = g.color_temp * 2.0;
+			(0.3 + t * 0.5, 0.8 + t * 0.2, 1.0)
+		} else {
+			let t = (g.color_temp - 0.5) * 2.0;
+			(0.8 + t * 0.15, 1.0, 1.0)
+		};
+
+		let color = Color::srgba(r, g_col, b, base_alpha);
+		let dim_color = Color::srgba(r, g_col, b, base_alpha * 0.5);
+
+		// Tiny 4-point star/cross shape
+		let arm = g.size * (0.6 + life_remaining * 0.4);
+
+		// Main cross (+)
+		gizmos.line_2d(
+			g.position + Vec2::new(0.0, -arm),
+			g.position + Vec2::new(0.0, arm),
+			color,
+		);
+		gizmos.line_2d(
+			g.position + Vec2::new(-arm, 0.0),
+			g.position + Vec2::new(arm, 0.0),
+			color,
+		);
+
+		// Diagonal cross (×) - smaller, dimmer
+		let diag = arm * 0.6;
+		gizmos.line_2d(
+			g.position + Vec2::new(-diag, -diag),
+			g.position + Vec2::new(diag, diag),
+			dim_color,
+		);
+		gizmos.line_2d(
+			g.position + Vec2::new(-diag, diag),
+			g.position + Vec2::new(diag, -diag),
+			dim_color,
+		);
 	}
 }

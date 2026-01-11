@@ -305,7 +305,9 @@ pub struct OrbitalEntity {
 pub struct LightningBolt {
 	pub start: Vec2,
 	pub end: Vec2,
-	pub curve_point: Vec2,
+	pub bow_control: Vec2,   // Bezier control point for bowed "straight" section
+	pub straight_end: Vec2,  // End of bowed section, start of drift
+	pub drift_end: Vec2,     // End of drift, start of commit
 	pub lifetime: Timer,
 	pub thickness_start: f32,
 	pub thickness_end: f32,
@@ -354,6 +356,18 @@ pub struct LightningArc {
 	pub lifetime: Timer,
 	pub thickness: f32,
 	pub intensity: f32,
+}
+
+#[derive(Component)]
+pub struct LightningGlitter {
+	pub position: Vec2,
+	pub velocity: Vec2,       // Slow drift outward
+	pub lifetime: Timer,
+	pub initial_intensity: f32,
+	pub color_temp: f32,      // 0.0 = electric cyan, 1.0 = white-blue
+	pub size: f32,            // Spark arm length
+	pub phase: f32,           // Sine wave phase offset for twinkle
+	pub twinkle_speed: f32,   // How fast this spark twinkles
 }
 
 #[derive(Component)]
