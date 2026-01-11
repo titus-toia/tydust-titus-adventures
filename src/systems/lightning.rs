@@ -24,15 +24,15 @@ const BOOM_ZONE_BELOW_TOP: f32 = 75.0; // Target Y: this many units below viewpo
 const COMMIT_DISTANCE_MIN: f32 = 60.0;  // Minimum commit travel (visual consistency)
 const COMMIT_DISTANCE_MAX: f32 = 180.0; // Maximum commit travel
 
-// Glitter effect tuning (tiny sparks)
-const GLITTER_COUNT_MIN: u32 = 180;
-const GLITTER_COUNT_MAX: u32 = 280;
-const GLITTER_SPEED_MIN: f32 = 5.0;    // Very slow drift
-const GLITTER_SPEED_MAX: f32 = 20.0;
-const GLITTER_LIFETIME_MIN: f32 = 0.4;
-const GLITTER_LIFETIME_MAX: f32 = 0.7;
-const GLITTER_SIZE_MIN: f32 = 1.5;     // Spark arm length
-const GLITTER_SIZE_MAX: f32 = 3.5;
+// Glitter effect tuning (burning micro-sparks)
+const GLITTER_COUNT_MIN: u32 = 270;
+const GLITTER_COUNT_MAX: u32 = 430;
+const GLITTER_SPEED_MIN: f32 = 8.0;    // Drift outward
+const GLITTER_SPEED_MAX: f32 = 35.0;
+const GLITTER_LIFETIME_MIN: f32 = 0.25;
+const GLITTER_LIFETIME_MAX: f32 = 0.55;
+const GLITTER_SIZE_MIN: f32 = 0.4;     // Tiny spark arm length
+const GLITTER_SIZE_MAX: f32 = 1.2;
 
 struct RaycastResult {
 	hit_enemy: Option<Entity>,
@@ -1349,61 +1349,69 @@ pub fn render_lightning_glitter(
 	for g in glitter.iter() {
 		let life_remaining = g.lifetime.fraction_remaining();
 
-		// Aggressive random flicker: chaotic electric static
-		// 25% chance to go very dim, 10% chance to blink off entirely
-		let flicker = if rng.gen_bool(0.10) {
-			0.0 // Blink off
-		} else if rng.gen_bool(0.25) {
-			rng.gen_range(0.1..0.3) // Very dim
+		// Subtle flicker (less aggressive - the color shift is the star)
+		let flicker = if rng.gen_bool(0.08) {
+			0.0 // Brief blink off
 		} else {
-			rng.gen_range(0.7..1.0) // Bright
+			rng.gen_range(0.75..1.0)
 		};
 
-		let base_alpha = life_remaining * g.initial_intensity * flicker;
+		let base_alpha = (life_remaining * 0.7 + 0.3) * g.initial_intensity * flicker;
 
-		// Skip off/dim sparks
-		if base_alpha < 0.1 {
+		if base_alpha < 0.05 {
 			continue;
 		}
 
-		// Neon electric colors: cyan (0.0) → white-blue (1.0)
-		let (r, g_col, b) = if g.color_temp < 0.5 {
-			let t = g.color_temp * 2.0;
-			(0.3 + t * 0.5, 0.8 + t * 0.2, 1.0)
+		// ELECTRIC BURN: white-blue hot → cyan → deep blue (with rare yellow sparks)
+		// life_remaining: 1.0 = just spawned (hot), 0.0 = about to die (fading)
+		let is_yellow_spark = g.color_temp > 0.88; // ~12% are yellow outliers
+
+		let (r, g_col, b) = if is_yellow_spark {
+			// Rare yellow/gold spark (electrical arc color)
+			if life_remaining > 0.5 {
+				(1.0, 0.95, 0.5) // Bright yellow
+			} else {
+				let t = life_remaining / 0.5;
+				(0.9 * t + 0.3, 0.8 * t + 0.2, 0.3 * t) // Fade to dim gold
+			}
+		} else if life_remaining > 0.7 {
+			// White-blue hot (freshly spawned)
+			let t = (life_remaining - 0.7) / 0.3;
+			(0.85 + t * 0.15, 0.95 + t * 0.05, 1.0)
+		} else if life_remaining > 0.4 {
+			// Electric cyan
+			let t = (life_remaining - 0.4) / 0.3;
+			(0.4 + t * 0.45, 0.8 + t * 0.15, 1.0)
+		} else if life_remaining > 0.15 {
+			// Cooling to deeper blue
+			let t = (life_remaining - 0.15) / 0.25;
+			(0.2 + t * 0.2, 0.5 + t * 0.3, 0.8 + t * 0.2)
 		} else {
-			let t = (g.color_temp - 0.5) * 2.0;
-			(0.8 + t * 0.15, 1.0, 1.0)
+			// Dim blue ember (dying)
+			let t = life_remaining / 0.15;
+			(0.1 + t * 0.1, 0.2 + t * 0.3, 0.4 + t * 0.4)
 		};
 
 		let color = Color::srgba(r, g_col, b, base_alpha);
-		let dim_color = Color::srgba(r, g_col, b, base_alpha * 0.5);
 
-		// Tiny 4-point star/cross shape
-		let arm = g.size * (0.6 + life_remaining * 0.4);
+		// Micro spark: just a tiny cross, shrinks as it cools
+		let arm = g.size * (0.5 + life_remaining * 0.5);
 
-		// Main cross (+)
-		gizmos.line_2d(
-			g.position + Vec2::new(0.0, -arm),
-			g.position + Vec2::new(0.0, arm),
-			color,
-		);
-		gizmos.line_2d(
-			g.position + Vec2::new(-arm, 0.0),
-			g.position + Vec2::new(arm, 0.0),
-			color,
-		);
-
-		// Diagonal cross (×) - smaller, dimmer
-		let diag = arm * 0.6;
-		gizmos.line_2d(
-			g.position + Vec2::new(-diag, -diag),
-			g.position + Vec2::new(diag, diag),
-			dim_color,
-		);
-		gizmos.line_2d(
-			g.position + Vec2::new(-diag, diag),
-			g.position + Vec2::new(diag, -diag),
-			dim_color,
-		);
+		if arm < 0.3 {
+			// Too small - render as a point (circle)
+			gizmos.circle_2d(g.position, 0.3, color);
+		} else {
+			// Tiny cross
+			gizmos.line_2d(
+				g.position + Vec2::new(0.0, -arm),
+				g.position + Vec2::new(0.0, arm),
+				color,
+			);
+			gizmos.line_2d(
+				g.position + Vec2::new(-arm, 0.0),
+				g.position + Vec2::new(arm, 0.0),
+				color,
+			);
+		}
 	}
 }
