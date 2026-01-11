@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use crate::components::{
-	Enemy, Player, Projectile, Collider, Health, PlayerHealth,
+	Enemy, Player, Projectile, Collider, Health, PlayerDefenses, DamageSink,
 	Invincible, ContactDamage, EnemyHitEvent, EnemyDeathEvent, PlayerHitEvent,
 	EnemyProjectile,
 };
@@ -65,7 +65,7 @@ pub fn check_player_enemy_collisions(
 	mut commands: Commands,
 	player_query: Query<(Entity, &Transform, &Collider), (With<Player>, Without<Invincible>)>,
 	enemies: Query<(&Transform, &Collider, &Enemy), Without<Player>>,
-	mut player_health: Query<&mut PlayerHealth>,
+	mut player_defenses: Query<&mut PlayerDefenses>,
 	mut hit_events: EventWriter<PlayerHitEvent>,
 ) {
 	let Ok((player_entity, player_transform, player_collider)) = player_query.get_single() else {
@@ -80,9 +80,14 @@ pub fn check_player_enemy_collisions(
 		if distance < player_collider.radius + enemy_collider.radius {
 			let damage = ContactDamage::for_enemy_type(enemy.enemy_type);
 
-			if let Ok(mut health) = player_health.get_single_mut() {
-				health.current = (health.current - damage).max(0.0);
-				info!("Player hit! HP: {:.0}/{:.0}", health.current, health.max);
+			if let Ok(mut defenses) = player_defenses.get_single_mut() {
+				let hit_result = defenses.take_damage(damage);
+				info!("Player hit for {:.0} damage! Hit: {:?}, Armor: {:.0}/{:.0}",
+					damage, hit_result, defenses.armor, defenses.armor_max);
+
+				if hit_result == DamageSink::Dead {
+					info!("Player armor destroyed! Game Over!");
+				}
 			}
 
 			hit_events.send(PlayerHitEvent);
@@ -115,7 +120,7 @@ pub fn check_enemy_projectile_player_collisions(
 	mut commands: Commands,
 	projectiles: Query<(Entity, &Transform, &EnemyProjectile)>,
 	player_query: Query<(Entity, &Transform, &Collider), (With<Player>, Without<Invincible>)>,
-	mut player_health: Query<&mut PlayerHealth>,
+	mut player_defenses: Query<&mut PlayerDefenses>,
 	mut hit_events: EventWriter<PlayerHitEvent>,
 ) {
 	let Ok((player_entity, player_transform, player_collider)) = player_query.get_single() else {
@@ -130,9 +135,14 @@ pub fn check_enemy_projectile_player_collisions(
 		let distance = player_pos.distance(proj_pos);
 
 		if distance < proj_radius + player_collider.radius {
-			if let Ok(mut health) = player_health.get_single_mut() {
-				health.current = (health.current - projectile.damage).max(0.0);
-				info!("Player hit by projectile! HP: {:.0}/{:.0}", health.current, health.max);
+			if let Ok(mut defenses) = player_defenses.get_single_mut() {
+				let hit_result = defenses.take_damage(projectile.damage);
+				info!("Player hit by projectile for {:.0} damage! Hit: {:?}, Armor: {:.0}/{:.0}",
+					projectile.damage, hit_result, defenses.armor, defenses.armor_max);
+
+				if hit_result == DamageSink::Dead {
+					info!("Player armor destroyed! Game Over!");
+				}
 			}
 
 			commands.entity(proj_entity).despawn();

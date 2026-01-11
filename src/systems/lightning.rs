@@ -12,6 +12,14 @@ use crate::components::{
 const VIEWPORT_HEIGHT: f32 = 1000.0;
 const VIEWPORT_TOP: f32 = VIEWPORT_HEIGHT / 2.0; // 500.0
 
+// Defensive field parameters per level (8, 9, 10)
+// (radius, base_damage_per_sec, visual_intensity)
+const FIELD_PARAMS: [(f32, f32, f32); 3] = [
+	(92.0,  15.0, 0.7),  // Level 8: +73% area vs original
+	(99.0,  25.0, 0.85), // Level 9: +21% area vs original
+	(115.0, 40.0, 1.0),  // Level 10: +9% area vs original
+];
+
 // Whip curve tuning
 const BOW_OFFSET_MIN: f32 = 25.0;  // Min perpendicular bow on "straight" section
 const BOW_OFFSET_MAX: f32 = 45.0;  // Max perpendicular bow
@@ -1412,6 +1420,236 @@ pub fn render_lightning_glitter(
 				g.position + Vec2::new(arm, 0.0),
 				color,
 			);
+		}
+	}
+}
+
+/// Deal damage to enemies inside the defensive field
+pub fn update_defensive_field_damage(
+	time: Res<Time>,
+	charge_meter: Res<ChargeMeter>,
+	player_query: Query<(&Transform, &Weapon), With<Player>>,
+	enemies: Query<(Entity, &Transform, &Collider), With<Enemy>>,
+	mut hit_events: EventWriter<EnemyHitEvent>,
+) {
+	let Ok((transform, weapon)) = player_query.get_single() else { return };
+
+	// Only active for Lightning weapon level 8+
+	if weapon.weapon_type != WeaponType::LightningChain || weapon.level < 8 {
+		return;
+	}
+
+	let player_pos = transform.translation.truncate();
+	let dt = time.delta_secs();
+
+	// Get level-based parameters (level 8 = index 0, level 9 = index 1, level 10 = index 2)
+	let level_idx = ((weapon.level - 8) as usize).min(2);
+	let (field_radius, base_dps, _) = FIELD_PARAMS[level_idx];
+
+	// Field strength: inversely proportional to charge (empty = 1.0, full = 0.25)
+	let charge_ratio = charge_meter.current / charge_meter.max;
+	let field_strength = 1.0 - (charge_ratio * 0.75);
+
+	// Actual damage per second scales with field strength
+	let actual_dps = base_dps * field_strength;
+	let damage_this_frame = actual_dps * dt;
+
+	// Check enemies in range
+	let hull_radius = 35.0;
+	for (entity, enemy_transform, collider) in enemies.iter() {
+		let enemy_pos = enemy_transform.translation.truncate();
+		let dist = player_pos.distance(enemy_pos);
+
+		// Enemy is inside field if within radius (accounting for enemy collider)
+		if dist < field_radius + collider.radius && dist > hull_radius {
+			// Damage falls off toward the edge
+			let normalized_dist = (dist - hull_radius) / (field_radius - hull_radius);
+			let falloff = 1.0 - normalized_dist.clamp(0.0, 1.0) * 0.5; // 100% at hull, 50% at edge
+
+			hit_events.send(EnemyHitEvent {
+				enemy: entity,
+				damage: damage_this_frame * falloff,
+				hit_sound: Some("sounds/lightning/electric_zap.ogg"),
+			});
+		}
+	}
+}
+
+/// Render defensive electric field around player - stronger when charge is depleted
+/// Plasma globe style: glowing tendrils with ethereal shell
+pub fn render_defensive_field(
+	mut gizmos: Gizmos,
+	time: Res<Time>,
+	charge_meter: Res<ChargeMeter>,
+	player_query: Query<(&Transform, &Weapon), With<Player>>,
+) {
+	let Ok((transform, weapon)) = player_query.get_single() else { return };
+
+	// Only show for Lightning weapon level 8+
+	if weapon.weapon_type != WeaponType::LightningChain || weapon.level < 8 {
+		return;
+	}
+
+	let player_pos = transform.translation.truncate();
+	let mut rng = rand::thread_rng();
+	let time_secs = time.elapsed_secs();
+
+	// Get level-based parameters
+	let level_idx = ((weapon.level - 8) as usize).min(2);
+	let (globe_radius, _, visual_intensity) = FIELD_PARAMS[level_idx];
+
+	// Field strength: inversely proportional to charge (empty = 1.0, full = 0.25)
+	let charge_ratio = charge_meter.current / charge_meter.max;
+	let field_strength = (1.0 - (charge_ratio * 0.75)) * visual_intensity;
+
+	let hull_radius = 35.0;
+
+	// === SOFT GRADIENT SHELL - shimmering faded purple boundary ===
+	// Multiple concentric rings with varying alpha for gradient effect
+	let shell_layers = 5;
+	for layer in 0..shell_layers {
+		let layer_t = layer as f32 / shell_layers as f32;
+		let layer_radius = globe_radius - 8.0 + layer_t * 10.0; // Spread from -8 to +2 of globe_radius
+
+		// Shimmer: each segment of the circle shimmers independently
+		let segments = 32;
+		for seg in 0..segments {
+			let seg_angle = (seg as f32 / segments as f32) * std::f32::consts::TAU;
+			let next_angle = ((seg + 1) as f32 / segments as f32) * std::f32::consts::TAU;
+
+			// Per-segment shimmer wave
+			let shimmer = ((time_secs * 3.0 + seg as f32 * 0.8 + layer as f32 * 1.5).sin() * 0.5 + 0.5);
+			// Fade toward edges of the gradient band
+			let edge_fade = 1.0 - (layer_t - 0.5).abs() * 1.5;
+			let alpha = 0.06 * field_strength * shimmer * edge_fade.max(0.1);
+
+			let p1 = player_pos + Vec2::new(seg_angle.cos(), seg_angle.sin()) * layer_radius;
+			let p2 = player_pos + Vec2::new(next_angle.cos(), next_angle.sin()) * layer_radius;
+
+			// Purple gradient color
+			let color = Color::srgba(0.55 + layer_t * 0.2, 0.25, 0.9 + layer_t * 0.1, alpha);
+			gizmos.line_2d(p1, p2, color);
+		}
+	}
+
+	// === GLOWING TENDRILS - multi-layer for glow effect ===
+	let tendril_count = (4.0 + field_strength * 10.0) as usize;
+
+	for i in 0..tendril_count {
+		let base_angle = (i as f32 / tendril_count as f32) * std::f32::consts::TAU;
+		let wobble = (time_secs * 2.5 + i as f32 * 1.9).sin() * 0.5;
+		let angle = base_angle + wobble + rng.gen_range(-0.15..0.15);
+
+		if rng.gen_bool(0.05) {
+			continue; // Occasional flicker
+		}
+
+		let dir = Vec2::new(angle.cos(), angle.sin());
+		let start = player_pos + dir * hull_radius;
+		let reach = (globe_radius - hull_radius) * rng.gen_range(0.5..0.95);
+
+		// Build smooth curved path with more segments
+		let segment_count = 8;
+		let mut points = vec![start];
+
+		// Use bezier-ish curve for smoother look
+		let perp = Vec2::new(-dir.y, dir.x);
+		let curve_amount = rng.gen_range(-15.0..15.0) * field_strength;
+		let control = start + dir * (reach * 0.5) + perp * curve_amount;
+		let end_point = start + dir * reach;
+
+		for s in 1..=segment_count {
+			let t = s as f32 / segment_count as f32;
+			// Quadratic bezier
+			let p = (1.0 - t).powi(2) * start + 2.0 * (1.0 - t) * t * control + t.powi(2) * end_point;
+			// Add small jitter
+			let jitter = Vec2::new(
+				rng.gen_range(-2.0..2.0) * field_strength,
+				rng.gen_range(-2.0..2.0) * field_strength,
+			);
+			points.push(p + jitter);
+		}
+
+		// Draw THREE layers: outer glow, mid glow, bright core
+		for (idx, window) in points.windows(2).enumerate() {
+			let t = idx as f32 / (points.len() - 1) as f32;
+			let fade = (1.0 - t * 0.6) * (0.7 + rng.gen_range(0.0..0.3));
+
+			let base_alpha = field_strength * fade;
+
+			// Layer 1: Wide dim outer glow
+			let outer_color = Color::srgba(0.5, 0.2, 0.9, base_alpha * 0.15);
+			// Offset lines slightly for thickness illusion
+			let offset = (window[1] - window[0]).normalize().perp() * 3.0;
+			gizmos.line_2d(window[0] + offset, window[1] + offset, outer_color);
+			gizmos.line_2d(window[0] - offset, window[1] - offset, outer_color);
+
+			// Layer 2: Medium glow
+			let mid_color = Color::srgba(0.7, 0.4, 1.0, base_alpha * 0.35);
+			let offset2 = offset * 0.5;
+			gizmos.line_2d(window[0] + offset2, window[1] + offset2, mid_color);
+			gizmos.line_2d(window[0] - offset2, window[1] - offset2, mid_color);
+
+			// Layer 3: Bright core
+			let core_color = Color::srgba(0.95, 0.85, 1.0, base_alpha * 0.7);
+			gizmos.line_2d(window[0], window[1], core_color);
+		}
+
+		// === SPLASH EFFECT - where tendril touches the shell ===
+		// Like touching a plasma globe - bright splash spreading along surface
+		let splash_pos = *points.last().unwrap_or(&end_point);
+		let dist_to_shell = (splash_pos - player_pos).length();
+
+		// Only splash if tendril reaches near the shell
+		if dist_to_shell > globe_radius * 0.85 {
+			let splash_intensity = field_strength * rng.gen_range(0.6..1.0);
+
+			// Bright core at contact point
+			gizmos.circle_2d(splash_pos, 2.0, Color::srgba(1.0, 0.95, 1.0, splash_intensity * 0.8));
+			gizmos.circle_2d(splash_pos, 4.0, Color::srgba(0.85, 0.7, 1.0, splash_intensity * 0.5));
+			gizmos.circle_2d(splash_pos, 7.0, Color::srgba(0.6, 0.4, 1.0, splash_intensity * 0.25));
+
+			// Small arcs spreading along shell surface from contact
+			let contact_angle = (splash_pos - player_pos).to_angle();
+			for arc_dir in [-1.0, 1.0] {
+				let arc_spread = rng.gen_range(0.15..0.4) * field_strength;
+				let arc_segments = 3;
+
+				let mut arc_prev = splash_pos;
+				for seg in 1..=arc_segments {
+					let seg_t = seg as f32 / arc_segments as f32;
+					let seg_angle = contact_angle + arc_dir * arc_spread * seg_t;
+					let seg_radius = globe_radius + rng.gen_range(-3.0..1.0);
+					let seg_pos = player_pos + Vec2::new(seg_angle.cos(), seg_angle.sin()) * seg_radius;
+
+					let arc_alpha = splash_intensity * 0.4 * (1.0 - seg_t * 0.7);
+					let arc_color = Color::srgba(0.8, 0.6, 1.0, arc_alpha);
+					gizmos.line_2d(arc_prev, seg_pos, arc_color);
+
+					arc_prev = seg_pos;
+				}
+			}
+		}
+
+		// Occasional branch
+		if rng.gen_bool((field_strength * 0.3) as f64) && points.len() > 3 {
+			let branch_idx = rng.gen_range(2..points.len() - 1);
+			let branch_start = points[branch_idx];
+			let branch_angle = angle + rng.gen_range(-0.5..0.5);
+			let branch_dir = Vec2::new(branch_angle.cos(), branch_angle.sin());
+			let branch_len = rng.gen_range(10.0..25.0) * field_strength;
+
+			// 2-segment branch with curve
+			let branch_mid = branch_start + branch_dir * (branch_len * 0.5)
+				+ Vec2::new(rng.gen_range(-5.0..5.0), rng.gen_range(-5.0..5.0));
+			let branch_end = branch_start + branch_dir * branch_len;
+
+			let branch_alpha = field_strength * 0.4;
+			// Glow + core for branch too
+			gizmos.line_2d(branch_start, branch_mid, Color::srgba(0.6, 0.3, 1.0, branch_alpha * 0.3));
+			gizmos.line_2d(branch_mid, branch_end, Color::srgba(0.6, 0.3, 1.0, branch_alpha * 0.2));
+			gizmos.line_2d(branch_start, branch_mid, Color::srgba(0.9, 0.8, 1.0, branch_alpha * 0.5));
+			gizmos.line_2d(branch_mid, branch_end, Color::srgba(0.9, 0.8, 1.0, branch_alpha * 0.3));
 		}
 	}
 }

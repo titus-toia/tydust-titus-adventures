@@ -706,15 +706,92 @@ impl Health {
 	}
 }
 
-#[derive(Component)]
-pub struct PlayerHealth {
-	pub current: f32,
-	pub max: f32,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DamageSink {
+	Shield2,
+	Shield1,
+	Armor,
+	Dead,
 }
 
-impl Default for PlayerHealth {
+#[derive(Component)]
+pub struct PlayerDefenses {
+	pub shield2: f32,
+	pub shield2_max: f32,
+
+	pub shield1: f32,
+	pub shield1_max: f32,
+
+	pub armor: f32,
+	pub armor_max: f32,
+
+	// Grace period flags - free pass on next hit to this layer
+	pub shield1_grace: bool,
+	pub armor_grace: bool,
+}
+
+impl Default for PlayerDefenses {
 	fn default() -> Self {
-		Self { current: 100.0, max: 100.0 }
+		Self {
+			shield2: 75.0,
+			shield2_max: 75.0,
+			shield1: 200.0,
+			shield1_max: 200.0,
+			armor: 100.0,
+			armor_max: 100.0,
+			shield1_grace: false,
+			armor_grace: false,
+		}
+	}
+}
+
+impl PlayerDefenses {
+	pub fn take_damage(&mut self, damage: f32) -> DamageSink {
+		let mut remaining = damage;
+
+		// Shield2 (outermost)
+		if self.shield2 > 0.0 {
+			if self.shield2 > remaining {
+				self.shield2 -= remaining;
+				return DamageSink::Shield2;
+			}
+			remaining -= self.shield2;
+			self.shield2 = 0.0;
+			self.shield1_grace = true;  // Grant grace period to Shield1
+			return DamageSink::Shield2;
+		}
+
+		// Shield1 (with grace period)
+		if self.shield1 > 0.0 {
+			if self.shield1_grace {
+				self.shield1_grace = false;  // Use grace pass
+				return DamageSink::Shield1;   // Free pass!
+			}
+			if self.shield1 > remaining {
+				self.shield1 -= remaining;
+				return DamageSink::Shield1;
+			}
+			remaining -= self.shield1;
+			self.shield1 = 0.0;
+			self.armor_grace = true;  // Grant grace period to Armor
+			return DamageSink::Shield1;
+		}
+
+		// Armor (innermost, with grace period)
+		if self.armor > 0.0 {
+			if self.armor_grace {
+				self.armor_grace = false;  // Use grace pass
+				return DamageSink::Armor;   // Free pass!
+			}
+			if self.armor > remaining {
+				self.armor -= remaining;
+				return DamageSink::Armor;
+			}
+			self.armor = 0.0;
+			return DamageSink::Dead;
+		}
+
+		DamageSink::Dead
 	}
 }
 

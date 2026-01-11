@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use crate::systems::level::{CurrentLevel, MusicState, InfoOverlayEnabled};
-use crate::components::{Player, Weapon, PlayerHealth};
+use crate::components::{Player, Weapon, PlayerDefenses};
 
 #[derive(Component)]
 pub struct InfoOverlayContainer;
@@ -67,7 +67,7 @@ pub fn update_info_overlay(
 	level: Option<Res<CurrentLevel>>,
 	music_state: Res<MusicState>,
 	diagnostics: Res<DiagnosticsStore>,
-	player_query: Query<(&PlayerHealth, &Weapon), With<Player>>,
+	player_query: Query<(&PlayerDefenses, &Weapon), With<Player>>,
 	selected_level: Res<crate::systems::level::SelectedLevel>,
 	mut text_query: Query<&mut Text, With<InfoOverlayText>>,
 ) {
@@ -88,14 +88,20 @@ pub fn update_info_overlay(
 			.unwrap_or(0.0);
 
 		// Get player info
-		let (health, weapon_name, weapon_level) = if let Ok((player_health, weapon)) = player_query.get_single() {
+		let (armor_info, weapon_name, weapon_level) = if let Ok((defenses, weapon)) = player_query.get_single() {
+			let armor_str = format!(
+				"S2:{:.0}/{:.0} S1:{:.0}/{:.0} Arm:{:.0}/{:.0}",
+				defenses.shield2, defenses.shield2_max,
+				defenses.shield1, defenses.shield1_max,
+				defenses.armor, defenses.armor_max
+			);
 			(
-				player_health.current as i32,
+				armor_str,
 				format!("{:?}", weapon.weapon_type),
 				weapon.level
 			)
 		} else {
-			(0, "None".to_string(), 0)
+			("No Defenses".to_string(), "None".to_string(), 0)
 		};
 
 		// Format elapsed time as MM:SS
@@ -104,7 +110,7 @@ pub fn update_info_overlay(
 		let time_str = format!("{:02}:{:02}", minutes, seconds);
 
 		let info_text = format!(
-			"Level: {}\nPhase: {}\nDistance: {} GU\nTime: {}\nMusic: {}\nScroll: {:.1} GU/s\nFPS: {:.0}\n\nHealth: {}\nWeapon: {}\nLevel: {}",
+			"Level: {}\nPhase: {}\nDistance: {} GU\nTime: {}\nMusic: {}\nScroll: {:.1} GU/s\nFPS: {:.0}\n\nDefenses:\n{}\nWeapon: {}\nLevel: {}",
 			selected_level.level_number,
 			phase_name,
 			distance,
@@ -112,7 +118,7 @@ pub fn update_info_overlay(
 			music_path,
 			scroll_speed,
 			fps,
-			health,
+			armor_info,
 			weapon_name,
 			weapon_level
 		);
