@@ -45,22 +45,37 @@ phases:
   end_distance: 35400.0
 
 # === STATIC BACKDROP (spawned once at level start) ===
+# Using new story-driven nebulae from flight log
+# Layered atmosphere: purple (calm) → orange (industrial) → red (danger)
 backdrop:
-# Subtle nebula wash - barely there, just a hint of color
-- sprite: nebula_purple_1.png
-  position: [250.0, 200.0]
-  size: [500, 400]
-  alpha: 0.15
+# Main purple nebula - Phase 1 atmosphere (calm, mysterious)
+- sprite: nebula_purple_deep.png
+  position: [0.0, 300.0]
+  size: [900, 900]
+  alpha: 0.22
 
-# Tiny color accents - whispers of color in corners
-- sprite: nebula_blue_1.png
-  position: [-350.0, 250.0]
-  size: [250, 200]
+# Secondary purple wash - extends coverage
+- sprite: nebula_purple_1.png
+  position: [-300.0, 150.0]
+  size: [500, 400]
+  alpha: 0.12
+
+# Orange industrial - Phase 3 transition warmth
+- sprite: nebula_orange_industrial.png
+  position: [200.0, -100.0]
+  size: [600, 600]
+  alpha: 0.10
+
+# Red danger - Phase 4-5 intensity
+- sprite: nebula_red_danger.png
+  position: [-150.0, -300.0]
+  size: [500, 500]
   alpha: 0.08
 
-- sprite: nebula_orange_1.png
-  position: [320.0, -180.0]
-  size: [200, 150]
+# Core glow hint - foreshadows reactor destination
+- sprite: core_glow_ambient.png
+  position: [0.0, -400.0]
+  size: [400, 400]
   alpha: 0.06
 
 # === ENEMY WAVES ===
@@ -1065,28 +1080,24 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [20.0, -180.0]
-        duration: 6.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-80.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [-10.0, -200.0]
-        duration: 6.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [100.0, 680.0]
     behaviors:
       - type: MoveStraight
         velocity: [15.0, -190.0]
-        duration: 6.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [220.0, 740.0]
     behaviors:
       - type: MoveStraight
         velocity: [-25.0, -170.0]
-        duration: 6.0
         transition: WaitForCompletion
   spawn_distance: 24900.0
 
@@ -1110,14 +1121,12 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [30.0, -140.0]
-        duration: 7.0
         transition: WaitForCompletion
   - enemy_type: MediumAsteroid
     position: [150.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [-20.0, -150.0]
-        duration: 7.0
         transition: WaitForCompletion
   spawn_distance: 25500.0
 
@@ -1141,35 +1150,30 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [40.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-60.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [10.0, -210.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [80.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [-20.0, -190.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [200.0, 740.0]
     behaviors:
       - type: MoveStraight
         velocity: [-35.0, -180.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [0.0, 680.0]
     behaviors:
       - type: MoveStraight
         velocity: [5.0, -220.0]
-        duration: 5.0
         transition: WaitForCompletion
   spawn_distance: 26100.0
 
@@ -1201,21 +1205,18 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [0.0, -100.0]
-        duration: 10.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-150.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [25.0, -180.0]
-        duration: 6.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [180.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [-30.0, -190.0]
-        duration: 6.0
         transition: WaitForCompletion
   spawn_distance: 26700.0
 
@@ -1242,28 +1243,24 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [15.0, -130.0]
-        duration: 8.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [50.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [-20.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [180.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [-40.0, -180.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: MediumAsteroid
     position: [-200.0, 750.0]
     behaviors:
       - type: MoveStraight
         velocity: [30.0, -140.0]
-        duration: 8.0
         transition: WaitForCompletion
   spawn_distance: 27300.0
 
@@ -1301,7 +1298,6 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [-25.0, -190.0]
-        duration: 5.0
         transition: WaitForCompletion
   spawn_distance: 27900.0
 
@@ -1322,35 +1318,30 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [30.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-100.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [15.0, -210.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [0.0, 740.0]
     behaviors:
       - type: MoveStraight
         velocity: [0.0, -220.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [120.0, 710.0]
     behaviors:
       - type: MoveStraight
         velocity: [-20.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [220.0, 730.0]
     behaviors:
       - type: MoveStraight
         velocity: [-35.0, -190.0]
-        duration: 5.0
         transition: WaitForCompletion
   spawn_distance: 28500.0
 
@@ -1371,14 +1362,12 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [10.0, -90.0]
-        duration: 12.0
         transition: WaitForCompletion
   - enemy_type: MediumAsteroid
     position: [150.0, 750.0]
     behaviors:
       - type: MoveStraight
         velocity: [-25.0, -140.0]
-        duration: 8.0
         transition: WaitForCompletion
   spawn_distance: 29100.0
 
@@ -1443,21 +1432,18 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [20.0, -130.0]
-        duration: 8.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [0.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [0.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: MediumAsteroid
     position: [180.0, 760.0]
     behaviors:
       - type: MoveStraight
         velocity: [-25.0, -140.0]
-        duration: 8.0
         transition: WaitForCompletion
   spawn_distance: 30300.0
 
@@ -1478,35 +1464,30 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [40.0, -180.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-120.0, 730.0]
     behaviors:
       - type: MoveStraight
         velocity: [20.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [-20.0, 710.0]
     behaviors:
       - type: MoveStraight
         velocity: [5.0, -210.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [100.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [-15.0, -190.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [200.0, 740.0]
     behaviors:
       - type: MoveStraight
         velocity: [-30.0, -180.0]
-        duration: 5.0
         transition: WaitForCompletion
   spawn_distance: 30900.0
 
@@ -1530,21 +1511,18 @@ enemy_waves:
     behaviors:
       - type: MoveStraight
         velocity: [15.0, -120.0]
-        duration: 9.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [50.0, 720.0]
     behaviors:
       - type: MoveStraight
         velocity: [-10.0, -190.0]
-        duration: 5.0
         transition: WaitForCompletion
   - enemy_type: SmallAsteroid
     position: [180.0, 700.0]
     behaviors:
       - type: MoveStraight
         velocity: [-25.0, -200.0]
-        duration: 5.0
         transition: WaitForCompletion
   spawn_distance: 31500.0
 
@@ -3086,6 +3064,531 @@ doodads:
   rotation_speed: 0.0
   layer: mid_distance
   spawn_distance: 25000.0
+
+# ============================================================
+# HERO STRUCTURES - Major visual landmarks from flight log
+# ============================================================
+
+# Station silhouette appears in the distance (3500 GU) - "What we're approaching"
+- sprite: station_silhouette_distant.png
+  position: [0.0, 1200.0]
+  velocity: [0.0, -6.0]
+  rotation_speed: 0.0
+  layer: deep_structures
+  size: [600, 300]
+  spawn_distance: 3500.0
+
+# Perimeter wall LEFT enters (5500 GU) - Corridor begins
+- sprite: perimeter_wall_left_segment.png
+  position: [-380.0, 1800.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [200, 900]
+  spawn_distance: 5500.0
+
+# Perimeter wall RIGHT enters (6500 GU) - Corridor established
+- sprite: perimeter_wall_left_segment.png
+  position: [380.0, 1800.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [200, 900]
+  spawn_distance: 6500.0
+
+# CARRIER WRECK BELOW (8000 GU) - Major landmark, flying over it
+- sprite: carrier_wreck_mid.png
+  position: [0.0, 1400.0]
+  velocity: [0.0, -25.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [700, 250]
+  z_depth: -3.5
+  spawn_distance: 8000.0
+
+# Eco-dome visible behind wall gap (10000 GU) - "People lived here"
+- sprite: eco_dome_1.png
+  position: [-300.0, 800.0]
+  velocity: [0.0, -40.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  size: [200, 200]
+  spawn_distance: 10000.0
+
+# Processing tower LEFT (12600 GU) - Industrial zone begins
+- sprite: processing_tower_left.png
+  position: [-350.0, 1600.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 650]
+  spawn_distance: 12600.0
+
+# Processing tower RIGHT (13000 GU)
+- sprite: processing_tower_left.png
+  position: [350.0, 1700.0]
+  velocity: [0.0, -35.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 650]
+  spawn_distance: 13000.0
+
+# Cooling tower 1 (14500 GU) - Industrial infrastructure
+- sprite: cooling_tower_1.png
+  position: [-280.0, 1200.0]
+  velocity: [0.0, -40.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [150, 300]
+  spawn_distance: 14500.0
+
+# Containment ring 1 (17000 GU) - Reactor zone entrance
+- sprite: containment_ring_1.png
+  position: [0.0, 900.0]
+  velocity: [0.0, -45.0]
+  rotation_speed: 0.0
+  layer: structure_details
+  size: [250, 80]
+  spawn_distance: 17000.0
+
+# Energy conduit LEFT (17500 GU) - Power infrastructure
+- sprite: energy_conduit_active_1.png
+  position: [-300.0, 1000.0]
+  velocity: [0.0, -50.0]
+  rotation_speed: 0.0
+  layer: structure_details
+  size: [60, 220]
+  spawn_distance: 17500.0
+
+# Energy conduit RIGHT (18000 GU)
+- sprite: energy_conduit_active_1.png
+  position: [300.0, 1000.0]
+  velocity: [0.0, -50.0]
+  rotation_speed: 0.0
+  layer: structure_details
+  size: [60, 220]
+  spawn_distance: 18000.0
+
+# CORE EXTERIOR (22000 GU) - THE major landmark, station heart
+- sprite: core_exterior.png
+  position: [0.0, 1400.0]
+  velocity: [0.0, -20.0]
+  rotation_speed: 0.0
+  layer: deep_structures
+  size: [500, 500]
+  z_depth: -7.0
+  spawn_distance: 22000.0
+
+# Core glow ambient (22500 GU) - Lighting effect behind core
+- sprite: core_glow_ambient.png
+  position: [0.0, 1500.0]
+  velocity: [0.0, -20.0]
+  rotation_speed: 0.0
+  layer: deep_space
+  size: [800, 800]
+  spawn_distance: 22500.0
+
+# Hangar wall LEFT (25000 GU) - Boss approach zone
+- sprite: hangar_wall_segment.png
+  position: [-350.0, 1600.0]
+  velocity: [0.0, -45.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 800]
+  spawn_distance: 25000.0
+
+# Hangar wall RIGHT (25500 GU)
+- sprite: hangar_wall_segment.png
+  position: [350.0, 1700.0]
+  velocity: [0.0, -45.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [250, 800]
+  spawn_distance: 25500.0
+
+# BOSS HANGAR DOORS (29000 GU) - Final landmark before boss
+- sprite: boss_hangar_doors.png
+  position: [0.0, 1200.0]
+  velocity: [0.0, -30.0]
+  rotation_speed: 0.0
+  layer: mega_structures
+  size: [600, 300]
+  spawn_distance: 29000.0
+
+# ============================================================
+# NEW DEBRIS from flight log - "What happened here"
+# ============================================================
+
+# Escape pods (1000-2000 GU) - "People fled"
+- sprite: escape_pod_1.png
+  position: [-200.0, 720.0]
+  velocity: [3.0, -50.0]
+  rotation_speed: 0.8
+  spawn_distance: 1000.0
+
+- sprite: escape_pod_1.png
+  position: [250.0, 680.0]
+  velocity: [-2.0, -45.0]
+  rotation_speed: 0.6
+  spawn_distance: 1500.0
+
+# Cargo containers (2000-3000 GU) - "Jettisoned cargo"
+- sprite: cargo_container_1.png
+  position: [180.0, 700.0]
+  velocity: [-4.0, -48.0]
+  rotation_speed: 0.3
+  spawn_distance: 2000.0
+
+- sprite: cargo_container_1.png
+  position: [-220.0, 750.0]
+  velocity: [2.0, -52.0]
+  rotation_speed: 0.4
+  spawn_distance: 2500.0
+
+# Fuel tanks (2500-3500 GU) - "Something exploded"
+- sprite: fuel_tank_ruptured.png
+  position: [-150.0, 680.0]
+  velocity: [5.0, -55.0]
+  rotation_speed: 0.9
+  spawn_distance: 2800.0
+
+# Hull debris (throughout) - Generic destruction evidence
+- sprite: hull_plate_1.png
+  position: [100.0, 700.0]
+  velocity: [-3.0, -58.0]
+  rotation_speed: 1.2
+  spawn_distance: 3200.0
+
+- sprite: hull_plate_1.png
+  position: [-80.0, 720.0]
+  velocity: [4.0, -52.0]
+  rotation_speed: 0.7
+  spawn_distance: 4500.0
+
+# Warning beacon (4500 GU) - "First active thing, tension building"
+- sprite: warning_beacon_active.png
+  position: [0.0, 650.0]
+  velocity: [0.0, -40.0]
+  rotation_speed: 0.0
+  spawn_distance: 4500.0
+
+# Defense satellite debris (9500-11000 GU) - "Outer defenses destroyed"
+- sprite: defense_satellite_destroyed_1.png
+  position: [200.0, 700.0]
+  velocity: [-5.0, -50.0]
+  rotation_speed: 0.5
+  spawn_distance: 9500.0
+
+- sprite: defense_satellite_destroyed_1.png
+  position: [-180.0, 680.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 0.7
+  spawn_distance: 10500.0
+
+# Pipe cluster (10500 GU) - "Infrastructure breaking down"
+- sprite: pipe_cluster_1.png
+  position: [150.0, 720.0]
+  velocity: [-2.0, -60.0]
+  rotation_speed: 0.4
+  spawn_distance: 10500.0
+
+# Conveyor section (13500 GU) - "Mining operation scale"
+- sprite: conveyor_section_1.png
+  position: [-100.0, 700.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 0.2
+  spawn_distance: 13500.0
+
+# Docking arm fragment (4000 GU) - "Ships used to dock here"
+- sprite: docking_arm_fragment_1.png
+  position: [220.0, 750.0]
+  velocity: [-4.0, -45.0]
+  rotation_speed: 0.3
+  spawn_distance: 4000.0
+
+# Ruptured ore silo (14000 GU) - "Industrial chaos"
+- sprite: ore_silo_ruptured.png
+  position: [280.0, 900.0]
+  velocity: [-2.0, -40.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  size: [120, 250]
+  spawn_distance: 14000.0
+
+# Antenna fragments (station communication destroyed)
+- sprite: antenna_fragment_1.png
+  position: [-180.0, 700.0]
+  velocity: [6.0, -58.0]
+  rotation_speed: 1.5
+  spawn_distance: 3500.0
+
+- sprite: antenna_fragment_1.png
+  position: [120.0, 680.0]
+  velocity: [-4.0, -52.0]
+  rotation_speed: 1.0
+  spawn_distance: 7500.0
+
+# ============================================================
+# ADDITIONAL DEBRIS - Filling flight log gaps
+# ============================================================
+
+# Phase 2: Outer Perimeter (5400-12600 GU) - "Corridor of destruction"
+- sprite: nav_buoy_1.png
+  position: [-250.0, 700.0]
+  velocity: [2.0, -42.0]
+  rotation_speed: 0.2
+  spawn_distance: 5000.0
+
+- sprite: hull_debris_1.png
+  position: [180.0, 720.0]
+  velocity: [-3.0, -55.0]
+  rotation_speed: 0.9
+  spawn_distance: 5500.0
+
+- sprite: solar_broken_1.png
+  position: [-120.0, 680.0]
+  velocity: [4.0, -48.0]
+  rotation_speed: 0.6
+  spawn_distance: 6000.0
+
+- sprite: fuel_tank_1.png
+  position: [200.0, 750.0]
+  velocity: [-5.0, -52.0]
+  rotation_speed: 0.4
+  spawn_distance: 6800.0
+
+- sprite: wreckage_1.png
+  position: [-160.0, 700.0]
+  velocity: [3.0, -50.0]
+  rotation_speed: 0.5
+  spawn_distance: 7200.0
+
+- sprite: hull_fragment_2.png
+  position: [140.0, 720.0]
+  velocity: [-4.0, -58.0]
+  rotation_speed: 1.1
+  spawn_distance: 8500.0
+
+- sprite: satellite_1.png
+  position: [-200.0, 680.0]
+  velocity: [2.0, -45.0]
+  rotation_speed: 0.3
+  spawn_distance: 9000.0
+
+- sprite: cargo_1.png
+  position: [220.0, 700.0]
+  velocity: [-3.0, -52.0]
+  rotation_speed: 0.4
+  spawn_distance: 9800.0
+
+- sprite: hull_debris_2.png
+  position: [-180.0, 740.0]
+  velocity: [5.0, -55.0]
+  rotation_speed: 0.8
+  spawn_distance: 11000.0
+
+- sprite: wreckage_2.png
+  position: [160.0, 680.0]
+  velocity: [-2.0, -48.0]
+  rotation_speed: 0.6
+  spawn_distance: 11500.0
+
+- sprite: nav_buoy_2.png
+  position: [-100.0, 720.0]
+  velocity: [3.0, -50.0]
+  rotation_speed: 0.3
+  spawn_distance: 12000.0
+
+# Phase 3: Industrial Zone (12600-24600 GU) - "Processing canyon chaos"
+- sprite: hull_fragment_3.png
+  position: [180.0, 700.0]
+  velocity: [-4.0, -60.0]
+  rotation_speed: 1.2
+  spawn_distance: 13000.0
+
+- sprite: fuel_tank_2.png
+  position: [-220.0, 750.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 0.5
+  spawn_distance: 14500.0
+
+- sprite: solar_broken_2.png
+  position: [150.0, 680.0]
+  velocity: [-5.0, -52.0]
+  rotation_speed: 0.7
+  spawn_distance: 15000.0
+
+- sprite: hull_debris_3.png
+  position: [-140.0, 720.0]
+  velocity: [4.0, -58.0]
+  rotation_speed: 0.9
+  spawn_distance: 15500.0
+
+- sprite: wreckage_3.png
+  position: [200.0, 700.0]
+  velocity: [-3.0, -55.0]
+  rotation_speed: 0.6
+  spawn_distance: 16500.0
+
+- sprite: cargo_3.png
+  position: [-180.0, 740.0]
+  velocity: [2.0, -50.0]
+  rotation_speed: 0.4
+  spawn_distance: 17500.0
+
+- sprite: satellite_3.png
+  position: [120.0, 680.0]
+  velocity: [-4.0, -52.0]
+  rotation_speed: 0.5
+  spawn_distance: 18500.0
+
+- sprite: hull_fragment_1.png
+  position: [-160.0, 700.0]
+  velocity: [5.0, -60.0]
+  rotation_speed: 1.0
+  spawn_distance: 19000.0
+
+- sprite: sparking_1.png
+  position: [180.0, 720.0]
+  velocity: [-3.0, -55.0]
+  rotation_speed: 0.0
+  spawn_distance: 19500.0
+
+- sprite: beacon_1.png
+  position: [-100.0, 680.0]
+  velocity: [2.0, -48.0]
+  rotation_speed: 0.0
+  spawn_distance: 20000.0
+
+- sprite: hull_debris_1.png
+  position: [220.0, 750.0]
+  velocity: [-4.0, -58.0]
+  rotation_speed: 0.8
+  spawn_distance: 20500.0
+
+- sprite: gas_vent_1.png
+  position: [-200.0, 700.0]
+  velocity: [3.0, -50.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  spawn_distance: 21000.0
+
+- sprite: wreckage_1.png
+  position: [140.0, 720.0]
+  velocity: [-5.0, -55.0]
+  rotation_speed: 0.7
+  spawn_distance: 21500.0
+
+- sprite: fuel_tank_1.png
+  position: [-180.0, 680.0]
+  velocity: [4.0, -52.0]
+  rotation_speed: 0.5
+  spawn_distance: 22500.0
+
+- sprite: sparking_2.png
+  position: [160.0, 740.0]
+  velocity: [-2.0, -58.0]
+  rotation_speed: 0.0
+  spawn_distance: 23000.0
+
+- sprite: hull_fragment_2.png
+  position: [-120.0, 700.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 1.1
+  spawn_distance: 23500.0
+
+- sprite: beacon_2.png
+  position: [200.0, 680.0]
+  velocity: [-4.0, -50.0]
+  rotation_speed: 0.0
+  spawn_distance: 24000.0
+
+# Phase 4: Core Breach (24600-31800 GU) - "Everything falling apart"
+- sprite: hull_debris_2.png
+  position: [-160.0, 720.0]
+  velocity: [5.0, -62.0]
+  rotation_speed: 1.0
+  spawn_distance: 25000.0
+
+- sprite: cargo_2.png
+  position: [180.0, 700.0]
+  velocity: [-3.0, -55.0]
+  rotation_speed: 0.5
+  spawn_distance: 25500.0
+
+- sprite: gas_vent_2.png
+  position: [-220.0, 750.0]
+  velocity: [2.0, -48.0]
+  rotation_speed: 0.0
+  layer: mid_distance
+  spawn_distance: 26000.0
+
+- sprite: wreckage_2.png
+  position: [140.0, 680.0]
+  velocity: [-4.0, -58.0]
+  rotation_speed: 0.8
+  spawn_distance: 26500.0
+
+- sprite: hull_fragment_3.png
+  position: [-100.0, 720.0]
+  velocity: [6.0, -65.0]
+  rotation_speed: 1.3
+  spawn_distance: 27000.0
+
+- sprite: solar_panel_1.png
+  position: [200.0, 700.0]
+  velocity: [-5.0, -55.0]
+  rotation_speed: 0.6
+  spawn_distance: 27500.0
+
+- sprite: hull_debris_3.png
+  position: [-180.0, 740.0]
+  velocity: [4.0, -60.0]
+  rotation_speed: 0.9
+  spawn_distance: 28000.0
+
+- sprite: satellite_2.png
+  position: [160.0, 680.0]
+  velocity: [-3.0, -52.0]
+  rotation_speed: 0.4
+  spawn_distance: 28500.0
+
+- sprite: wreckage_3.png
+  position: [-140.0, 720.0]
+  velocity: [5.0, -58.0]
+  rotation_speed: 0.7
+  spawn_distance: 29500.0
+
+- sprite: hull_fragment_1.png
+  position: [220.0, 700.0]
+  velocity: [-4.0, -62.0]
+  rotation_speed: 1.2
+  spawn_distance: 30000.0
+
+- sprite: fuel_tank_2.png
+  position: [-200.0, 750.0]
+  velocity: [3.0, -55.0]
+  rotation_speed: 0.5
+  spawn_distance: 30500.0
+
+- sprite: solar_panel_2.png
+  position: [180.0, 680.0]
+  velocity: [-5.0, -58.0]
+  rotation_speed: 0.6
+  spawn_distance: 31000.0
+
+# Phase 5: Boss Arena (31800-35400 GU) - "Arena clears for battle"
+- sprite: hull_debris_1.png
+  position: [-160.0, 720.0]
+  velocity: [4.0, -50.0]
+  rotation_speed: 0.8
+  spawn_distance: 32000.0
+
+- sprite: wreckage_1.png
+  position: [140.0, 700.0]
+  velocity: [-3.0, -48.0]
+  rotation_speed: 0.5
+  spawn_distance: 33000.0
 
 # ============================================================
 # NARRATIVE EVENTS - Radio Chatter

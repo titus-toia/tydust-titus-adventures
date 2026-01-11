@@ -1,0 +1,148 @@
+name: "Space City Assault"
+total_distance: 12000
+
+phases:
+  - name: "Open Space"
+    start_distance: 0
+    end_distance: 2000
+    music: "phase1_calm.mp3"
+    scroll_speed: 100
+    background: "open_space"
+
+  - name: "Urban Corridor"
+    start_distance: 2000
+    end_distance: 25000
+    music: "phase2_tension.mp3"
+    scroll_speed: 100
+    background: "city"
+
+  - name: "Derelict Mining Station"
+    start_distance: 40000
+    end_distance: 120000
+    music: "phase3_combat.mp3"
+    scroll_speed: 100
+    background: "city"
+
+  - name: "Debris Escape"
+    start_distance: 120000
+    end_distance: 180000
+    music: "phase4_combat.mp3"
+    scroll_speed: 130
+    background: "city"
+
+backdrop:
+  - sprite: nebula_purple_deep.png
+    position: [-450, 200]
+    size: [250, 250]
+    alpha: 1
+  - sprite: star_cluster_1.png
+    position: [500, 0]
+    size: [250, 250]
+    alpha: 0.5
+
+doodads:
+  - spawn_distance: 900
+    sprite: comet_1.png
+    position: [0, 600]
+    velocity: [30, -120]
+    rotation_speed: 0.3
+    layer: foreground
+    size: [50, 125]
+
+# Available layers (from far to near):
+#   deep_space (-9.5z, 0.0x speed, 1.0x scale) - Static nebulae/stars
+#   far_field (-8.0z, 0.075x speed, 1.0x scale) - Distant objects
+#   deep_structures (-9.0z, 0.15x speed, 0.32x scale) - Distant structures with visible movement
+#   mega_structures (-6.0z, 0.4x speed, 0.52x scale) - Large distant buildings
+#   mid_distance (-7.0z, 0.6x speed, 0.68x scale) - Mid-distance objects
+#   structure_details (-4.0z, 0.8x speed, 0.84x scale) - Structure attachments
+#   near_background (-3.0z, 1.0x speed, 1.0x scale) - Near background
+#   gameplay (-0.5z, 1.0x speed, 1.0x scale) - Main gameplay layer
+#   foreground (2.5z, 1.5x speed, 1.4x scale) - Foreground effects
+
+structures:
+  # Start
+  - sprite: isometric/structure_1.png
+    layer: mega_structures
+    position: 0
+    spawn_distance: 300
+    size: [250, 900]
+  - sprite: isometric/structure_1.png
+    layer: structure_details
+    position: 400
+    spawn_distance: 350
+    size: [250, 900]
+  - sprite: isometric/structure_1.png
+    layer: structure_details
+    position: 220
+    spawn_distance: 4200
+    size: [250, 900]
+  - sprite: perimeter_solar_array.png
+    layer: foreground
+    position: -650
+    spawn_distance: 700
+    size: [300, 400]
+  - sprite: perimeter_solar_array.png
+    layer: foreground
+    position: -650
+    spawn_distance: 2200
+    size: [300, 400]
+  - sprite: perimeter_solar_array.png
+    layer: foreground
+    position: -650
+    spawn_distance: 2700
+    size: [300, 400]
+  - sprite: hex_station_hub.png
+    layer: near_background
+    rotation: 90
+    position: -550
+    spawn_distance: 1500
+    size: [500, 402]
+  - sprite: hex_station_hub.png
+    layer: near_background
+    rotation: 270
+    position: -550
+    spawn_distance: 2500
+    size: [500, 402]
+  - sprite: medical_facility_vertical.png
+    layer: structure_details
+    position: -300
+    spawn_distance: 2100
+    size: [250, 475]
+
+
+  # ============================================
+  # SECTION A: Residential Outskirts (6000-7200 GU)
+  # Abandoned civilian quarters, eerie atmosphere
+  # ============================================
+
+  # Deep background - massive hab bock
+  - sprite: isometric/structure_2.png
+    layer: deep_structures
+    position: -285
+    spawn_distance: 5050
+    size: [1020, 673]
+  - sprite: isometric/residential_corridor_1.png
+    layer: deep_structures
+    position: -550
+    spawn_distance: 5100
+    size: [895, 597]
+  - sprite: isometric/connector_bridge.png
+    layer: deep_structures
+    position: -401
+    spawn_distance: 4900
+    size: [895, 597]
+    z_order: 10
+  - sprite: isometric/connector_bridge.png
+    layer: deep_structures
+    position: -660
+    spawn_distance: 4000
+    size: [895, 597]
+    z_order: 5
+  - sprite: isometric/connector_bridge.png
+    layer: deep_structures
+    position: -905
+    spawn_distance: 3120
+    size: [895, 597]
+    z_order: 0
+ 

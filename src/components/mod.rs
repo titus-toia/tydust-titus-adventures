@@ -329,6 +329,8 @@ pub struct LightningAoeEffect {
 	pub radius: f32,
 	pub lifetime: Timer,
 	pub intensity: f32,
+	pub incoming_direction: Option<Vec2>, // For oval orientation (None = vertical)
+	pub is_final_zone: bool,              // true = splitting bolt visual, false = confetti
 }
 
 #[derive(Component)]

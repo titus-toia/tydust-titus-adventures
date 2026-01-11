@@ -1,0 +1,23 @@
+name: City Building Wall
+tileset: space_city
+type: wall
+
+parameters:
+  side: left  # left | right
+  width: 3    # tile count (thickness of wall)
+
+tiles:
+  caps: [wall_top, wall_bottom]
+  fill: wall_mid
+
+placement:
+  orientation: vertical
+  repeat: fill tile along Y axis
+
+notes: |
+  Defines a vertical building wall segment.
+  - side: determines which edge of screen (left/right)
+  - width: thickness in tiles for varying depth
+  - Automatically tiles vertically to fill screen height
+  - Use wall_top/wall_bottom from space_city tileset for caps
+  - Repeat wall_mid for center sections

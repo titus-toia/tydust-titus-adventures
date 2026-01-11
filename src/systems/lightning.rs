@@ -12,7 +12,7 @@ use crate::components::{
 const VIEWPORT_HEIGHT: f32 = 1000.0;
 const VIEWPORT_TOP: f32 = VIEWPORT_HEIGHT / 2.0; // 500.0
 const CURVE_DISTANCE: f32 = 175.0; // How far the curve section travels
-const MAX_CURVE_ANGLE: f32 = 30.0;
+const MAX_CURVE_ANGLE: f32 = 40.0; // More dramatic curve (was 30)
 const CURVE_MARGIN: f32 = 225.0; // Start curve this far before viewport edge
 
 struct RaycastResult {
@@ -180,6 +180,8 @@ fn execute_aoe_explosion(
 	enemies: &Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	hit_events: &mut EventWriter<EnemyHitEvent>,
 	commands: &mut Commands,
+	incoming_direction: Option<Vec2>,
+	is_final_zone: bool,
 ) {
 	for (entity, transform, _, _) in enemies.iter() {
 		let enemy_pos = transform.translation.truncate();
@@ -208,10 +210,11 @@ fn execute_aoe_explosion(
 	commands.spawn(LightningAoeEffect {
 		position: center,
 		radius,
-		lifetime: Timer::from_seconds(0.25, TimerMode::Once),
-		intensity: 0.8,
+		lifetime: Timer::from_seconds(if is_final_zone { 0.35 } else { 0.20 }, TimerMode::Once),
+		intensity: if is_final_zone { 1.0 } else { 0.6 },
+		incoming_direction,
+		is_final_zone,
 	});
-	// Note: boom+crackle sounds are pooled and played once from fire_lightning_weapon
 }
 
 fn try_spawn_delayed_baby_whip(
@@ -344,8 +347,8 @@ fn execute_chain_sequence(
 		}
 	}
 
-	// AoE explosion at final position
-	execute_aoe_explosion(current_pos, aoe_radius, damage, &enemies, hit_events, commands);
+	// Small AoE at final chain position (intermediate, not the main finale)
+	execute_aoe_explosion(current_pos, aoe_radius * 0.3, damage * 0.3, &enemies, hit_events, commands, None, false);
 }
 
 pub fn fire_lightning_weapon(
@@ -377,22 +380,22 @@ pub fn fire_lightning_weapon(
 		}
 	}
 
-	// Level-based config (matching old system)
+	// Level-based config - AoE radius increased by 40%
 	let (max_chains, chain_range, aoe_radius, damage_mult, damage_falloff) = match (level, is_charged) {
-		(1, _) => (0, 0.0, 40.0, 1.0, 0.0),
-		(2, _) => (1, 150.0, 50.0, 1.0, 0.2),
-		(3, _) => (2, 180.0, 60.0, 1.0, 0.2),
-		(4, _) => (2, 200.0, 70.0, 1.0, 0.15),
-		(5, _) => (3, 250.0, 80.0, 1.0, 0.10),
-		(6, _) => (4, 280.0, 90.0, 1.0, 0.08),
-		(7, _) => (4, 300.0, 100.0, 1.0, 0.05),
-		(8, false) => (4, 300.0, 100.0, 1.0, 0.05),
-		(8, true) => (6, 350.0, 130.0, 1.375, 0.02),
-		(9, false) => (5, 350.0, 120.0, 1.0, 0.03),
-		(9, true) => (8, 450.0, 160.0, 1.556, 0.0),
-		(10, false) => (6, 400.0, 140.0, 1.0, 0.01),
-		(10, true) => (12, 550.0, 220.0, 1.8, 0.0),
-		_ => (6, 400.0, 140.0, 1.0, 0.01),
+		(1, _) => (0, 0.0, 56.0, 1.0, 0.0),      // was 40
+		(2, _) => (1, 150.0, 70.0, 1.0, 0.2),    // was 50
+		(3, _) => (2, 180.0, 84.0, 1.0, 0.2),    // was 60
+		(4, _) => (2, 200.0, 98.0, 1.0, 0.15),   // was 70
+		(5, _) => (3, 250.0, 112.0, 1.0, 0.10),  // was 80
+		(6, _) => (4, 280.0, 126.0, 1.0, 0.08),  // was 90
+		(7, _) => (4, 300.0, 140.0, 1.0, 0.05),  // was 100
+		(8, false) => (4, 300.0, 140.0, 1.0, 0.05),   // was 100
+		(8, true) => (6, 350.0, 182.0, 1.375, 0.02),  // was 130
+		(9, false) => (5, 350.0, 168.0, 1.0, 0.03),   // was 120
+		(9, true) => (8, 450.0, 224.0, 1.556, 0.0),   // was 160
+		(10, false) => (6, 400.0, 196.0, 1.0, 0.01),  // was 140
+		(10, true) => (12, 550.0, 308.0, 1.8, 0.0),  // was 220
+		_ => (6, 400.0, 196.0, 1.0, 0.01),           // was 140
 	};
 
 	// Baby whip spawn chance
@@ -454,14 +457,16 @@ pub fn fire_lightning_weapon(
 				hit_sound: Some("sounds/lightning/lightning_wave_light.ogg"),
 			});
 
-			// Always discharge at initial hit point
+			// Small discharge at initial hit point (intermediate)
 			execute_aoe_explosion(
 				ray_result.hit_position,
-				aoe_radius,
-				actual_damage * 0.5, // Half damage for initial discharge
+				aoe_radius * 0.3,
+				actual_damage * 0.25,
 				enemies,
 				hit_events,
 				commands,
+				None,
+				false,
 			);
 
 			let mut already_hit = HashSet::new();
@@ -497,17 +502,22 @@ pub fn fire_lightning_weapon(
 				asset_server,
 			);
 
-			// Always discharge at bolt's visual end too
+			// Main finale discharge at bolt's visual end
+			// Use the curve's final tangent direction (end - curve_point)
+			let final_direction = (ray_result.ray_end_visual - ray_result.curve_point).normalize_or_zero();
 			execute_aoe_explosion(
 				ray_result.ray_end_visual,
 				aoe_radius,
-				actual_damage * 0.3, // Reduced damage at end
+				actual_damage * 0.5,
 				enemies,
 				hit_events,
 				commands,
+				Some(final_direction),
+				true, // Final zone - splitting bolt visual
 			);
 		} else {
-			// No hit, AoE at end of bolt
+			// No hit - full finale AoE at end of bolt
+			let final_direction = (ray_result.ray_end_visual - ray_result.curve_point).normalize_or_zero();
 			execute_aoe_explosion(
 				ray_result.ray_end_visual,
 				aoe_radius,
@@ -515,6 +525,8 @@ pub fn fire_lightning_weapon(
 				enemies,
 				hit_events,
 				commands,
+				Some(final_direction),
+				true, // Final zone - splitting bolt visual
 			);
 		}
 	}
@@ -773,77 +785,127 @@ pub fn render_lightning_aoe(
 		let alpha = aoe.lifetime.fraction_remaining();
 		let progress = 1.0 - alpha;
 
-		// Expanding radius for the chaos
-		let chaos_radius = aoe.radius * (0.4 + progress * 0.6);
+		if aoe.is_final_zone {
+			// === FINAL ZONE: Splitting bolt with fireworks burst ===
+			let base_dir = aoe.incoming_direction.unwrap_or(Vec2::Y);
+			let finger_count = 5;
+			let max_spread = 50.0_f32.to_radians(); // ±50° spread for wide oval
 
-		// === Chaotic jagged lightning arcs (no circle, just random bolts) ===
-		let arc_count = 16 + (8.0 * alpha) as usize; // More arcs at start
-		for _ in 0..arc_count {
-			// Random start point near center
-			let start_angle = rng.gen_range(0.0..std::f32::consts::TAU);
-			let start_dist = rng.gen_range(0.0..chaos_radius * 0.3);
-			let start = aoe.position + Vec2::new(start_angle.cos(), start_angle.sin()) * start_dist;
-
-			// Random end point at edge
-			let end_angle = rng.gen_range(0.0..std::f32::consts::TAU);
-			let end_dist = rng.gen_range(0.5..1.0) * chaos_radius;
-			let end = aoe.position + Vec2::new(end_angle.cos(), end_angle.sin()) * end_dist;
-
-			// Generate curvy jagged path
-			let direction = (end - start).normalize_or_zero();
-			let perpendicular = Vec2::new(-direction.y, direction.x);
-			let segment_count = rng.gen_range(3..6);
-			let mut points = vec![start];
-
-			// Sine wave + jitter for organic flow
-			let phase = rng.gen_range(0.0..std::f32::consts::TAU);
-			let wave_amp = rng.gen_range(5.0..15.0);
-
-			for j in 1..segment_count {
-				let t = j as f32 / segment_count as f32;
-				let base_point = start.lerp(end, t);
-				let wave = (t * 2.0 * std::f32::consts::TAU + phase).sin() * wave_amp * (1.0 - t);
-				let jitter = rng.gen_range(-6.0..6.0);
-				points.push(base_point + perpendicular * (wave + jitter));
-			}
-			points.push(end);
-
-			// Draw with blue glow
-			for w in points.windows(2) {
-				let p1 = w[0];
-				let p2 = w[1];
-
-				// Outer glow (deep blue)
-				let outer = Color::srgba(0.1, 0.3, 0.9, alpha * 0.2);
-				gizmos.line_2d(p1 + Vec2::new(-2.0, 0.0), p2 + Vec2::new(-2.0, 0.0), outer);
-				gizmos.line_2d(p1 + Vec2::new(2.0, 0.0), p2 + Vec2::new(2.0, 0.0), outer);
-
-				// Mid glow (electric blue)
-				let mid = Color::srgba(0.3, 0.5, 1.0, alpha * 0.4);
-				gizmos.line_2d(p1, p2, mid);
-
-				// Core (bright blue-white)
-				let core = Color::srgba(0.6, 0.8, 1.0, alpha * 0.7);
-				gizmos.line_2d(p1 + Vec2::new(0.5, 0.0), p2 + Vec2::new(0.5, 0.0), core);
+			// Darkening void at center
+			let dark_radius = aoe.radius * 0.4;
+			for i in 0..8 {
+				let ring_t = i as f32 / 8.0;
+				let darkness = Color::srgba(0.0, 0.0, 0.15, alpha * 0.5 * (1.0 - ring_t));
+				gizmos.circle_2d(aoe.position, dark_radius * ring_t, darkness);
 			}
 
-			// Spark at end (50% chance)
-			if rng.gen_bool(0.5) {
-				let spark_color = Color::srgba(0.8, 0.9, 1.0, alpha * 0.8);
-				let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
-				gizmos.line_2d(end, end + spark_dir * rng.gen_range(4.0..10.0), spark_color);
-			}
-		}
+			// Splitting bolt fingers
+			for i in 0..finger_count {
+				let spread_t = (i as f32 / (finger_count - 1) as f32) - 0.5; // -0.5 to 0.5
+				let angle_offset = spread_t * 2.0 * max_spread;
 
-		// === Central bright flash ===
-		let flash_alpha = (alpha * 2.5).min(1.0);
-		let flash_color = Color::srgba(0.7, 0.85, 1.0, flash_alpha * 0.7);
-		for _ in 0..8 {
-			let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-			let length = rng.gen_range(8.0..20.0);
-			let p1 = aoe.position;
-			let p2 = aoe.position + Vec2::new(angle.cos(), angle.sin()) * length;
-			gizmos.line_2d(p1, p2, flash_color);
+				// Rotate base direction by angle offset
+				let cos_a = angle_offset.cos();
+				let sin_a = angle_offset.sin();
+				let finger_dir = Vec2::new(
+					base_dir.x * cos_a - base_dir.y * sin_a,
+					base_dir.x * sin_a + base_dir.y * cos_a,
+				);
+
+				let finger_length = aoe.radius * (0.7 + progress * 0.3);
+				let finger_end = aoe.position + finger_dir * finger_length;
+
+				// Generate curvy path for this finger
+				let perpendicular = Vec2::new(-finger_dir.y, finger_dir.x);
+				let segment_count = 6;
+				let mut points = vec![aoe.position];
+				let phase = rng.gen_range(0.0..std::f32::consts::TAU);
+				let wave_amp = rng.gen_range(8.0..16.0);
+
+				for j in 1..segment_count {
+					let t = j as f32 / segment_count as f32;
+					let base_point = aoe.position.lerp(finger_end, t);
+					let wave = (t * 2.5 * std::f32::consts::TAU + phase).sin() * wave_amp * (1.0 - t * 0.5);
+					let jitter = rng.gen_range(-4.0..4.0);
+					points.push(base_point + perpendicular * (wave + jitter));
+				}
+				points.push(finger_end);
+
+				// Draw finger with multi-layer glow
+				for w in points.windows(2) {
+					let p1 = w[0];
+					let p2 = w[1];
+
+					// Wide outer glow
+					let outer = Color::srgba(0.1, 0.3, 0.9, alpha * 0.25);
+					gizmos.line_2d(p1 + perpendicular * 3.0, p2 + perpendicular * 3.0, outer);
+					gizmos.line_2d(p1 - perpendicular * 3.0, p2 - perpendicular * 3.0, outer);
+
+					// Mid glow
+					let mid = Color::srgba(0.3, 0.6, 1.0, alpha * 0.5);
+					gizmos.line_2d(p1, p2, mid);
+
+					// Bright core
+					let core = Color::srgba(0.7, 0.9, 1.0, alpha * 0.8);
+					gizmos.line_2d(p1 + perpendicular * 0.5, p2 + perpendicular * 0.5, core);
+				}
+
+				// Sparkles along finger path
+				for point in &points {
+					if rng.gen_bool(0.6) {
+						let spark_color = Color::srgba(0.8, 0.9, 1.0, alpha * rng.gen_range(0.5..1.0));
+						let spark_dir = Vec2::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0)).normalize_or_zero();
+						let spark_len = rng.gen_range(3.0..8.0);
+						gizmos.line_2d(*point, *point + spark_dir * spark_len, spark_color);
+					}
+				}
+
+				// Fireworks burst at finger tip
+				let burst_count = 6;
+				for _ in 0..burst_count {
+					let burst_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+					let burst_len = rng.gen_range(6.0..18.0) * alpha;
+					let burst_end = finger_end + Vec2::new(burst_angle.cos(), burst_angle.sin()) * burst_len;
+					let burst_color = Color::srgba(0.6, 0.8, 1.0, alpha * 0.7);
+					gizmos.line_2d(finger_end, burst_end, burst_color);
+
+					// Tiny spark at burst end
+					if rng.gen_bool(0.5) {
+						let tiny_color = Color::srgba(0.9, 0.95, 1.0, alpha * 0.9);
+						gizmos.circle_2d(burst_end, 1.5, tiny_color);
+					}
+				}
+			}
+
+			// Central flash
+			let flash_color = Color::srgba(0.8, 0.9, 1.0, (alpha * 3.0).min(1.0) * 0.6);
+			gizmos.circle_2d(aoe.position, 4.0, flash_color);
+
+		} else {
+			// === INTERMEDIATE ZONE: Small confetti (existing but smaller) ===
+			let chaos_radius = aoe.radius * (0.5 + progress * 0.5);
+			let arc_count = 8 + (4.0 * alpha) as usize;
+
+			for _ in 0..arc_count {
+				let start_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+				let start_dist = rng.gen_range(0.0..chaos_radius * 0.2);
+				let start = aoe.position + Vec2::new(start_angle.cos(), start_angle.sin()) * start_dist;
+
+				let end_angle = rng.gen_range(0.0..std::f32::consts::TAU);
+				let end_dist = rng.gen_range(0.4..1.0) * chaos_radius;
+				let end = aoe.position + Vec2::new(end_angle.cos(), end_angle.sin()) * end_dist;
+
+				// Simple 2-segment arc
+				let mid = start.lerp(end, 0.5) + Vec2::new(rng.gen_range(-5.0..5.0), rng.gen_range(-5.0..5.0));
+
+				let arc_color = Color::srgba(0.4, 0.6, 1.0, alpha * 0.5);
+				gizmos.line_2d(start, mid, arc_color);
+				gizmos.line_2d(mid, end, arc_color);
+			}
+
+			// Small center flash
+			let flash_color = Color::srgba(0.6, 0.8, 1.0, alpha * 0.4);
+			gizmos.circle_2d(aoe.position, 3.0, flash_color);
 		}
 	}
 }
@@ -885,6 +947,9 @@ pub fn spawn_pending_baby_whips(
 			audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
 				.with_volume(0.2);
 
+			// Baby whip AoE is 60% of parent size
+			let baby_aoe_radius = pending_whip.parent_aoe_radius * 0.6;
+
 			// If hit enemy, execute chain
 			if let Some(hit_entity) = ray_result.hit_enemy {
 				spawn_impact_buzz(&mut commands, ray_result.hit_position);
@@ -898,6 +963,18 @@ pub fn spawn_pending_baby_whips(
 					damage: pending_whip.parent_damage,
 					hit_sound: Some("sounds/lightning/lightning_wave_light.ogg"),
 				});
+
+				// Baby discharge at hit point (25% damage)
+				execute_aoe_explosion(
+					ray_result.hit_position,
+					baby_aoe_radius,
+					pending_whip.parent_damage * 0.25,
+					&enemies,
+					&mut hit_events,
+					&mut commands,
+					None,
+					false,
+				);
 
 				let mut already_hit = HashSet::new();
 				already_hit.insert(hit_entity);
@@ -916,11 +993,35 @@ pub fn spawn_pending_baby_whips(
 					&mut commands,
 					&mut already_hit,
 					pending_whip.parent_level,
-					pending_whip.parent_aoe_radius,
+					baby_aoe_radius,
 					pending_whip.baby_spawn_chance,
 					pending_whip.recursion_depth,
 					&audio,
 					&asset_server,
+				);
+
+				// Baby discharge at bolt visual end (15% damage)
+				execute_aoe_explosion(
+					ray_result.ray_end_visual,
+					baby_aoe_radius * 0.8,
+					pending_whip.parent_damage * 0.15,
+					&enemies,
+					&mut hit_events,
+					&mut commands,
+					None,
+					false,
+				);
+			} else {
+				// No hit - discharge at end of baby bolt
+				execute_aoe_explosion(
+					ray_result.ray_end_visual,
+					baby_aoe_radius,
+					pending_whip.parent_damage * 0.5,
+					&enemies,
+					&mut hit_events,
+					&mut commands,
+					None,
+					false,
 				);
 			}
 

@@ -16,6 +16,11 @@ __pycache__/
 .env.local
 .env.*
 
+# Old
+assets/music/_old/
+
+# Visual docs
+screenshots_games/
 # Generated images (one-off generations)
 generated_imgs/
 
@@ -51,7 +56,7 @@ Thumbs.db
 .claude/
 
 # Temp/scratch
-scripts/
+tmp/
 
 # Backup files
 *.bak

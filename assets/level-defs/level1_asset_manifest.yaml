@@ -1,0 +1,580 @@
+# Level 1 Asset Manifest
+# Generated from flight log - all assets needed to realize the level vision
+
+style_bible:
+  name: "Tydust Mining Station"
+  color_palette:
+    primary: "#2a2a3a"        # Dark blue-gray metal
+    secondary: "#4a4a5a"      # Lighter hull panels
+    accent_warm: "#ff6b35"    # Orange warning lights, fire, molten
+    accent_cool: "#35a7ff"    # Blue emergency lights, energy
+    danger: "#ff3535"         # Red alerts, damage indicators
+    glow: "#ffaa00"           # Reactor glow, molten metal
+    energy: "#aa66ff"         # Purple energy arcs
+  materials:
+    - "weathered industrial metal with rivets and panel lines"
+    - "carbon scoring and laser burn marks"
+    - "rust streaks near joints and seams"
+    - "glowing cracks from internal heat"
+    - "exposed wiring, cables, and pipes"
+  design_language:
+    shapes: "angular, functional, brutalist industrial"
+    greeble_density: "high - pipes, vents, panels, bolts everywhere"
+    wear_level: "heavy - 50+ years of mining operation damage"
+    lighting: "practical lights failing, emergency red/blue accents"
+
+# ====================
+# HERO STRUCTURES
+# Large, unique pieces that define major level moments
+# ====================
+hero_structures:
+  # Station approach
+  - name: station_silhouette_distant
+    description: "Distant mining station silhouette, industrial towers and arrays"
+    size: [800, 400]
+    layer: DeepStructures
+    appears_at: [3500, 5000, 6500]
+    generation: single_png
+    composition: standalone
+    notes: "Very dark, almost black, just shape visible against nebula"
+
+  # Perimeter walls (Phase 2 corridor)
+  - name: perimeter_wall_left_segment
+    description: "Left perimeter wall section, vertical, industrial with mounted equipment"
+    size: [256, 1200]
+    layer: MegaStructures
+    generation: tileable_vertical
+    composition: tileable
+    notes: "Must tile seamlessly top-to-bottom. Include mounting points for equipment."
+
+  - name: perimeter_wall_right_segment
+    description: "Right perimeter wall section, mirrors left, industrial aesthetic"
+    size: [256, 1200]
+    layer: MegaStructures
+    generation: tileable_vertical
+    composition: tileable
+    notes: "Slight variation from left wall to avoid mirror-perfect symmetry"
+
+  # Carrier wreck (Major Phase 2 landmark)
+  - name: carrier_wreck_front
+    description: "Front section of wrecked carrier ship, cockpit area, battle damage"
+    size: [400, 300]
+    layer: MegaStructures
+    generation: single_png
+    composition: connectable_right
+    notes: "Connect to carrier_wreck_mid on right edge"
+
+  - name: carrier_wreck_mid
+    description: "Middle section of carrier, main hull, massive, fires burning"
+    size: [800, 300]
+    layer: MegaStructures
+    generation: single_png
+    composition: connectable_both
+    notes: "Connects to front (left) and rear (right). Primary visual impact."
+
+  - name: carrier_wreck_rear
+    description: "Rear section of carrier, engines, destroyed thrusters"
+    size: [400, 300]
+    layer: MegaStructures
+    generation: single_png
+    composition: connectable_left
+    notes: "Connect to carrier_wreck_mid on left edge"
+
+  # Processing towers (Phase 3)
+  - name: processing_tower_left
+    description: "Ore processing tower, refinery equipment, conveyor attachments"
+    size: [300, 800]
+    layer: MegaStructures
+    generation: single_png
+    composition: standalone
+    notes: "Vertical structure, industrial, pipes and tanks"
+
+  - name: processing_tower_right
+    description: "Ore processing tower, storage silos, pipe networks"
+    size: [300, 800]
+    layer: MegaStructures
+    generation: single_png
+    composition: standalone
+    notes: "Slightly different from left - asymmetry is key"
+
+  # Reactor zone (Phase 3-4)
+  - name: reactor_wall_segment
+    description: "Reactor containment wall, energy conduits visible, glowing cracks"
+    size: [200, 800]
+    layer: MegaStructures
+    generation: tileable_vertical
+    composition: tileable
+    notes: "Orange/yellow glow from conduits. Warning markings."
+
+  - name: core_exterior
+    description: "Reactor core exterior, massive cylindrical structure, orange glow"
+    size: [600, 600]
+    layer: DeepStructures
+    generation: single_png
+    composition: standalone
+    notes: "THE major landmark. Glowing, industrial, clearly the power source."
+
+  - name: core_pillar
+    description: "Core support pillar, structural, monitoring equipment attached"
+    size: [150, 600]
+    layer: MegaStructures
+    generation: single_png
+    composition: standalone
+    notes: "Two needed (left and right of core)"
+
+  # Hangar/Boss arena (Phase 4-5)
+  - name: hangar_wall_segment
+    description: "Hangar interior wall, fighter mounts, loading equipment"
+    size: [300, 1000]
+    layer: MegaStructures
+    generation: tileable_vertical
+    composition: tileable
+    notes: "Military industrial, fighter craft visible on mounts"
+
+  - name: boss_hangar_doors
+    description: "Massive hangar doors, warning lights, opening mechanism visible"
+    size: [800, 400]
+    layer: MegaStructures
+    generation: single_png
+    composition: standalone
+    notes: "Imposing, clearly leads to boss. Red warning lights."
+
+  - name: arena_wall_segment
+    description: "Boss arena containment wall, observation equipment, battle damage"
+    size: [250, 800]
+    layer: MegaStructures
+    generation: tileable_vertical
+    composition: tileable
+    notes: "Final arena boundary. Can show progressive damage."
+
+# ====================
+# MODULAR PIECES
+# Medium-scale reusable elements
+# ====================
+modular_pieces:
+  # Habitat/life support
+  - name: eco_dome
+    description: "Spherical habitat dome, windows, life support visible, lights flickering"
+    size: [256, 256]
+    layer: MidDistance
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+    notes: "Sign of human habitation. Some lights on, some off."
+
+  # Defense structures
+  - name: defense_satellite
+    description: "Defensive satellite platform, gun turrets, destroyed/damaged"
+    size: [128, 128]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+    notes: "All should look destroyed/offline"
+
+  - name: defense_turret_mounted
+    description: "Wall-mounted defense turret, destroyed, still on mount"
+    size: [96, 96]
+    layer: StructureDetails
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  # Industrial equipment
+  - name: cooling_tower
+    description: "Industrial cooling tower, steam vents, pipes"
+    size: [200, 400]
+    layer: MegaStructures
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: ore_silo
+    description: "Cylindrical ore storage silo, one normal, one ruptured"
+    size: [150, 300]
+    layer: MegaStructures
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+    notes: "One intact, one damaged/leaking"
+
+  - name: conveyor_section
+    description: "Industrial conveyor belt section, ore buckets"
+    size: [300, 80]
+    layer: StructureDetails
+    quantity: 3
+    generation: batch_variations
+    composition: connectable_horizontal
+
+  - name: pipe_cluster
+    description: "Cluster of industrial pipes, various diameters"
+    size: [150, 150]
+    layer: StructureDetails
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+
+  - name: pipe_manifold
+    description: "Large pipe junction, valves, pressure gauges"
+    size: [200, 200]
+    layer: StructureDetails
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  # Infrastructure
+  - name: observation_tower
+    description: "Control/observation tower, windows, antenna"
+    size: [120, 250]
+    layer: MidDistance
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: docking_arm
+    description: "Ship docking arm fragment, where vessels would attach"
+    size: [200, 100]
+    layer: MidDistance
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: containment_ring
+    description: "Magnetic containment ring, energy field visible"
+    size: [300, 100]
+    layer: StructureDetails
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+    notes: "Glowing energy field in center"
+
+  # Reactor-specific
+  - name: energy_conduit
+    description: "Energy conduit, glowing power line, sparking"
+    size: [80, 300]
+    layer: StructureDetails
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+    notes: "Orange/yellow glow, some sparking"
+
+# ====================
+# ATMOSPHERIC
+# Background mood setters
+# ====================
+atmospheric:
+  - name: nebula_purple_deep
+    description: "Deep purple space nebula, soft, mysterious"
+    size: [1024, 1024]
+    layer: DeepSpace
+    phase: "1"
+    generation: procedural_or_ai
+    notes: "Phase 1 - calm, mysterious"
+
+  - name: nebula_violet_transition
+    description: "Violet nebula transitioning warmer, hints of orange"
+    size: [1024, 1024]
+    layer: DeepSpace
+    phase: "1-2"
+    generation: procedural_or_ai
+    notes: "Transition between calm and tension"
+
+  - name: nebula_orange_industrial
+    description: "Orange nebula, industrial feel, station glow mixing in"
+    size: [1024, 1024]
+    layer: DeepSpace
+    phase: "3"
+    generation: procedural_or_ai
+    notes: "Phase 3 - industrial chaos"
+
+  - name: nebula_red_danger
+    description: "Red-orange nebula, danger, core breach colors"
+    size: [1024, 1024]
+    layer: DeepSpace
+    phase: "4-5"
+    generation: procedural_or_ai
+    notes: "Phase 4-5 - maximum danger"
+
+  - name: core_glow_ambient
+    description: "Orange ambient glow from reactor core"
+    size: [512, 512]
+    layer: DeepStructures
+    generation: procedural_or_ai
+    notes: "Soft glow, not the core itself, just the light"
+
+  - name: gas_wisp_purple
+    description: "Purple gas cloud wisp, atmospheric"
+    size: [256, 256]
+    layer: MidDistance
+    quantity: 2
+    generation: batch_variations
+
+  - name: gas_wisp_orange
+    description: "Orange gas cloud wisp, industrial zone"
+    size: [256, 256]
+    layer: MidDistance
+    quantity: 2
+    generation: batch_variations
+
+  - name: ore_dust_cloud
+    description: "Orange ore dust particles, processing zone"
+    size: [300, 300]
+    layer: Foreground
+    generation: procedural_or_ai
+    notes: "Semi-transparent particle cloud"
+
+# ====================
+# DEBRIS
+# Small scattered detail elements
+# ====================
+debris:
+  # Evacuation evidence
+  - name: escape_pod
+    description: "Emergency escape pod, some damaged, tumbling"
+    size: [64, 64]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+    notes: "Different states - intact, damaged, open"
+
+  - name: cargo_container
+    description: "Shipping cargo container, emergency markings"
+    size: [80, 60]
+    layer: Gameplay
+    quantity: 4
+    generation: batch_variations
+    composition: standalone
+    notes: "Various damage states and markings"
+
+  - name: crew_crate
+    description: "Personal effects crate, marked 'CREW'"
+    size: [48, 48]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+    notes: "Emotional - suggests people lived here"
+
+  - name: medical_pod
+    description: "Emergency medical pod, frosted glass, occupied?"
+    size: [72, 72]
+    layer: Gameplay
+    quantity: 1
+    generation: single_png
+    composition: standalone
+    notes: "Mysterious - is someone inside?"
+
+  # Fuel/resources
+  - name: fuel_tank
+    description: "Cylindrical fuel tank, some ruptured/venting"
+    size: [56, 80]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+    notes: "One intact, one leaking, one ruptured"
+
+  - name: ore_bucket
+    description: "Mining ore transport bucket"
+    size: [48, 48]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  # Hull debris
+  - name: hull_plate
+    description: "Torn metal hull plate, jagged edges"
+    size: [48, 48]
+    layer: Gameplay
+    quantity: 5
+    generation: batch_variations
+    composition: standalone
+    notes: "Various shapes and sizes"
+
+  - name: hull_section_large
+    description: "Large hull section with panel detail"
+    size: [200, 150]
+    layer: MidDistance
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  # Equipment debris
+  - name: antenna_fragment
+    description: "Broken antenna piece, dish or array"
+    size: [32, 64]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+
+  - name: satellite_dish_broken
+    description: "Broken satellite dish, spinning"
+    size: [80, 80]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: solar_panel_damaged
+    description: "Damaged solar panel array, folded/broken"
+    size: [100, 60]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: pipe_section
+    description: "Loose pipe section, various lengths"
+    size: [24, 80]
+    layer: Gameplay
+    quantity: 4
+    generation: batch_variations
+    composition: standalone
+
+  # Navigation/infrastructure debris
+  - name: nav_buoy
+    description: "Navigation buoy, lights dead"
+    size: [48, 64]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: warning_beacon
+    description: "Warning beacon, flashing red (only active debris)"
+    size: [32, 48]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+    notes: "This one is ACTIVE - lights flashing"
+
+  - name: grating_section
+    description: "Floor grating piece, walkway fragment"
+    size: [80, 80]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+
+  - name: valve_cluster
+    description: "Industrial valve cluster, broken pipes"
+    size: [64, 64]
+    layer: Gameplay
+    quantity: 2
+    generation: batch_variations
+    composition: standalone
+
+  - name: cable_bundle
+    description: "Bundle of cables/wires, torn"
+    size: [40, 100]
+    layer: Gameplay
+    quantity: 3
+    generation: batch_variations
+    composition: standalone
+
+# ====================
+# SPECIAL/ANIMATED
+# Elements with implied motion or effects
+# ====================
+special:
+  - name: searchlight_scanning
+    description: "Mounted searchlight, beam visible (ACTIVE)"
+    size: [96, 96]
+    layer: StructureDetails
+    generation: single_png
+    notes: "Light beam should be part of sprite"
+
+  - name: comm_tower_active
+    description: "Communications tower with active dish (TURNING)"
+    size: [80, 150]
+    layer: StructureDetails
+    generation: single_png
+    notes: "Suggest motion in design"
+
+  - name: emergency_vent_flames
+    description: "Emergency vent with flames coming out"
+    size: [100, 150]
+    layer: StructureDetails
+    generation: single_png
+    notes: "Flames visible, orange glow"
+
+  - name: coolant_leak_frozen
+    description: "Coolant leak, frozen spray pattern"
+    size: [80, 120]
+    layer: StructureDetails
+    generation: single_png
+    notes: "Blue/white ice crystal effect"
+
+  - name: shield_generator_active
+    description: "Shield generator with visible energy field"
+    size: [120, 120]
+    layer: MegaStructures
+    generation: single_png
+    notes: "Energy field visible, blue glow"
+
+  - name: explosion_crater
+    description: "Explosion damage crater on surface"
+    size: [150, 150]
+    layer: NearBackground
+    generation: single_png
+    notes: "Scorch marks, debris"
+
+# ====================
+# GENERATION ORDER
+# ====================
+generation_order:
+  1_style_reference:
+    - "Generate mood board collage first"
+    - "Establish color palette visually"
+    - "Create material reference"
+
+  2_hero_structures:
+    - carrier_wreck_mid  # Sets the tone
+    - carrier_wreck_front
+    - carrier_wreck_rear
+    - perimeter_wall_left_segment
+    - perimeter_wall_right_segment
+    - core_exterior
+    - processing_tower_left
+    - processing_tower_right
+
+  3_modular_pieces:
+    - eco_dome
+    - cooling_tower
+    - ore_silo
+    - conveyor_section
+    - pipe_cluster
+
+  4_atmospheric:
+    - nebula_purple_deep
+    - nebula_orange_industrial
+    - nebula_red_danger
+    - core_glow_ambient
+
+  5_debris:
+    - escape_pod
+    - cargo_container
+    - fuel_tank
+    - hull_plate
+    - antenna_fragment
+    - pipe_section
+
+  6_special:
+    - searchlight_scanning
+    - emergency_vent_flames
+    - shield_generator_active
+
+# ====================
+# ASSET COUNT SUMMARY
+# ====================
+summary:
+  hero_structures: 14
+  modular_pieces: 28  # with variations
+  atmospheric: 10
+  debris: 52  # with variations
+  special: 6
+  total_unique_assets: 110

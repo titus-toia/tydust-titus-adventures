@@ -1,0 +1,506 @@
+name: Industrial Canyon Run
+total_distance: 30000.0
+
+# === MUSIC PHASES ===
+phases:
+- name: Open Space
+  music: phase1_calm.mp3
+  scroll_speed: 60.0
+  background: starfield_slow
+  start_distance: 0.0
+  end_distance: 4000.0
+
+- name: Wall Approach
+  music: phase2_tension.mp3
+  scroll_speed: 80.0
+  background: starfield_normal
+  start_distance: 4000.0
+  end_distance: 10000.0
+
+- name: The Canyon
+  music: phase3_combat.mp3
+  scroll_speed: 100.0
+  background: starfield_intense
+  start_distance: 10000.0
+  end_distance: 20000.0
+
+- name: Industrial Core
+  music: phase4_peak.mp3
+  scroll_speed: 120.0
+  background: starfield_intense
+  start_distance: 20000.0
+  end_distance: 26000.0
+
+- name: Exit Run
+  music: phase5_boss.mp3
+  scroll_speed: 80.0
+  background: starfield_boss
+  start_distance: 26000.0
+  end_distance: 30000.0
+
+# === BACKDROP ===
+backdrop:
+- sprite: nebula_purple_1.png
+  position: [-400, 200]
+  alpha: 0.25
+
+# === GEOGRAPHY SECTIONS ===
+sections:
+
+# Section 1: Open void - just stars, establishes contrast
+- name: "The Void"
+  start_distance: 0.0
+  end_distance: 4000.0
+  shape: open
+  walls: []
+  obstacles: []
+  floating:
+    sprites: [distant_asteroid_1.png, distant_asteroid_2.png]
+    density: 2.0
+    size_range: [20.0, 40.0]
+
+# Section 2: Left wall appears - player pushed right
+- name: "Left Wall Approach"
+  start_distance: 4000.0
+  end_distance: 7000.0
+  shape: left_corridor
+  walls:
+  - side: left
+    structure_sprite: perimeter_wall_left_segment.png
+    x_position: -320.0
+    wobble: 15.0
+    segment_height: 350.0
+    mounted:
+    - object_type:
+        light:
+          sprite: beacon_1.png
+      interval: 400.0
+      offset: 60.0
+      jitter: 20.0
+    - object_type:
+        debris:
+          sprites: [hull_fragment_1.png, hull_fragment_2.png]
+      interval: 250.0
+      offset: 80.0
+      jitter: 30.0
+  obstacles: []
+  floating:
+    sprites: [hull_fragment_1.png]
+    density: 1.0
+    size_range: [30.0, 50.0]
+
+# Section 3: Right wall joins - canyon begins
+- name: "Canyon Entry"
+  start_distance: 7000.0
+  end_distance: 12000.0
+  shape: canyon
+  walls:
+  - side: left
+    structure_sprite: refinery_furnace.png
+    x_position: -300.0
+    wobble: 20.0
+    segment_height: 400.0
+    mounted:
+    - object_type:
+        vent:
+          sprite: gas_vent_1.png
+      interval: 500.0
+      offset: 70.0
+      jitter: 30.0
+    - object_type:
+        light:
+          sprite: beacon_2.png
+      interval: 350.0
+      offset: 50.0
+      jitter: 15.0
+  - side: right
+    structure_sprite: processing_tower_left.png
+    x_position: 300.0
+    wobble: 20.0
+    segment_height: 400.0
+    mounted:
+    - object_type:
+        vent:
+          sprite: gas_vent_2.png
+      interval: 450.0
+      offset: 70.0
+      jitter: 25.0
+    - object_type:
+        debris:
+          sprites: [hull_debris_1.png, hull_debris_2.png]
+      interval: 300.0
+      offset: 90.0
+      jitter: 40.0
+  obstacles:
+  - obstacle_type:
+      platform:
+        sprite: pipe_cluster_1.png
+        width: 150.0
+    interval: 800.0
+    interval_jitter: 100.0
+  floating:
+    sprites: [sparking_1.png, sparking_2.png]
+    density: 1.5
+    size_range: [25.0, 45.0]
+
+# Section 4: Narrow industrial canyon - tight navigation
+- name: "Industrial Corridor"
+  start_distance: 12000.0
+  end_distance: 18000.0
+  shape: canyon
+  walls:
+  - side: left
+    structure_sprite: cooling_tower_1.png
+    x_position: -270.0
+    wobble: 25.0
+    segment_height: 350.0
+    mounted:
+    - object_type:
+        vent:
+          sprite: gas_vent_1.png
+      interval: 400.0
+      offset: 60.0
+      jitter: 20.0
+    - object_type:
+        pipe:
+          sprite: detail_pipes.png
+          length: 120.0
+      interval: 600.0
+      offset: 100.0
+      jitter: 30.0
+  - side: right
+    structure_sprite: ore_processor.png
+    x_position: 270.0
+    wobble: 25.0
+    segment_height: 350.0
+    mounted:
+    - object_type:
+        vent:
+          sprite: gas_vent_2.png
+      interval: 350.0
+      offset: 55.0
+      jitter: 25.0
+    - object_type:
+        debris:
+          sprites: [cargo_1.png, cargo_2.png]
+      interval: 500.0
+      offset: 85.0
+      jitter: 35.0
+  obstacles:
+  - obstacle_type:
+      platform:
+        sprite: conveyor_section_1.png
+        width: 180.0
+    interval: 600.0
+    interval_jitter: 80.0
+  - obstacle_type:
+      asteroid:
+        sprites: [asteroid_1.png, asteroid_2.png, asteroid_3.png]
+        size_range: [50.0, 90.0]
+    interval: 400.0
+    interval_jitter: 100.0
+  floating:
+    sprites: [fuel_tank_1.png, sparking_1.png]
+    density: 2.0
+    size_range: [30.0, 50.0]
+
+# Section 5: Core area - maximum intensity
+- name: "Reactor Core"
+  start_distance: 18000.0
+  end_distance: 24000.0
+  shape: canyon
+  walls:
+  - side: left
+    structure_sprite: reactor_core.png
+    x_position: -250.0
+    wobble: 30.0
+    segment_height: 500.0
+    mounted:
+    - object_type:
+        light:
+          sprite: beacon_1.png
+      interval: 300.0
+      offset: 50.0
+      jitter: 15.0
+    - object_type:
+        vent:
+          sprite: gas_vent_1.png
+      interval: 350.0
+      offset: 65.0
+      jitter: 20.0
+  - side: right
+    structure_sprite: energy_distributor.png
+    x_position: 250.0
+    wobble: 30.0
+    segment_height: 500.0
+    mounted:
+    - object_type:
+        pipe:
+          sprite: energy_conduit_active_1.png
+          length: 100.0
+      interval: 400.0
+      offset: 80.0
+      jitter: 25.0
+  obstacles:
+  - obstacle_type:
+      conduit:
+        sprite: containment_ring_1.png
+    interval: 700.0
+    interval_jitter: 100.0
+  - obstacle_type:
+      asteroid:
+        sprites: [asteroid_1.png, asteroid_2.png]
+        size_range: [60.0, 100.0]
+    interval: 350.0
+    interval_jitter: 80.0
+  floating:
+    sprites: [sparking_1.png, sparking_2.png, hull_fragment_1.png]
+    density: 3.0
+    size_range: [25.0, 45.0]
+
+# Section 6: Canyon exit - walls recede
+- name: "Exit Corridor"
+  start_distance: 24000.0
+  end_distance: 28000.0
+  shape: canyon
+  walls:
+  - side: left
+    structure_sprite: hangar_wall_segment.png
+    x_position: -320.0
+    wobble: 15.0
+    segment_height: 400.0
+    mounted:
+    - object_type:
+        debris:
+          sprites: [hull_debris_1.png, hull_debris_3.png]
+      interval: 350.0
+      offset: 70.0
+      jitter: 30.0
+  - side: right
+    structure_sprite: carrier_wreck_mid.png
+    x_position: 320.0
+    wobble: 15.0
+    segment_height: 400.0
+    mounted:
+    - object_type:
+        debris:
+          sprites: [cargo_1.png, escape_pod_2.png]
+      interval: 400.0
+      offset: 80.0
+      jitter: 35.0
+  obstacles: []
+  floating:
+    sprites: [hull_fragment_1.png, hull_fragment_2.png, hull_fragment_3.png]
+    density: 2.5
+    size_range: [30.0, 55.0]
+
+# Section 7: Open exit - relief
+- name: "Clear Space"
+  start_distance: 28000.0
+  end_distance: 30000.0
+  shape: open
+  walls: []
+  obstacles: []
+  floating:
+    sprites: [distant_asteroid_1.png]
+    density: 1.0
+    size_range: [20.0, 35.0]
+
+# === ENEMY WAVES ===
+enemy_waves:
+# Phase 1: Tutorial
+- spawn_distance: 1500.0
+  enemies:
+  - enemy_type: Scout
+    position: [0, 700]
+    movement: Straight
+
+- spawn_distance: 2800.0
+  enemies:
+  - enemy_type: Scout
+    position: [-120, 700]
+    movement: Straight
+  - enemy_type: Scout
+    position: [120, 700]
+    movement: Straight
+
+# Phase 2: Wall approach
+- spawn_distance: 5000.0
+  enemies:
+  - enemy_type: Fighter
+    position: [100, 700]
+    movement: SineWave
+
+- spawn_distance: 6200.0
+  enemies:
+  - enemy_type: Fighter
+    position: [-50, 700]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [150, 720]
+    movement: SineWave
+
+# Phase 3: Canyon entry
+- spawn_distance: 8000.0
+  enemies:
+  - enemy_type: Drone
+    position: [0, 700]
+    movement: Straight
+  - enemy_type: Drone
+    position: [-80, 720]
+    movement: Straight
+  - enemy_type: Drone
+    position: [80, 720]
+    movement: Straight
+
+- spawn_distance: 9500.0
+  enemies:
+  - enemy_type: Interceptor
+    position: [0, 800]
+    movement: Straight
+
+- spawn_distance: 11000.0
+  enemies:
+  - enemy_type: Fighter
+    position: [-100, 700]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [100, 700]
+    movement: SineWave
+  - enemy_type: Bomber
+    position: [0, 750]
+    movement: Straight
+
+# Phase 4: Industrial corridor - intense
+- spawn_distance: 13000.0
+  enemies:
+  - enemy_type: Drone
+    position: [-60, 700]
+    movement: Straight
+  - enemy_type: Drone
+    position: [60, 700]
+    movement: Straight
+  - enemy_type: Interceptor
+    position: [0, 800]
+    movement: Straight
+
+- spawn_distance: 14500.0
+  enemies:
+  - enemy_type: HeavyGunship
+    position: [0, 800]
+    movement: Circle
+
+- spawn_distance: 15800.0
+  enemies:
+  - enemy_type: Fighter
+    position: [-80, 700]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [80, 700]
+    movement: SineWave
+  - enemy_type: Bomber
+    position: [0, 720]
+    movement: Straight
+
+- spawn_distance: 17000.0
+  enemies:
+  - enemy_type: Corvette
+    position: [-50, 800]
+    movement: Straight
+  - enemy_type: Corvette
+    position: [50, 800]
+    movement: Straight
+
+# Phase 5: Core - maximum pressure
+- spawn_distance: 19000.0
+  enemies:
+  - enemy_type: Interceptor
+    position: [-100, 850]
+    movement: Straight
+  - enemy_type: Interceptor
+    position: [100, 850]
+    movement: Straight
+  - enemy_type: HeavyGunship
+    position: [0, 750]
+    movement: Circle
+
+- spawn_distance: 20500.0
+  enemies:
+  - enemy_type: Bomber
+    position: [-60, 720]
+    movement: Straight
+  - enemy_type: Bomber
+    position: [60, 720]
+    movement: Straight
+  - enemy_type: Fighter
+    position: [0, 700]
+    movement: SineWave
+
+- spawn_distance: 22000.0
+  enemies:
+  - enemy_type: Corvette
+    position: [0, 800]
+    movement: Straight
+  - enemy_type: Drone
+    position: [-100, 700]
+    movement: Straight
+  - enemy_type: Drone
+    position: [100, 700]
+    movement: Straight
+
+- spawn_distance: 23500.0
+  enemies:
+  - enemy_type: HeavyGunship
+    position: [-80, 800]
+    movement: Circle
+  - enemy_type: HeavyGunship
+    position: [80, 800]
+    movement: Circle
+
+# Phase 6: Exit - decreasing intensity
+- spawn_distance: 25000.0
+  enemies:
+  - enemy_type: Fighter
+    position: [-50, 700]
+    movement: SineWave
+  - enemy_type: Fighter
+    position: [50, 700]
+    movement: SineWave
+
+- spawn_distance: 27000.0
+  enemies:
+  - enemy_type: Scout
+    position: [0, 700]
+    movement: Straight
+
+# === EVENTS ===
+events:
+- distance: 500.0
+  type: RadioChatter
+  message: "Entering industrial sector. Proceed with caution."
+
+- distance: 4500.0
+  type: RadioChatter
+  message: "Structure detected on port side. Adjusting course."
+
+- distance: 7500.0
+  type: RadioChatter
+  message: "Canyon ahead. Navigation will be tight."
+
+- distance: 12500.0
+  type: RadioChatter
+  message: "Industrial zone. Watch for falling debris."
+
+- distance: 18500.0
+  type: RadioChatter
+  message: "Approaching reactor core. Energy readings off the scale."
+
+- distance: 24500.0
+  type: RadioChatter
+  message: "Almost through. Exit corridor ahead."
+
+# === TUTORIALS ===
+tutorials:
+- distance: 200.0
+  message: "Arrow keys to move, Space to fire"
+  display_distance: 2500.0

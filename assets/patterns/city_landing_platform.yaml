@@ -1,0 +1,24 @@
+name: City Landing Platform
+tileset: space_city
+type: platform
+
+parameters:
+  x_position: 0    # starting X coordinate
+  width: 20        # tile count (platform length)
+
+tiles:
+  caps: [platform_left, platform_right]
+  fill: platform_mid
+
+placement:
+  orientation: horizontal
+  repeat: fill tile along X axis
+
+notes: |
+  Defines a horizontal landing platform crossing the playable area.
+  - x_position: where platform starts horizontally
+  - width: length in tiles (typically spans most/all of screen width)
+  - Automatically tiles horizontally with proper caps
+  - Use platform_left/platform_right from space_city tileset for edges
+  - Repeat platform_mid for center sections
+  - Can be placed at any Y coordinate to create multiple levels

@@ -1,0 +1,195 @@
+name: City Skyline Night
+mood: urban, neon-lit, cyberpunk
+description: Dense futuristic space city at night - Blade Runner meets vertical space shooter
+
+layers:
+  # Layer 1: Deep Space - Distant city silhouettes
+  - name: DeepSpace
+    z_depth: -9.5
+    scroll_speed: 0.0
+    description: Far distant city skyline silhouettes, barely visible
+    assets:
+      - sprite: station_silhouette_distant.png
+        position: [0, 800]
+        alpha: 0.15
+        tint: [0.1, 0.1, 0.2]
+        scale: 2.0
+
+      - sprite: station_silhouette_2.png
+        position: [400, 850]
+        alpha: 0.12
+        tint: [0.15, 0.1, 0.25]
+        scale: 1.8
+
+      - sprite: NEW_ASSET_NEEDED_city_skyline_far.png
+        position: [-200, 900]
+        alpha: 0.18
+        tint: [0.08, 0.08, 0.15]
+        scale: 2.5
+        notes: "Very dark silhouette of distant skyscrapers"
+
+  # Layer 2: Far Field - Distant skyscrapers with window lights
+  - name: FarField
+    z_depth: -9.0
+    scroll_speed: 0.1
+    description: Distant buildings with tiny lit windows creating a star-field effect
+    assets:
+      - sprite: NEW_ASSET_NEEDED_skyscrapers_distant_1.png
+        position: [100, 600]
+        alpha: 0.35
+        tint: [0.3, 0.3, 0.5]
+        scale: 1.5
+        notes: "Tall buildings with scattered warm window lights (orange/yellow glow)"
+
+      - sprite: NEW_ASSET_NEEDED_skyscrapers_distant_2.png
+        position: [600, 650]
+        alpha: 0.32
+        tint: [0.25, 0.25, 0.45]
+        scale: 1.6
+        notes: "Different building silhouettes, cool-toned window lights"
+
+      - sprite: nebula_purple_deep.png
+        position: [-100, 400]
+        alpha: 0.08
+        tint: [0.4, 0.2, 0.6]
+        scale: 1.2
+        notes: "Repurposed as atmospheric haze between buildings"
+
+      - sprite: core_glow_ambient.png
+        position: [800, 700]
+        alpha: 0.12
+        tint: [0.8, 0.5, 0.3]
+        scale: 0.8
+        notes: "Distant industrial glow from city core"
+
+  # Layer 3: Mid Distance - Closer buildings with visible neon signs
+  - name: MidDistance
+    z_depth: -7.0
+    scroll_speed: 0.4
+    description: Nearer skyscrapers with prominent neon advertising and architectural lighting
+    assets:
+      - sprite: NEW_ASSET_NEEDED_neon_building_1.png
+        position: [50, 300]
+        alpha: 0.65
+        tint: [0.7, 0.6, 0.8]
+        scale: 1.2
+        notes: "Building with cyan/magenta neon signs, holographic billboards"
+
+      - sprite: NEW_ASSET_NEEDED_neon_building_2.png
+        position: [450, 350]
+        alpha: 0.62
+        tint: [0.8, 0.5, 0.7]
+        scale: 1.3
+        notes: "Building with orange/pink neon, corporate logos visible"
+
+      - sprite: NEW_ASSET_NEEDED_tower_spire.png
+        position: [750, 200]
+        alpha: 0.58
+        tint: [0.5, 0.7, 0.9]
+        scale: 1.0
+        notes: "Tall communication spire with blue accent lighting"
+
+      - sprite: nebula_orange_industrial.png
+        position: [300, 500]
+        alpha: 0.15
+        tint: [0.9, 0.6, 0.3]
+        scale: 0.7
+        notes: "Industrial smog/pollution glow"
+
+      - sprite: station_silhouette_1.png
+        position: [-50, 400]
+        alpha: 0.45
+        tint: [0.4, 0.5, 0.7]
+        scale: 1.4
+        notes: "Repurposed as architectural element"
+
+  # Layer 4: Atmospheric - Light beams, fog, flying vehicles
+  - name: Atmospheric
+    z_depth: -6.5
+    scroll_speed: 0.6
+    description: Foreground atmosphere - search lights, fog banks, vehicle light trails
+    assets:
+      - sprite: NEW_ASSET_NEEDED_searchlight_beam_1.png
+        position: [200, 100]
+        alpha: 0.25
+        tint: [0.8, 0.8, 1.0]
+        scale: 1.0
+        notes: "Vertical searchlight beam cutting through atmosphere"
+
+      - sprite: NEW_ASSET_NEEDED_searchlight_beam_2.png
+        position: [600, 150]
+        alpha: 0.22
+        tint: [1.0, 0.9, 0.7]
+        scale: 0.9
+        notes: "Angled searchlight, warm tone"
+
+      - sprite: gas_wisp_blue_1.png
+        position: [100, 400]
+        alpha: 0.18
+        tint: [0.5, 0.6, 0.9]
+        scale: 1.5
+        notes: "Repurposed as atmospheric fog"
+
+      - sprite: gas_wisp_purple_1.png
+        position: [500, 450]
+        alpha: 0.16
+        tint: [0.7, 0.4, 0.8]
+        scale: 1.3
+        notes: "Neon-tinted fog bank"
+
+      - sprite: NEW_ASSET_NEEDED_vehicle_trails_1.png
+        position: [300, 250]
+        alpha: 0.35
+        tint: [1.0, 0.6, 0.4]
+        scale: 0.8
+        notes: "Light trails from flying cars/shuttles, horizontal streaks"
+
+      - sprite: streak_dust_1.png
+        position: [400, 300]
+        alpha: 0.28
+        tint: [0.9, 0.5, 0.6]
+        scale: 0.6
+        notes: "Repurposed as fast-moving vehicle trail"
+
+      - sprite: streak_dust_2.png
+        position: [150, 350]
+        alpha: 0.24
+        tint: [0.6, 0.8, 1.0]
+        scale: 0.7
+        notes: "Blue-tinted vehicle streak"
+
+      - sprite: nebula_red_danger.png
+        position: [700, 500]
+        alpha: 0.12
+        tint: [1.0, 0.3, 0.3]
+        scale: 0.9
+        notes: "Warning light pollution from industrial sector"
+
+# Animation suggestions (for future implementation)
+animation_notes: |
+  - Searchlight beams should rotate slowly
+  - Vehicle trails should animate horizontally across screen
+  - Neon signs could flicker subtly
+  - Window lights could have random twinkling effect
+  - Fog layers could drift slowly
+
+# Color palette reference
+color_palette:
+  dominant: "Deep blue-purple night sky"
+  accents:
+    - "Cyan/magenta neon"
+    - "Warm orange industrial glow"
+    - "Cool blue atmospheric lighting"
+  contrast: "Bright neon against dark silhouettes"
+
+# Assets needed to be generated
+new_assets_required:
+  - city_skyline_far.png: "Distant city skyline silhouette, very dark"
+  - skyscrapers_distant_1.png: "Tall buildings with scattered warm window lights"
+  - skyscrapers_distant_2.png: "Different building cluster, cool-toned lights"
+  - neon_building_1.png: "Mid-distance building with cyan/magenta neon signs"
+  - neon_building_2.png: "Mid-distance building with orange/pink neon"
+  - tower_spire.png: "Communication tower with blue lighting"
+  - searchlight_beam_1.png: "Vertical light beam effect"
+  - searchlight_beam_2.png: "Angled searchlight beam"
+  - vehicle_trails_1.png: "Horizontal light trails from flying vehicles"
