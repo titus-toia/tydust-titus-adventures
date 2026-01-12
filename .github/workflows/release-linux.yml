@@ -62,11 +62,19 @@ jobs:
       - name: Create tarball
         run: |
           cd dist
-          tar -czvf tydust-linux-${{ github.ref_name }}.tar.gz tydust-linux/
+          tar -czvf tydust-linux-${{ github.ref_name || 'manual' }}.tar.gz tydust-linux/
 
       - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: dist/tydust-linux-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tydust-linux
+          path: dist/tydust-linux/
