@@ -1,12 +1,11 @@
 use bevy::prelude::*;
-use bevy_kira_audio::prelude::*;
 use rand::Rng;
 use std::collections::{HashSet, HashMap};
 use crate::components::{
 	Weapon, WeaponType, Enemy, Health, Player,
 	EnemyHitEvent, ChargeMeter, Collider,
 	LightningBolt, LightningImpact, LightningAoeEffect, PendingBabyWhip, LightningArc,
-	LightningGlitter, PendingSound, FadingSound,
+	LightningGlitter, PendingSound,
 };
 
 /// Tracks last time each enemy was hit by defensive field (for sound throttling)
@@ -503,9 +502,6 @@ fn execute_chain_sequence(
 	aoe_radius: f32,
 	baby_spawn_chance: f32,
 	recursion_depth: u8,
-	audio: &Audio,
-	asset_server: &AssetServer,
-	sound_volume: &crate::systems::level::SoundVolume,
 ) {
 	let mut current_pos = start_pos;
 
@@ -531,8 +527,17 @@ fn execute_chain_sequence(
 
 			// Chain arc sound (lighter than main impact) - only play 50% of the time to avoid audio saturation
 			if rand::thread_rng().gen_bool(0.5) {
-				audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-					.with_volume(sound_volume.apply(0.15));
+				commands.spawn(PendingSound {
+					delay: Timer::from_seconds(0.0, TimerMode::Once),
+					sound_path: "sounds/lightning/lightning_wave_light.ogg",
+					volume: 0.15,
+					priority: 90,
+					cooldown_secs: 0.04,
+					max_concurrent: 3,
+					steal_oldest: true,
+					fade_after: None,
+					fade_duration: 0.0,
+				});
 			}
 
 			// Apply damage
@@ -581,15 +586,12 @@ fn execute_chain_sequence(
 
 pub fn fire_lightning_weapon(
 	commands: &mut Commands,
-	asset_server: &AssetServer,
-	audio: &Audio,
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	damage: f32,
 	charge_tier: f32, // 0.0, 0.4, 0.8, 1.2, 1.6, or 2.0
 	enemies: &Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	hit_events: &mut EventWriter<EnemyHitEvent>,
-	sound_volume: &crate::systems::level::SoundVolume,
 ) {
 	let level = weapon.level;
 
@@ -709,9 +711,6 @@ pub fn fire_lightning_weapon(
 				aoe_radius,
 				baby_spawn_chance,
 				0, // recursion_depth
-				audio,
-				asset_server,
-				sound_volume,
 			);
 
 			// Main finale discharge at bolt's visual end
@@ -750,6 +749,7 @@ pub fn fire_lightning_weapon(
 	} else {
 		"sounds/lightning/lightning_standard.ogg"
 	};
+	let fire_priority = if charge_tier >= 1.2 { 240 } else { 210 };
 
 	for whip_index in 0..num_whips {
 		let delay_secs = (whip_index as f32) * 0.015; // 15ms per whip
@@ -757,6 +757,10 @@ pub fn fire_lightning_weapon(
 			delay: Timer::from_seconds(delay_secs, TimerMode::Once),
 			sound_path: fire_sound,
 			volume: 0.42,
+			priority: fire_priority,
+			cooldown_secs: 0.0,
+			max_concurrent: 1,
+			steal_oldest: false,
 			fade_after: None,
 			fade_duration: 0.0,
 		});
@@ -768,6 +772,10 @@ pub fn fire_lightning_weapon(
 		delay: Timer::from_seconds(0.05, TimerMode::Once),
 		sound_path: "sounds/lightning/deeper_boom_final.ogg",
 		volume: 1.5,
+		priority: 235,
+		cooldown_secs: 0.12,
+		max_concurrent: 2,
+		steal_oldest: true,
 		fade_after: Some(0.3),
 		fade_duration: 0.2,
 	});
@@ -777,9 +785,9 @@ pub fn fire_lightning_weapon(
 		level, charge_tier, num_whips, max_chains);
 }
 
-/// Quantize charge to nearest tier: 0, 0.4, 0.8, 1.2, 1.6, 2.0
+/// Quantize charge to floor tier: 0.4-0.79→0.4, 0.8-1.19→0.8, 1.2-1.59→1.2, etc.
 fn quantize_charge_tier(charge: f32) -> f32 {
-	((charge / 0.4).round() * 0.4).clamp(0.0, 2.0)
+	((charge / 0.4).floor() * 0.4).clamp(0.0, 2.0)
 }
 
 pub fn update_charge_meter(
@@ -1179,9 +1187,6 @@ pub fn spawn_pending_baby_whips(
 	mut pending: Query<(Entity, &mut PendingBabyWhip)>,
 	enemies: Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	mut hit_events: EventWriter<EnemyHitEvent>,
-	audio: Res<Audio>,
-	asset_server: Res<AssetServer>,
-	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
 	for (entity, mut pending_whip) in pending.iter_mut() {
 		pending_whip.delay_timer.tick(time.delta());
@@ -1211,8 +1216,17 @@ pub fn spawn_pending_baby_whips(
 
 			// Baby whip fire sound (sparkly glitter effect) - only play 30% of the time to avoid audio saturation
 			if rand::thread_rng().gen_bool(0.3) {
-				audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
-					.with_volume(sound_volume.apply(0.2));
+				commands.spawn(PendingSound {
+					delay: Timer::from_seconds(0.0, TimerMode::Once),
+					sound_path: "sounds/lightning/fireworks_glitter.ogg",
+					volume: 0.2,
+					priority: 110,
+					cooldown_secs: 0.06,
+					max_concurrent: 2,
+					steal_oldest: true,
+					fade_after: None,
+					fade_duration: 0.0,
+				});
 			}
 
 			// Baby whip AoE is 60% of parent size
@@ -1224,8 +1238,17 @@ pub fn spawn_pending_baby_whips(
 
 				// Baby whip impact (quieter than main impact) - only play 30% of the time to avoid audio saturation
 				if rand::thread_rng().gen_bool(0.3) {
-					audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-						.with_volume(sound_volume.apply(0.15));
+					commands.spawn(PendingSound {
+						delay: Timer::from_seconds(0.0, TimerMode::Once),
+						sound_path: "sounds/lightning/lightning_wave_light.ogg",
+						volume: 0.15,
+						priority: 95,
+						cooldown_secs: 0.05,
+						max_concurrent: 3,
+						steal_oldest: true,
+						fade_after: None,
+						fade_duration: 0.0,
+					});
 				}
 
 				hit_events.send(EnemyHitEvent {
@@ -1266,9 +1289,6 @@ pub fn spawn_pending_baby_whips(
 					baby_aoe_radius,
 					pending_whip.baby_spawn_chance,
 					pending_whip.recursion_depth,
-					&audio,
-					&asset_server,
-					&sound_volume,
 				);
 
 				// Baby discharge at bolt visual end (15% damage)
@@ -1410,56 +1430,6 @@ pub fn render_lightning_arcs(
 				arc.intensity * fade * 0.8
 			);
 			gizmos.line_2d(window[0], window[1], core);
-		}
-	}
-}
-
-pub fn process_pending_sounds(
-	mut commands: Commands,
-	time: Res<Time>,
-	mut pending: Query<(Entity, &mut PendingSound)>,
-	audio: Res<Audio>,
-	asset_server: Res<AssetServer>,
-	mut audio_instances: ResMut<Assets<AudioInstance>>,
-	sound_volume: Res<crate::systems::level::SoundVolume>,
-) {
-	for (entity, mut sound) in pending.iter_mut() {
-		sound.delay.tick(time.delta());
-
-		if sound.delay.finished() {
-			// Play the sound and get the instance handle
-			let handle = audio.play(asset_server.load(sound.sound_path))
-				.with_volume(sound_volume.apply(sound.volume))
-				.handle();
-
-			// If fade is configured, spawn a FadingSound to handle it
-			if let Some(fade_after) = sound.fade_after {
-				commands.spawn(FadingSound {
-					fade_timer: Timer::from_seconds(fade_after, TimerMode::Once),
-					instance: handle,
-				});
-			}
-
-			commands.entity(entity).despawn();
-		}
-	}
-}
-
-pub fn process_fading_sounds(
-	mut commands: Commands,
-	time: Res<Time>,
-	mut fading: Query<(Entity, &mut FadingSound)>,
-	mut audio_instances: ResMut<Assets<AudioInstance>>,
-) {
-	for (entity, mut sound) in fading.iter_mut() {
-		sound.fade_timer.tick(time.delta());
-
-		if sound.fade_timer.finished() {
-			// Start fade out
-			if let Some(instance) = audio_instances.get_mut(&sound.instance) {
-				instance.stop(AudioTween::linear(std::time::Duration::from_millis(150)));
-			}
-			commands.entity(entity).despawn();
 		}
 	}
 }

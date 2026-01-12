@@ -1,17 +1,16 @@
 use bevy::prelude::*;
-use bevy_kira_audio::prelude::*;
 use rand::Rng;
 use crate::components::{Player, Weapon, Projectile, SineMotion, WeaponType, Particle, HomingProjectile, OrbitalEntity, Enemy, AngledShot, ChargeMeter, Health, Collider, EnemyHitEvent};
 use super::world::{HALF_WORLD_HEIGHT};
 use super::lightning;
 use std::f32::consts::{PI, FRAC_PI_2};
+use crate::systems::audio::PlaySfxEvent;
 
 const PROJECTILE_Z: f32 = 0.5;
 const PROJECTILE_LIFETIME: f32 = 3.0;
 
 pub fn fire_weapons(
 	keyboard_input: Res<ButtonInput<KeyCode>>,
-	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
 	mut commands: Commands,
 	mut query: Query<(&Transform, &mut Weapon), With<Player>>,
@@ -19,7 +18,7 @@ pub fn fire_weapons(
 	charge_meter: Res<ChargeMeter>,
 	enemies: Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	mut hit_events: EventWriter<EnemyHitEvent>,
-	sound_volume: Res<crate::systems::level::SoundVolume>,
+	mut sfx_events: EventWriter<PlaySfxEvent>,
 ) {
 	for (transform, mut weapon) in query.iter_mut() {
 		// Lightning (level 8+) fires on release via pending_fire_tier
@@ -31,15 +30,12 @@ pub fn fire_weapons(
 
 				lightning::fire_lightning_weapon(
 					&mut commands,
-					&asset_server,
-					&audio,
 					spawn_pos,
 					&weapon,
 					damage,
 					tier,
 					&enemies,
 					&mut hit_events,
-					&sound_volume,
 				);
 			}
 			continue; // Don't process normal fire logic for level 8+ lightning
@@ -93,15 +89,12 @@ pub fn fire_weapons(
 					// Levels 1-7: Fire on press with default tier 0.4
 					lightning::fire_lightning_weapon(
 						&mut commands,
-						&asset_server,
-						&audio,
 						spawn_pos,
 						&weapon,
 						damage,
 						0.4, // Default tier for low levels
 						&enemies,
 						&mut hit_events,
-						&sound_volume,
 					);
 				},
 			}
@@ -120,7 +113,17 @@ pub fn fire_weapons(
 					WeaponType::OrbitalDefense => "sounds/orbital_fire.ogg",
 					WeaponType::LightningChain => unreachable!(),
 				};
-				audio.play(asset_server.load(sound_path));
+				let (volume, priority, cooldown) = match weapon.weapon_type {
+					WeaponType::BasicBlaster => (0.55, 40, 0.02),
+					WeaponType::PlasmaCannon => (0.7, 55, 0.05),
+					WeaponType::WaveGun => (0.6, 50, 0.03),
+					WeaponType::SpreadShot => (0.65, 50, 0.06),
+					WeaponType::MissilePods => (0.75, 60, 0.08),
+					WeaponType::LaserArray => (0.5, 45, 0.015),
+					WeaponType::OrbitalDefense => (0.55, 45, 0.03),
+					WeaponType::LightningChain => unreachable!(),
+				};
+				sfx_events.send(PlaySfxEvent::simple(sound_path, volume, priority, cooldown));
 			}
 			weapon.fire_cooldown.reset();
 		}

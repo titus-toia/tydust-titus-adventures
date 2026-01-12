@@ -1,5 +1,26 @@
 # Asset Generation Guidelines
 
+## ⚠️ CRITICAL: Asset Preservation Rules
+
+**NEVER overwrite or delete existing assets in `assets/` without explicit user permission!**
+
+### Before Replacing Any Asset:
+1. **Check if file exists** in `assets/` directory
+2. **Ask user permission** before overwriting
+3. **Backup to timestamped file** if replacing:
+   ```bash
+   # Example: backup before replacement
+   cp assets/ui/shield.png assets/ui/shield_backup_20260113.png
+   ```
+4. **Work in `generated_imgs/` first** - only move to `assets/` after user approval
+5. **Never assume old assets are garbage** - the user may want to keep them
+
+### Asset Workflow (MANDATORY):
+1. Generate → `generated_imgs/[category]/`
+2. Process (resize, background removal) → stays in `generated_imgs/`
+3. **ASK USER** if they want to replace existing asset
+4. Only then → move to `assets/[category]/`
+
 ## Directory Organization
 
 When generating assets, save them to the appropriate category directory:

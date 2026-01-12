@@ -1,14 +1,15 @@
 use bevy::prelude::*;
-use bevy_kira_audio::prelude::*;
 use crate::components::{
 	Enemy, Player, Projectile, Collider, Health, PlayerDefenses, DamageSink,
 	Invincible, ContactDamage, EnemyHitEvent, EnemyDeathEvent, PlayerHitEvent,
 	EnemyProjectile,
 };
 use crate::systems::level::GamePaused;
+use crate::systems::audio::PlaySfxEvent;
 
-const SHIELD2_REGEN_DELAY_SECS: f64 = 3.0;
+const SHIELD2_REGEN_DELAY_SECS: f64 = 2.0;
 const SHIELD2_REGEN_DURATION_SECS: f64 = 1.5;
+const SHIELD1_REGEN_PER_SEC: f32 = 5.0;
 
 pub fn check_projectile_enemy_collisions(
 	mut commands: Commands,
@@ -221,33 +222,57 @@ pub fn update_shield2_regen(
 	}
 }
 
+/// Regenerate the inner shield (shield1) constantly at a fixed rate.
+///
+/// Behavior:
+/// - Always regenerating at SHIELD1_REGEN_PER_SEC (no delay, even through damage)
+/// - Provides consistent recovery against light/scattered damage
+pub fn update_shield1_regen(
+	time: Res<Time>,
+	paused: Res<GamePaused>,
+	mut player_defenses: Query<&mut PlayerDefenses, With<Player>>,
+) {
+	if paused.0 {
+		return;
+	}
+
+	let Ok(mut defenses) = player_defenses.get_single_mut() else { return };
+
+	// No need to regen if already full (or max is invalid).
+	if defenses.shield1_max <= 0.0 || defenses.shield1 >= defenses.shield1_max {
+		defenses.shield1 = defenses.shield1.clamp(0.0, defenses.shield1_max.max(0.0));
+		return;
+	}
+
+	// Constant regen - no delay, always active
+	defenses.shield1 = (defenses.shield1 + SHIELD1_REGEN_PER_SEC * time.delta_secs())
+		.min(defenses.shield1_max);
+}
+
 pub fn play_enemy_hit_sound(
 	mut hit_events: EventReader<EnemyHitEvent>,
-	audio: Res<Audio>,
-	asset_server: Res<AssetServer>,
-	sound_volume: Res<crate::systems::level::SoundVolume>,
+	mut sfx_events: EventWriter<PlaySfxEvent>,
 ) {
 	for event in hit_events.read() {
 		// Skip if no sound specified (used for silent continuous damage)
 		if let Some(sound_path) = event.hit_sound {
-			let base_volume = match sound_path {
-				"sounds/lightning/lightning_wave_light.ogg" => 0.4,
-				"sounds/lightning/deep_lightning_boom.ogg" => 0.5,
-				"sounds/lightning/fireworks_crackle.ogg" => 0.4,
-				_ => 0.6,
+			let (volume, priority, cooldown) = match sound_path {
+				// Lightning hits are important but shouldn't drown the charged fire sound.
+				"sounds/lightning/lightning_wave_light.ogg" => (0.35, 120, 0.04),
+				"sounds/lightning/deep_lightning_boom.ogg" => (0.55, 160, 0.10),
+				"sounds/lightning/fireworks_crackle.ogg" => (0.35, 110, 0.06),
+				_ => (0.55, 70, 0.03),
 			};
-			audio.play(asset_server.load(sound_path)).with_volume(sound_volume.apply(base_volume));
+			sfx_events.send(PlaySfxEvent::simple(sound_path, volume, priority, cooldown));
 		}
 	}
 }
 
 pub fn play_enemy_death_sound(
 	mut death_events: EventReader<EnemyDeathEvent>,
-	audio: Res<Audio>,
-	asset_server: Res<AssetServer>,
-	sound_volume: Res<crate::systems::level::SoundVolume>,
+	mut sfx_events: EventWriter<PlaySfxEvent>,
 ) {
 	for _ in death_events.read() {
-		audio.play(asset_server.load("sounds/enemy_death.ogg")).with_volume(sound_volume.apply(0.8));
+		sfx_events.send(PlaySfxEvent::simple("sounds/enemy_death.ogg", 0.75, 80, 0.02));
 	}
 }

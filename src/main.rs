@@ -15,7 +15,8 @@ use materials::MaterialsPlugin;
 use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
 use systems::weapons::{fire_weapons, move_projectiles_straight, move_projectiles_sine, move_angled_projectiles, move_homing_projectiles, manage_orbital_entities, orbital_auto_fire, cleanup_projectiles};
-use systems::lightning::{update_charge_meter, render_lightning_bolts, render_lightning_arcs, spawn_pending_baby_whips, cleanup_lightning_visuals, render_lightning_impacts, render_lightning_aoe, process_pending_sounds, process_fading_sounds, update_lightning_glitter, render_lightning_glitter, render_defensive_field, update_defensive_field_damage, DefensiveFieldHitTracker};
+use systems::lightning::{update_charge_meter, render_lightning_bolts, render_lightning_arcs, spawn_pending_baby_whips, cleanup_lightning_visuals, render_lightning_impacts, render_lightning_aoe, update_lightning_glitter, render_lightning_glitter, render_defensive_field, update_defensive_field_damage, DefensiveFieldHitTracker};
+use systems::audio::{PlaySfxEvent, SfxGateConfig, SfxGateState, process_sfx_gate, process_fading_sounds};
 use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, update_distance_locked, process_level_events, process_tutorials, process_phases, apply_doodad_drift, scroll_doodads, cleanup_doodads, MusicState, TitleMusicState, MusicEnabled, DebugSpeed, toggle_debug_speed, toggle_music, SelectedLevel, GamePaused, toggle_pause, InfoOverlayEnabled, toggle_info_overlay, play_title_music, stop_title_music, SoundVolume, adjust_sound_volume};
 use systems::parallax::{init_parallax_timers, spawn_procedural_parallax, scroll_parallax, cleanup_parallax};
 use systems::enemies::{update_enemy_movement, cleanup_enemies, execute_enemy_behaviors, update_formations, setup_enemy_shooters, enemy_shooting, move_enemy_projectiles, init_enemy_rotation, rotate_enemies_to_movement, shimmer_enemies};
@@ -24,7 +25,7 @@ use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handl
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
 use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent, ShipType, WeaponType, ChargeMeter};
 use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles, spawn_player_hit_particles, spawn_enemy_hit_particles};
-use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, play_enemy_hit_sound, play_enemy_death_sound};
+use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, update_shield1_regen, play_enemy_hit_sound, play_enemy_death_sound};
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
@@ -142,6 +143,9 @@ fn main() {
 		.init_resource::<DefensiveFieldHitTracker>()
 		.insert_resource(SoundVolume::new(initial_volume))
 		.insert_resource(BloomLevel::new(bloom_level))
+		.init_resource::<SfxGateConfig>()
+		.init_resource::<SfxGateState>()
+		.add_event::<PlaySfxEvent>()
 		.add_event::<WeaponSwitchEvent>()
 		.add_event::<WeaponUpgradeEvent>()
 		.add_event::<PlayerHitEvent>()
@@ -195,9 +199,9 @@ fn main() {
 			cleanup_lightning_visuals,
 			update_lightning_glitter,
 			update_defensive_field_damage,
-			process_pending_sounds,
-			process_fading_sounds,
 		).run_if(in_state(GameState::Playing)))
+		// Centralized SFX gate (priority/cooldowns/budget) + fading.
+		.add_systems(PostUpdate, (process_sfx_gate, process_fading_sounds))
 		.add_systems(Update, (
 			collect_pickups,
 			move_pickups,
@@ -250,6 +254,7 @@ fn main() {
 			spawn_player_hit_particles,
 			update_invincibility,
 			update_shield2_regen,
+			update_shield1_regen,
 		).chain().run_if(in_state(GameState::Playing)))
 		// Lightning visual rendering
 		.add_systems(Update, (

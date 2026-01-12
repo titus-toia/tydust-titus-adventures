@@ -393,58 +393,164 @@ pub fn animate_defense_hexagons(
 		transform.scale = Vec3::splat(base_scale);
 
 		// === SHIELD SPRITE & GLOW MANAGEMENT ===
-		// Determine base sprite based on health
-		let (base_sprite_path, glow_alpha) = if ratio < 0.25 {
-			// <25%: Cold sprite, no glow
+		// Determine base sprite, child overlay, and alphas based on health
+		if ratio <= 0.01 {
+			// ~0%: Pure cold sprite, no overlay
 			let cold_path = match hexagon.layer {
 				DefenseLayer::Shield2 => "ui/shield2_cold_metal_cyan.png",
 				DefenseLayer::Shield1 => "ui/shield1_blue_cold.png",
 				DefenseLayer::Armor => unreachable!(), // Armor handled above
 			};
-			(cold_path, 0.0)
+
+			// Update base sprite if needed
+			let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+			if current_path != Some(cold_path) {
+				sprite.image = asset_server.load(cold_path);
+			}
+			sprite.color = Color::WHITE;
+
+			// Hide child overlay
+			if let Some(children) = children_opt {
+				for &child in children.iter() {
+					if let Ok(mut child_sprite) = glow_query.get_mut(child) {
+						child_sprite.color = Color::srgba(0.0, 0.0, 0.0, 0.0);
+					}
+				}
+			}
+		} else if ratio < 0.27 {
+			// 1-27%: Cold sprite base (opaque), normal sprite overlay on top (fading in)
+			// At 1%: normal transparent (cold shows), At 27%: normal opaque (cold hidden)
+			let cold_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cold_metal_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue_cold.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+			let normal_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+
+			// Update base sprite to cold
+			let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+			if current_path != Some(cold_path) {
+				sprite.image = asset_server.load(cold_path);
+			}
+			sprite.color = Color::WHITE; // Cold sprite fully opaque
+
+			// Overlay normal sprite on child with increasing alpha
+			let fade_ratio = ((ratio - 0.01) / 0.26).clamp(0.0, 1.0);
+			let overlay_alpha = fade_ratio.powf(2.0); // Quadratic: slow start, fast finish
+
+			if let Some(children) = children_opt {
+				for &child in children.iter() {
+					if let Ok(mut child_sprite) = glow_query.get_mut(child) {
+						// Switch child to normal sprite (not glow)
+						let child_current = child_sprite.image.path().and_then(|p| p.path().to_str());
+						if child_current != Some(normal_path) {
+							child_sprite.image = asset_server.load(normal_path);
+						}
+						child_sprite.color = Color::WHITE.with_alpha(overlay_alpha);
+					}
+				}
+			}
 		} else if ratio < 0.40 {
-			// 25-40%: Base sprite only, no glow
+			// 28-40%: Normal sprite only, no glow
 			let base_path = match hexagon.layer {
 				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
 				DefenseLayer::Shield1 => "ui/shield1_blue.png",
 				DefenseLayer::Armor => unreachable!(),
 			};
-			(base_path, 0.0)
-		} else if ratio < 0.75 {
-			// 40-75%: Base sprite with quadratic fade glow
-			// Normalize ratio from 0.40-0.75 to 0.0-1.0
-			let fade_ratio = (ratio - 0.40) / 0.35;
-			let alpha = fade_ratio.powf(2.0); // Quadratic fade
+			let glow_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan_glow_bright.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue_glow_subtle.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+
+			// Update base sprite
+			let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+			if current_path != Some(base_path) {
+				sprite.image = asset_server.load(base_path);
+			}
+			sprite.color = Color::WHITE;
+
+			// Switch child back to glow sprite (if it was showing normal), but hide it
+			if let Some(children) = children_opt {
+				for &child in children.iter() {
+					if let Ok(mut glow_sprite) = glow_query.get_mut(child) {
+						let child_current = glow_sprite.image.path().and_then(|p| p.path().to_str());
+						if child_current != Some(glow_path) {
+							glow_sprite.image = asset_server.load(glow_path);
+						}
+						glow_sprite.color = Color::srgba(0.0, 0.0, 0.0, 0.0); // Hidden
+					}
+				}
+			}
+		} else if ratio < 0.60 {
+			// 40-60%: Normal sprite with fading glow
 			let base_path = match hexagon.layer {
 				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
 				DefenseLayer::Shield1 => "ui/shield1_blue.png",
 				DefenseLayer::Armor => unreachable!(),
 			};
-			(base_path, alpha)
+			let glow_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan_glow_bright.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue_glow_subtle.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+
+			// Update base sprite
+			let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+			if current_path != Some(base_path) {
+				sprite.image = asset_server.load(base_path);
+			}
+			sprite.color = Color::WHITE;
+
+			// Fade in glow
+			let fade_ratio = (ratio - 0.40) / 0.20;
+			let glow_alpha = fade_ratio.powf(2.0);
+
+			if let Some(children) = children_opt {
+				for &child in children.iter() {
+					if let Ok(mut glow_sprite) = glow_query.get_mut(child) {
+						let child_current = glow_sprite.image.path().and_then(|p| p.path().to_str());
+						if child_current != Some(glow_path) {
+							glow_sprite.image = asset_server.load(glow_path);
+						}
+						glow_sprite.color = Color::WHITE.with_alpha(glow_alpha);
+					}
+				}
+			}
 		} else {
-			// >75%: Base sprite with full glow
+			// >60%: Normal sprite with full glow
 			let base_path = match hexagon.layer {
 				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
 				DefenseLayer::Shield1 => "ui/shield1_blue.png",
 				DefenseLayer::Armor => unreachable!(),
 			};
-			(base_path, 1.0)
-		};
+			let glow_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan_glow_bright.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue_glow_subtle.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
 
-		// Update base sprite if needed
-		let current_path = sprite.image.path().and_then(|p| p.path().to_str());
-		if current_path != Some(base_sprite_path) {
-			sprite.image = asset_server.load(base_sprite_path);
-		}
+			// Update base sprite
+			let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+			if current_path != Some(base_path) {
+				sprite.image = asset_server.load(base_path);
+			}
+			sprite.color = Color::WHITE;
 
-		// Keep base sprite fully opaque (no alpha fade on base)
-		sprite.color = Color::WHITE;
-
-		// Update glow child sprite alpha
-		if let Some(children) = children_opt {
-			for &child in children.iter() {
-				if let Ok(mut glow_sprite) = glow_query.get_mut(child) {
-					glow_sprite.color = Color::WHITE.with_alpha(glow_alpha);
+			// Full glow
+			if let Some(children) = children_opt {
+				for &child in children.iter() {
+					if let Ok(mut glow_sprite) = glow_query.get_mut(child) {
+						let child_current = glow_sprite.image.path().and_then(|p| p.path().to_str());
+						if child_current != Some(glow_path) {
+							glow_sprite.image = asset_server.load(glow_path);
+						}
+						glow_sprite.color = Color::WHITE;
+					}
 				}
 			}
 		}

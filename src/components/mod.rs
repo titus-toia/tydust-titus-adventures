@@ -375,6 +375,17 @@ pub struct PendingSound {
 	pub delay: Timer,
 	pub sound_path: &'static str,
 	pub volume: f32,
+	/// Higher plays first when SFX budget is constrained (0-255).
+	pub priority: u8,
+	/// Minimum time between plays of the same sound (seconds).
+	/// This is enforced by the global SFX gate to prevent spam.
+	pub cooldown_secs: f32,
+	/// Max concurrent instances of this sound allowed at a time.
+	/// 0 = unlimited.
+	pub max_concurrent: u8,
+	/// If `max_concurrent` is exceeded, whether to stop the oldest instance to make room.
+	/// If false, the new request is rejected.
+	pub steal_oldest: bool,
 	pub fade_after: Option<f32>, // Start fading after this many seconds
 	pub fade_duration: f32,
 }

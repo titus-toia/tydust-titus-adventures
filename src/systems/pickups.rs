@@ -1,19 +1,18 @@
 use bevy::prelude::*;
-use bevy_kira_audio::prelude::*;
-use crate::components::{Player, WeaponPickup, PowerUp, WeaponSwitchEvent, WeaponUpgradeEvent, WeaponType};
+use crate::components::{Player, WeaponPickup, PowerUp, WeaponSwitchEvent, WeaponUpgradeEvent};
+use crate::systems::audio::PlaySfxEvent;
 
 const PICKUP_RADIUS: f32 = 50.0;
 const PICKUP_DRIFT_SPEED: f32 = 50.0;
 
 pub fn collect_pickups(
 	mut commands: Commands,
-	audio: Res<Audio>,
-	asset_server: Res<AssetServer>,
 	player_query: Query<&Transform, With<Player>>,
 	weapon_pickup_query: Query<(Entity, &Transform, &WeaponPickup)>,
 	power_up_query: Query<(Entity, &Transform, &PowerUp)>,
 	mut weapon_switch_events: EventWriter<WeaponSwitchEvent>,
 	mut weapon_upgrade_events: EventWriter<WeaponUpgradeEvent>,
+	mut sfx_events: EventWriter<PlaySfxEvent>,
 ) {
 	let Ok(player_transform) = player_query.get_single() else { return };
 	let player_pos = player_transform.translation.truncate();
@@ -25,7 +24,7 @@ pub fn collect_pickups(
 				new_weapon: weapon_pickup.weapon_type,
 			});
 			commands.entity(entity).despawn();
-			audio.play(asset_server.load("sounds/laser_fire.ogg"));
+			sfx_events.send(PlaySfxEvent::simple("sounds/laser_fire.ogg", 0.55, 60, 0.08));
 		}
 	}
 
@@ -36,7 +35,7 @@ pub fn collect_pickups(
 				level_change: power_up.upgrade_amount,
 			});
 			commands.entity(entity).despawn();
-			audio.play(asset_server.load("sounds/laser_fire.ogg"));
+			sfx_events.send(PlaySfxEvent::simple("sounds/laser_fire.ogg", 0.55, 60, 0.08));
 		}
 	}
 }
