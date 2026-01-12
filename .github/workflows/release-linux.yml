@@ -1,0 +1,71 @@
+name: Release Linux Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Package distribution
+        run: |
+          mkdir -p dist/tydust-linux
+          cp target/release/tydust dist/tydust-linux/
+          cp -r assets dist/tydust-linux/
+          cp level-1-music-full.wav dist/tydust-linux/assets/ 2>/dev/null || true
+          cp phase*.wav dist/tydust-linux/assets/ 2>/dev/null || true
+          chmod +x dist/tydust-linux/tydust
+
+          cat > dist/tydust-linux/README.txt << 'EOF'
+          TYDUST - Vertical Shooter
+          =========================
+
+          Run:
+          ----
+          ./tydust
+
+          Controls:
+          ---------
+          Arrow Keys - Move ship
+          Space - Fire (hold to charge)
+          EOF
+
+      - name: Create tarball
+        run: |
+          cd dist
+          tar -czvf tydust-linux-${{ github.ref_name }}.tar.gz tydust-linux/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/tydust-linux-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
