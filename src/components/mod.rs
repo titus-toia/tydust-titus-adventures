@@ -728,6 +728,14 @@ pub struct PlayerDefenses {
 	// Grace period flags - free pass on next hit to this layer
 	pub shield1_grace: bool,
 	pub armor_grace: bool,
+
+	/// Last time (in `Time::elapsed_secs_f64()`) the player was hit.
+	/// Used for shield2 regeneration cooldown.
+	pub last_damage_time: f64,
+	/// If shield2 regen is active, when it started (in `Time::elapsed_secs_f64()`).
+	pub shield2_regen_start_time: Option<f64>,
+	/// Shield2 value at regen start (so regen eases from that value to max).
+	pub shield2_regen_from: f32,
 }
 
 impl Default for PlayerDefenses {
@@ -741,6 +749,9 @@ impl Default for PlayerDefenses {
 			armor_max: 100.0,
 			shield1_grace: false,
 			armor_grace: false,
+			last_damage_time: 0.0,
+			shield2_regen_start_time: None,
+			shield2_regen_from: 75.0,
 		}
 	}
 }
@@ -843,18 +854,18 @@ pub struct ContactDamage;
 impl ContactDamage {
 	pub fn for_enemy_type(enemy_type: EnemyType) -> f32 {
 		match enemy_type {
-			EnemyType::Scout => 10.0,
-			EnemyType::Fighter => 15.0,
-			EnemyType::Interceptor => 20.0,
-			EnemyType::Drone => 5.0,
-			EnemyType::Bomber => 25.0,
-			EnemyType::Corvette => 20.0,
-			EnemyType::HeavyGunship => 25.0,
-			EnemyType::Boss => 30.0,
-			EnemyType::SmallAsteroid => 15.0,
-			EnemyType::MediumAsteroid => 15.0,
-			EnemyType::LargeAsteroid => 15.0,
-			EnemyType::StationDebris => 10.0,
+			EnemyType::Scout => 50.0,
+			EnemyType::Fighter => 50.0,
+			EnemyType::Interceptor => 50.0,
+			EnemyType::Drone => 50.0,
+			EnemyType::Bomber => 50.0,
+			EnemyType::Corvette => 50.0,
+			EnemyType::HeavyGunship => 50.0,
+			EnemyType::Boss => 50.0,
+			EnemyType::SmallAsteroid => 50.0,
+			EnemyType::MediumAsteroid => 50.0,
+			EnemyType::LargeAsteroid => 50.0,
+			EnemyType::StationDebris => 50.0,
 		}
 	}
 }

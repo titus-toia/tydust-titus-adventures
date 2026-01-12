@@ -24,7 +24,7 @@ use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handl
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
 use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent, ShipType, WeaponType, ChargeMeter};
 use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles, spawn_player_hit_particles, spawn_enemy_hit_particles};
-use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, play_enemy_hit_sound, play_enemy_death_sound};
+use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, play_enemy_hit_sound, play_enemy_death_sound};
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
@@ -48,7 +48,7 @@ fn main() {
 		println!("  --skip-menu, --random    Skip menu and start with random ship/weapon");
 		println!("  --start=N                Start level at distance N (e.g. --start=5000)");
 		println!("  --volume=N               Set sound volume 0-100 (default: 100)");
-		println!("  --bloom=N                Set bloom glow 0-100 (0=off, default: 15)");
+		println!("  --bloom=N                Set bloom glow 0-100 (default: 0=off)");
 		println!("  --no-music               Disable music");
 		println!("  --help, -h               Show this help message");
 		return;
@@ -73,21 +73,19 @@ fn main() {
 		.min(100); // Clamp to max 100
 	let initial_volume = (volume_percent as f32) / 100.0;
 
-	// Parse --bloom=N argument (0-100, default 15)
+	// Parse --bloom=N argument (0-100, default 0)
 	let bloom_level: u32 = args.iter()
 		.find(|arg| arg.starts_with("--bloom="))
 		.and_then(|arg| arg.strip_prefix("--bloom="))
 		.and_then(|val| val.parse().ok())
-		.unwrap_or(15)
+		.unwrap_or(0)
 		.min(100); // Clamp to max 100
 
 	if volume_percent != 100 {
 		println!("🔊 Starting with volume: {}%", volume_percent);
 	}
 
-	if bloom_level == 0 {
-		println!("✨ Bloom disabled");
-	} else if bloom_level != 15 {
+	if bloom_level > 0 {
 		println!("✨ Bloom level: {}%", bloom_level);
 	}
 
@@ -251,6 +249,7 @@ fn main() {
 			check_enemy_projectile_player_collisions,
 			spawn_player_hit_particles,
 			update_invincibility,
+			update_shield2_regen,
 		).chain().run_if(in_state(GameState::Playing)))
 		// Lightning visual rendering
 		.add_systems(Update, (

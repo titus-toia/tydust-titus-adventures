@@ -28,6 +28,10 @@ pub struct ChargeMeterCapacitor {
 	pub index: u8,
 }
 
+/// Marker for glow overlay sprite (child of DefenseHexagon)
+#[derive(Component)]
+pub struct DefenseGlow;
+
 /// State of a single capacitor
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CapacitorState {
@@ -145,7 +149,7 @@ pub fn spawn_player_hud(mut commands: Commands, asset_server: Res<AssetServer>) 
 		ArmorText,
 	));
 
-	// Spawn Shield2 hexagon (outermost, cyan)
+	// Spawn Shield2 hexagon (outermost, cyan) - layered base + glow
 	commands.spawn((
 		Sprite::from_image(asset_server.load("ui/shield2_cyan.png")),
 		Transform::from_xyz(center.x + 9.0, center.y, 10.1)
@@ -157,9 +161,16 @@ pub fn spawn_player_hud(mut commands: Commands, asset_server: Res<AssetServer>) 
 			pulse_speed: 1.0,
 			particle_spawn_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
 		},
-	));
+	)).with_children(|parent| {
+		// Glow overlay (child sprite, alpha varies with health)
+		parent.spawn((
+			Sprite::from_image(asset_server.load("ui/shield2_cyan_glow_bright.png")),
+			Transform::from_xyz(0.0, 0.0, 0.01), // Slightly in front of parent
+			DefenseGlow,
+		));
+	});
 
-	// Spawn Shield1 hexagon (middle, deep blue)
+	// Spawn Shield1 hexagon (middle, deep blue) - layered base + glow
 	commands.spawn((
 		Sprite::from_image(asset_server.load("ui/shield1_blue.png")),
 		Transform::from_xyz(center.x + 9.0, center.y, 10.2)
@@ -171,7 +182,14 @@ pub fn spawn_player_hud(mut commands: Commands, asset_server: Res<AssetServer>) 
 			pulse_speed: 1.0,
 			particle_spawn_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
 		},
-	));
+	)).with_children(|parent| {
+		// Glow overlay (child sprite, alpha varies with health)
+		parent.spawn((
+			Sprite::from_image(asset_server.load("ui/shield1_blue_glow_subtle.png")),
+			Transform::from_xyz(0.0, 0.0, 0.01), // Slightly in front of parent
+			DefenseGlow,
+		));
+	});
 
 	// Spawn Armor hexagon (innermost, bronze)
 	commands.spawn((
@@ -316,18 +334,21 @@ fn calculate_defense_alpha(current: f32, max: f32, base_alpha: f32) -> f32 {
 /// Animate defense hexagons with pulse, color tinting, and armor sprite swapping
 pub fn animate_defense_hexagons(
 	mut hexagon_query: Query<(
+		Entity,
 		&mut Transform,
 		&mut Sprite,
 		&mut DefenseHexagon,
 		Option<&mut ArmorDamageState>,
-	)>,
+		Option<&Children>,
+	), Without<DefenseGlow>>,
+	mut glow_query: Query<&mut Sprite, With<DefenseGlow>>,
 	player_query: Query<&PlayerDefenses, With<Player>>,
 	asset_server: Res<AssetServer>,
 	time: Res<Time>,
 ) {
 	let Ok(defenses) = player_query.get_single() else { return };
 
-	for (mut transform, mut sprite, mut hexagon, armor_state) in hexagon_query.iter_mut() {
+	for (entity, mut transform, mut sprite, mut hexagon, armor_state, children_opt) in hexagon_query.iter_mut() {
 		let (current, max) = match hexagon.layer {
 			DefenseLayer::Shield2 => (defenses.shield2, defenses.shield2_max),
 			DefenseLayer::Shield1 => (defenses.shield1, defenses.shield1_max),
@@ -340,9 +361,9 @@ pub fn animate_defense_hexagons(
 		if hexagon.layer == DefenseLayer::Armor {
 			if let Some(mut armor_state) = armor_state {
 				let new_state = match ratio {
-					r if r > 0.7 => ArmorState::Intact,
-					r if r > 0.4 => ArmorState::Cracked,
-					r if r > 0.15 => ArmorState::HeavyCracks,
+					r if r > 0.85 => ArmorState::Intact,
+					r if r > 0.68 => ArmorState::Cracked,
+					r if r > 0.35 => ArmorState::HeavyCracks,
 					_ => ArmorState::Shattered,
 				};
 
@@ -357,63 +378,76 @@ pub fn animate_defense_hexagons(
 				}
 			}
 
-			// Armor doesn't pulse or tint - skip color/animation for armor
-			let alpha = calculate_defense_alpha(current, max, 1.0);
-			sprite.color = Color::srgb(1.0, 1.0, 1.0).with_alpha(alpha);
+			// Armor doesn't pulse or fade - keep fully opaque, sprite swap shows damage
+			sprite.color = Color::WHITE;
 			continue;
 		}
 
-		// === SHIELD PULSE ANIMATION ===
-		// Update pulse speed based on health ratio
-		hexagon.pulse_speed = match ratio {
-			r if r > 0.5 => 1.0,   // Slow pulse
-			r if r > 0.2 => 2.5,   // Medium pulse
-			_ => 5.0,              // Rapid pulse (critical)
-		};
-
-		// Advance pulse phase
-		hexagon.pulse_phase += hexagon.pulse_speed * time.delta_secs();
-		if hexagon.pulse_phase > std::f32::consts::TAU {
-			hexagon.pulse_phase -= std::f32::consts::TAU;
-		}
-
-		// Calculate scale modulation
-		let amplitude = match ratio {
-			r if r > 0.5 => 0.02,  // Subtle
-			r if r > 0.2 => 0.05,  // Noticeable
-			_ => 0.10,              // Dramatic
-		};
-
-		let scale_multiplier = 1.0 + (hexagon.pulse_phase.sin() * amplitude);
-
-		// Apply scale based on layer (maintain relative sizing)
+		// === SHIELD SCALE (NO PULSE) ===
+		// Apply constant scale based on layer (no animation)
 		let base_scale = match hexagon.layer {
 			DefenseLayer::Shield2 => 0.2295,
 			DefenseLayer::Shield1 => 0.1683,
 			DefenseLayer::Armor => 0.09945,
 		};
-		transform.scale = Vec3::splat(base_scale * scale_multiplier);
+		transform.scale = Vec3::splat(base_scale);
 
-		// === SHIELD COLOR TINTING ===
-		let base_color = match hexagon.layer {
-			DefenseLayer::Shield2 => Color::srgb(0.0, 1.0, 1.0),  // Cyan
-			DefenseLayer::Shield1 => Color::srgb(0.1, 0.4, 1.0),  // Deep blue
-			DefenseLayer::Armor => Color::srgb(0.7, 0.6, 0.4),    // Bronze (unused here)
+		// === SHIELD SPRITE & GLOW MANAGEMENT ===
+		// Determine base sprite based on health
+		let (base_sprite_path, glow_alpha) = if ratio < 0.25 {
+			// <25%: Cold sprite, no glow
+			let cold_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cold_metal_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue_cold.png",
+				DefenseLayer::Armor => unreachable!(), // Armor handled above
+			};
+			(cold_path, 0.0)
+		} else if ratio < 0.40 {
+			// 25-40%: Base sprite only, no glow
+			let base_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+			(base_path, 0.0)
+		} else if ratio < 0.75 {
+			// 40-75%: Base sprite with quadratic fade glow
+			// Normalize ratio from 0.40-0.75 to 0.0-1.0
+			let fade_ratio = (ratio - 0.40) / 0.35;
+			let alpha = fade_ratio.powf(2.0); // Quadratic fade
+			let base_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+			(base_path, alpha)
+		} else {
+			// >75%: Base sprite with full glow
+			let base_path = match hexagon.layer {
+				DefenseLayer::Shield2 => "ui/shield2_cyan.png",
+				DefenseLayer::Shield1 => "ui/shield1_blue.png",
+				DefenseLayer::Armor => unreachable!(),
+			};
+			(base_path, 1.0)
 		};
 
-		// Blend toward red/orange at low health
-		let warning_color = Color::srgb(1.0, 0.3, 0.0);
-		let tint_factor = (1.0 - ratio).powf(2.0); // Quadratic for dramatic shift
+		// Update base sprite if needed
+		let current_path = sprite.image.path().and_then(|p| p.path().to_str());
+		if current_path != Some(base_sprite_path) {
+			sprite.image = asset_server.load(base_sprite_path);
+		}
 
-		let final_color = Color::srgb(
-			base_color.to_srgba().red * (1.0 - tint_factor) + warning_color.to_srgba().red * tint_factor,
-			base_color.to_srgba().green * (1.0 - tint_factor) + warning_color.to_srgba().green * tint_factor,
-			base_color.to_srgba().blue * (1.0 - tint_factor) + warning_color.to_srgba().blue * tint_factor,
-		);
+		// Keep base sprite fully opaque (no alpha fade on base)
+		sprite.color = Color::WHITE;
 
-		// Apply alpha (non-linear fade)
-		let alpha = calculate_defense_alpha(current, max, 1.0);
-		sprite.color = final_color.with_alpha(alpha);
+		// Update glow child sprite alpha
+		if let Some(children) = children_opt {
+			for &child in children.iter() {
+				if let Ok(mut glow_sprite) = glow_query.get_mut(child) {
+					glow_sprite.color = Color::WHITE.with_alpha(glow_alpha);
+				}
+			}
+		}
 	}
 }
 

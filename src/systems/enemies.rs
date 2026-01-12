@@ -65,7 +65,7 @@ pub fn execute_enemy_behaviors(
 	level: Option<Res<CurrentLevel>>,
 ) {
 	let delta = time.delta_secs();
-	let scroll_speed = level
+	let _scroll_speed = level
 		.and_then(|l| l.get_current_phase().map(|p| p.scroll_speed))
 		.unwrap_or(100.0);
 
