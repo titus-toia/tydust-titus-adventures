@@ -1,0 +1,74 @@
+name: Release macOS Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Package distribution
+        run: |
+          mkdir -p dist/tydust-macos
+          cp target/release/tydust dist/tydust-macos/
+          cp -r assets dist/tydust-macos/
+
+          # Copy music files if they exist
+          cp level-1-music-full.wav dist/tydust-macos/assets/ 2>/dev/null || true
+          cp phase*.wav dist/tydust-macos/assets/ 2>/dev/null || true
+
+          cat > dist/tydust-macos/README.txt << 'EOF'
+          TYDUST - Vertical Shooter
+          =========================
+
+          First Run (Gatekeeper bypass):
+          ------------------------------
+          Right-click tydust > Open > Open
+
+          Or in Terminal:
+          xattr -cr tydust
+          ./tydust
+
+          Controls:
+          ---------
+          Arrow Keys - Move ship
+          Space - Fire (hold to charge)
+          EOF
+
+      - name: Create zip
+        run: |
+          cd dist
+          zip -r tydust-macos-${{ github.ref_name }}.zip tydust-macos/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/tydust-macos-${{ github.ref_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
