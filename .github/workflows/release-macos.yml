@@ -77,4 +77,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tydust-macos
-          path: dist/tydust-macos/
+          path: dist/tydust-macos-*.zip

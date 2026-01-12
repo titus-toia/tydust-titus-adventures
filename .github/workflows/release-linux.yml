@@ -77,4 +77,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tydust-linux
-          path: dist/tydust-linux/
+          path: dist/tydust-linux-*.tar.gz
