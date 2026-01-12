@@ -63,3 +63,4 @@ tmp/
 *.backup
 *.time_backup
 *.orig
+*:Zone.Identifier
