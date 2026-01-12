@@ -129,6 +129,32 @@ pub struct GamePaused(pub bool);
 #[derive(Resource, Default)]
 pub struct InfoOverlayEnabled(pub bool);
 
+#[derive(Resource)]
+pub struct SoundVolume {
+	pub level: f32, // 0.0 to 1.0
+}
+
+impl Default for SoundVolume {
+	fn default() -> Self {
+		Self { level: 1.0 }
+	}
+}
+
+impl SoundVolume {
+	pub fn new(level: f32) -> Self {
+		Self { level: level.clamp(0.0, 1.0) }
+	}
+
+	pub fn adjust(&mut self, delta: f32) {
+		self.level = (self.level + delta).clamp(0.0, 1.0);
+	}
+
+	/// Apply master volume to a sound effect volume
+	pub fn apply(&self, base_volume: f32) -> f64 {
+		(base_volume * self.level) as f64
+	}
+}
+
 pub fn toggle_pause(
 	keyboard: Res<ButtonInput<KeyCode>>,
 	mut paused: ResMut<GamePaused>,
@@ -201,6 +227,21 @@ pub fn toggle_music(
 			music_state.handle = None;
 			title_music_state.handle = None;
 		}
+	}
+}
+
+pub fn adjust_sound_volume(
+	keyboard: Res<ButtonInput<KeyCode>>,
+	mut sound_volume: ResMut<SoundVolume>,
+) {
+	// Use [ and ] keys to adjust volume (like brightness controls)
+	if keyboard.just_pressed(KeyCode::BracketLeft) {
+		sound_volume.adjust(-0.1);
+		info!("🔉 Sound volume: {:.0}%", sound_volume.level * 100.0);
+	}
+	if keyboard.just_pressed(KeyCode::BracketRight) {
+		sound_volume.adjust(0.1);
+		info!("🔊 Sound volume: {:.0}%", sound_volume.level * 100.0);
 	}
 }
 
@@ -991,6 +1032,7 @@ pub fn process_phases(
 	mut music_state: ResMut<MusicState>,
 	mut audio_instances: ResMut<Assets<AudioInstance>>,
 	music_enabled: Res<MusicEnabled>,
+	sound_volume: Res<SoundVolume>,
 ) {
 	// Skip music if disabled
 	if !music_enabled.enabled {
@@ -1033,7 +1075,7 @@ pub fn process_phases(
 
 			let handle = audio.play(asset_server.load(&final_path))
 				.looped()
-				.with_volume(1.0)  // Start at full volume (fade-in removed for now)
+				.with_volume(sound_volume.apply(1.0))  // Respect master volume
 				.handle();
 
 			music_state.handle = Some(handle);
@@ -1048,6 +1090,7 @@ pub fn play_title_music(
 	asset_server: Res<AssetServer>,
 	mut title_music_state: ResMut<TitleMusicState>,
 	music_enabled: Res<MusicEnabled>,
+	sound_volume: Res<SoundVolume>,
 ) {
 	if !music_enabled.enabled {
 		return;
@@ -1070,7 +1113,7 @@ pub fn play_title_music(
 
 			let handle = audio.play(asset_server.load(&path))
 				.looped()
-				.with_volume(1.0)
+				.with_volume(sound_volume.apply(1.0))
 				.handle();
 
 			title_music_state.handle = Some(handle);

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::components::{Player, Weapon, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, WeaponType};
+use crate::components::{Player, Weapon, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, WeaponType, PlayerDefenses};
 
 pub fn handle_weapon_switch(
 	mut weapon_switch_events: EventReader<WeaponSwitchEvent>,
@@ -46,22 +46,34 @@ pub fn handle_weapon_upgrade(
 
 pub fn handle_player_hit(
 	mut player_hit_events: EventReader<PlayerHitEvent>,
-	mut query: Query<&mut Weapon, With<Player>>,
+	mut weapon_query: Query<&mut Weapon, With<Player>>,
+	defenses_query: Query<&PlayerDefenses, With<Player>>,
 ) {
 	for _ in player_hit_events.read() {
-		if let Ok(mut weapon) = query.get_single_mut() {
+		if let Ok(mut weapon) = weapon_query.get_single_mut() {
 			if weapon.weapon_type == WeaponType::BasicBlaster {
 				continue;
 			}
 
-			weapon.level = weapon.level.saturating_sub(2);
-
-			// Keep weapon type, just reset to level 1 instead of reverting to BasicBlaster
-			if weapon.level == 0 {
-				weapon.level = 1;
-				info!("{:?} reset to Level 1 (you kept your weapon!)", weapon.weapon_type);
+			// Only lose weapon levels if all shields are down
+			let all_shields_down = if let Ok(defenses) = defenses_query.get_single() {
+				defenses.shield2 <= 0.0 && defenses.shield1 <= 0.0
 			} else {
-				info!("{:?} downgraded to Level {}", weapon.weapon_type, weapon.level);
+				true // Default to allowing weapon loss if we can't check shields
+			};
+
+			if all_shields_down {
+				weapon.level = weapon.level.saturating_sub(2);
+
+				// Keep weapon type, just reset to level 1 instead of reverting to BasicBlaster
+				if weapon.level == 0 {
+					weapon.level = 1;
+					info!("{:?} reset to Level 1 (you kept your weapon!)", weapon.weapon_type);
+				} else {
+					info!("{:?} downgraded to Level {}", weapon.weapon_type, weapon.level);
+				}
+			} else {
+				info!("Shields absorbed damage - weapon level protected!");
 			}
 		}
 	}

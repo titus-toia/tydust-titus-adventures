@@ -85,12 +85,50 @@ When generating assets, save them to the appropriate category directory:
 # Follow prompting best practices from ASSET_PIPELINE.md
 ```
 
-### 2. Save to Appropriate Directory
-Save generated images to the correct category directory listed above.
+Gemini MCP automatically saves to: `generated_imgs/generated-{timestamp}-{id}.png`
 
-**Important:** Always generate assets in the project directory (`/home/titus/tydust/assets/...`), **NOT** in skill directories.
+### 2. Stage in generated_imgs/ by Category
+Move generated files to the appropriate **staging directory**:
 
-### 3. Update Prompt Tracking JSON
+```
+generated_imgs/
+├── ships/              (player ships, variants)
+├── enemies/            (enemy ships, raiders)
+├── structures/         (industrial buildings, stations)
+├── doodads/            (cargo, debris, environmental objects)
+├── particles/          (effects particles)
+├── effects/            (shields, explosions, warps)
+├── parallax/           (mid-layer scrolling elements)
+├── backdrop/           (nebulae, cosmic phenomena)
+├── far/                (distant objects, planets)
+├── ui/                 (buttons, icons, HUD)
+├── pickups/            (collectibles, power-ups)
+└── misc/               (experimental/temporary)
+```
+
+This staging area lets you organize, review, and process generated assets before finalizing them in `assets/`.
+
+### 3. Background Removal & Processing
+
+**Remove backgrounds** with rembg (AI-based for clean edges):
+```bash
+python3 << 'EOF'
+from rembg import remove
+from PIL import Image
+img = Image.open("generated_imgs/ships/my_ship.png")
+output = remove(img)
+output.save("generated_imgs/ships/my_ship.png")
+EOF
+```
+
+### 4. Move to Final Asset Directory
+Once processed, move from staging to final location:
+```bash
+# Example:
+mv generated_imgs/ships/my_ship.png assets/sprites/ships/my_ship.png
+```
+
+### 5. Update Prompt Tracking JSON
 
 **Maintain:** `assets/generation_log.json`
 
@@ -111,9 +149,9 @@ This log helps identify:
 - Which assets were successfully generated
 - What to regenerate if quality is poor
 
-### 4. Run QA Pipeline
+### 6. Run QA Pipeline
 
-After generating assets, run the automated QA pipeline:
+After moving assets to final location, run the automated QA pipeline:
 
 ```bash
 python3 scripts/asset-processing/asset_qa_pipeline.py
@@ -126,7 +164,7 @@ This automatically fixes:
 
 See `ASSET_PIPELINE.md` for full details.
 
-### 5. Special Processing (if needed)
+### 7. Special Processing (if needed)
 
 For cosmic assets that Gemini adds black space to:
 
@@ -233,41 +271,51 @@ mcp__nano-banana__generate_image(prompt=user_description)
 - `"game sprite"` or `"game asset"`
 - `"no surrounding space"` (to prevent black space backgrounds)
 
-### 3. Determine Output Path
+### 3. Stage in generated_imgs/ by Category
 
-Generate descriptive filename and path:
+Gemini MCP automatically saves to: `generated_imgs/generated-{timestamp}-{id}.png`
 
-**Filename format:** `{description_words}_{timestamp}.png`
-
-Example:
-```python
-# User prompt: "enemy fighter ship with red paint"
-# Category detected: sprites/raiders
-# Filename: enemy_fighter_ship_20260110_153045.png
-# Full path: assets/sprites/raiders/enemy_fighter_ship_20260110_153045.png
-```
-
-### 4. Move Generated File
-
-Gemini MCP saves to: `/home/titus/generated_imgs/generated-{timestamp}-{id}.png`
-
-**Action:** Move the generated file to the correct asset directory:
+**Action:** Rename and move to staging directory:
 
 ```bash
-mv /home/titus/generated_imgs/generated-*.png assets/{category}/{descriptive_name}.png
+# Generate descriptive filename
+# Format: {description_words}.png
+
+# Examples:
+mv generated_imgs/generated-*.png generated_imgs/ships/enemy_fighter_ship.png
+mv generated_imgs/generated-*.png generated_imgs/structures/mining_platform.png
+mv generated_imgs/generated-*.png generated_imgs/doodads/cargo_container.png
+```
+
+Stage by **category directory** in `generated_imgs/`, not the final asset path. This staging area is for organization and review before processing.
+
+### 4. Remove Backgrounds (in staging area)
+
+Process staged asset with rembg:
+
+```python
+from rembg import remove
+from PIL import Image
+
+path = "generated_imgs/ships/enemy_fighter_ship.png"
+img = Image.open(path)
+output = remove(img)
+output.save(path)
 ```
 
 ### 5. Update Generation Log
 
 **File:** `assets/generation_log.json`
 
-Add entry mapping asset path to the prompt used:
+Track the prompt used for this asset:
 
 ```json
 {
-  "assets/sprites/raiders/enemy_fighter_ship_20260110_153045.png": "enemy fighter ship with red paint, top-down view, isolated asset on white background, game sprite"
+  "assets/sprites/raiders/enemy_fighter_ship.png": "enemy fighter ship with red paint, top-down view, isolated asset on white background, game sprite"
 }
 ```
+
+Note: Log uses final `assets/` path, even though asset is still in staging.
 
 **Implementation:**
 ```python
@@ -276,53 +324,27 @@ from pathlib import Path
 
 log_path = Path("assets/generation_log.json")
 log = json.load(open(log_path)) if log_path.exists() else {}
-log[relative_asset_path] = full_prompt_used
+log[final_asset_path] = full_prompt_used
 json.dump(log, open(log_path, 'w'), indent=2)
 ```
 
-### 6. Run Post-Processing
+### 6. Move to Final Asset Directory
 
-**CRITICAL: Always run background removal and QA in this order:**
+Move from staging to final location:
 
-**Step 6a: Remove Background (AI-based)**
+```bash
+# From generated_imgs staging to final assets directory
+mv generated_imgs/{category}/{filename}.png assets/{final_category}/{filename}.png
 
-Use the `remove-background` Skill for generated assets:
-
+# Examples:
+mv generated_imgs/ships/player_fighter.png assets/sprites/ships/player_fighter.png
+mv generated_imgs/structures/mining_platform.png assets/structures/mining_platform.png
+mv generated_imgs/enemies/raider_boss.png assets/sprites/raiders/raider_boss.png
 ```
-Skill: remove-background
-Args: path/to/generated/asset.png
-```
 
-This uses AI (rembg) to intelligently remove backgrounds while preserving:
-- Alpha transparency
-- Edge quality
-- Asset details
-- Proper occlusion (objects block what's behind them)
+### 7. Run QA Pipeline
 
-**IMPORTANT - Category-specific background removal:**
-
-**Use AI-based removal (`remove-background` Skill) for:**
-- `sprites/*` - Ships, projectiles, enemies (needs clean edges)
-- `structures/*` - Buildings, stations (must occlude properly)
-- `doodads/*` - Cargo, debris, fragments (clean cutouts)
-- `particles/*` - Effects (precise alpha)
-- `parallax/*` - Mid-layer elements (proper layering)
-- **`far/*`** - Distant hulks, planets, structures (MUST occlude stars behind them)
-- `ui/*`, `pickups/*`, `effects/*` - All need clean alpha
-
-**Use simple threshold removal (QA pipeline only) for:**
-- **`backdrop/*`** - Nebulae, cosmic phenomena
-  - Threshold-based removal creates porous/wispy effects (desirable!)
-  - QA pipeline's RGB > 220 removal is perfect for these
-  - No need for AI removal - let it be transparent/holey
-
-**Skip all background removal for:**
-- Assets explicitly described as having backgrounds (rare)
-- Pre-processed assets (if user says "already has transparent background")
-
-**Step 6b: Run QA Pipeline**
-
-After background removal, run the QA pipeline:
+After moving to final asset directory, run the automated QA pipeline:
 
 ```bash
 python3 scripts/asset-processing/asset_qa_pipeline.py
@@ -334,19 +356,26 @@ This will:
 - Report file size issues (>2MB warning)
 - Verify transparency
 
-**Order matters:**
-1. `remove-background` Skill first (AI removal)
-2. QA pipeline second (cleanup + feathering)
+**Category-specific handling:**
 
-### 7. Confirm to User
+**For backdrop assets (nebulae, cosmic):**
+- Skip AI background removal (threshold removal creates nice porous effects)
+- QA pipeline handles cleanup automatically
+
+**For all other assets (ships, structures, doodads, etc):**
+- Background already removed via rembg in staging
+- QA pipeline ensures any remaining white is cleaned
+
+### 8. Confirm to User
 
 Report back with:
 - ✓ Category detected
 - ✓ Asset generated
-- ✓ Saved to: `{full_path}`
+- ✓ Staged to: `generated_imgs/{category}/{filename}`
+- ✓ Moved to: `assets/{final_path}`
+- ✓ Background removed (rembg)
 - ✓ Generation log updated
 - ✓ QA pipeline completed
-- Next steps (if applicable)
 
 ## Example Complete Workflow
 
@@ -362,23 +391,29 @@ Report back with:
 
 3. **Generate:** Call `mcp__nano-banana__generate_image` with enhanced prompt
 
-4. **Move file:**
-   - From: `/home/titus/generated_imgs/generated-2026-01-10T15-30-45-123Z.png`
-   - To: `assets/doodads/industrial_cargo_container_20260110_153045.png`
+4. **Stage in generated_imgs/:**
+   - From: `generated_imgs/generated-2026-01-10T15-30-45-123Z.png`
+   - To: `generated_imgs/doodads/industrial_cargo_container.png`
 
-5. **Update log:** Add entry to `assets/generation_log.json`
+5. **Remove background:**
+   - Process in staging with rembg to clean edges
 
-6. **Remove background:** Use `remove-background` Skill on the asset
+6. **Update log:** Add entry to `assets/generation_log.json` (with final asset path)
 
-7. **Run QA:** Execute asset QA pipeline
+7. **Move to final location:**
+   - From: `generated_imgs/doodads/industrial_cargo_container.png`
+   - To: `assets/doodads/industrial_cargo_container.png`
 
-8. **Report:**
+8. **Run QA:** Execute asset QA pipeline on final location
+
+9. **Report:**
    ```
    ✓ Generated industrial cargo container
    ✓ Category: doodads
-   ✓ Saved to: assets/doodads/industrial_cargo_container_20260110_153045.png
+   ✓ Staged to: generated_imgs/doodads/industrial_cargo_container.png
+   ✓ Moved to: assets/doodads/industrial_cargo_container.png
+   ✓ Background removed (rembg)
    ✓ Generation log updated
-   ✓ Background removed (AI-based)
    ✓ QA pipeline completed
 
    Asset ready for use in game!
@@ -402,14 +437,20 @@ Which category should this go in?
 
 If user requests multiple assets:
 
-**Process each separately:**
+**Process each through the full workflow:**
 ```
 User: "Generate 3 enemy ships"
 
 Response:
-1. Generate enemy ship #1 → sprites/raiders/enemy_ship_1_20260110_153045.png
-2. Generate enemy ship #2 → sprites/raiders/enemy_ship_2_20260110_153050.png
-3. Generate enemy ship #3 → sprites/raiders/enemy_ship_3_20260110_153055.png
+1. Generate enemy ship #1
+   ✓ Staged to: generated_imgs/enemies/enemy_ship_1.png
+   ✓ Moved to: assets/sprites/raiders/enemy_ship_1.png
+2. Generate enemy ship #2
+   ✓ Staged to: generated_imgs/enemies/enemy_ship_2.png
+   ✓ Moved to: assets/sprites/raiders/enemy_ship_2.png
+3. Generate enemy ship #3
+   ✓ Staged to: generated_imgs/enemies/enemy_ship_3.png
+   ✓ Moved to: assets/sprites/raiders/enemy_ship_3.png
 ```
 
 ### Cosmic Assets (Nebulae, Planets)

@@ -3,7 +3,7 @@
 /dist
 
 # Python environments
-audiocraft_env/
+*env/
 venv/
 .venv/
 env/

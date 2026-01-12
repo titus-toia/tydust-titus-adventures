@@ -157,16 +157,19 @@ pub fn play_enemy_hit_sound(
 	mut hit_events: EventReader<EnemyHitEvent>,
 	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
+	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
 	for event in hit_events.read() {
-		let sound_path = event.hit_sound.unwrap_or("sounds/enemy_hit.ogg");
-		let volume = match event.hit_sound {
-			Some("sounds/lightning/lightning_wave_light.ogg") => 0.4,
-			Some("sounds/lightning/deep_lightning_boom.ogg") => 0.5,
-			Some("sounds/lightning/fireworks_crackle.ogg") => 0.4,
-			_ => 0.6,
-		};
-		audio.play(asset_server.load(sound_path)).with_volume(volume);
+		// Skip if no sound specified (used for silent continuous damage)
+		if let Some(sound_path) = event.hit_sound {
+			let base_volume = match sound_path {
+				"sounds/lightning/lightning_wave_light.ogg" => 0.4,
+				"sounds/lightning/deep_lightning_boom.ogg" => 0.5,
+				"sounds/lightning/fireworks_crackle.ogg" => 0.4,
+				_ => 0.6,
+			};
+			audio.play(asset_server.load(sound_path)).with_volume(sound_volume.apply(base_volume));
+		}
 	}
 }
 
@@ -174,8 +177,9 @@ pub fn play_enemy_death_sound(
 	mut death_events: EventReader<EnemyDeathEvent>,
 	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
+	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
 	for _ in death_events.read() {
-		audio.play(asset_server.load("sounds/enemy_death.ogg")).with_volume(0.8);
+		audio.play(asset_server.load("sounds/enemy_death.ogg")).with_volume(sound_volume.apply(0.8));
 	}
 }

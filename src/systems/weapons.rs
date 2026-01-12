@@ -16,15 +16,40 @@ pub fn fire_weapons(
 	mut commands: Commands,
 	mut query: Query<(&Transform, &mut Weapon), With<Player>>,
 	time: Res<Time>,
-	mut charge_meter: ResMut<ChargeMeter>,
+	charge_meter: Res<ChargeMeter>,
 	enemies: Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	mut hit_events: EventWriter<EnemyHitEvent>,
+	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
-	if !keyboard_input.pressed(KeyCode::Space) {
-		return;
-	}
-
 	for (transform, mut weapon) in query.iter_mut() {
+		// Lightning (level 8+) fires on release via pending_fire_tier
+		if weapon.weapon_type == WeaponType::LightningChain && weapon.level >= 8 {
+			if let Some(tier) = charge_meter.pending_fire_tier {
+				let config = weapon.weapon_type.config();
+				let damage = config.base_damage + (weapon.level as f32 * config.damage_per_level);
+				let spawn_pos = transform.translation + Vec3::new(0.0, 55.0, 0.0);
+
+				lightning::fire_lightning_weapon(
+					&mut commands,
+					&asset_server,
+					&audio,
+					spawn_pos,
+					&weapon,
+					damage,
+					tier,
+					&enemies,
+					&mut hit_events,
+					&sound_volume,
+				);
+			}
+			continue; // Don't process normal fire logic for level 8+ lightning
+		}
+
+		// All other weapons fire while Space is held
+		if !keyboard_input.pressed(KeyCode::Space) {
+			continue;
+		}
+
 		weapon.fire_cooldown.tick(time.delta());
 
 		if weapon.fire_cooldown.finished() {
@@ -65,6 +90,7 @@ pub fn fire_weapons(
 					// It spawns/maintains orbs that are handled separately
 				},
 				WeaponType::LightningChain => {
+					// Levels 1-7: Fire on press with default tier 0.4
 					lightning::fire_lightning_weapon(
 						&mut commands,
 						&asset_server,
@@ -72,9 +98,10 @@ pub fn fire_weapons(
 						spawn_pos,
 						&weapon,
 						damage,
-						&mut charge_meter,
+						0.4, // Default tier for low levels
 						&enemies,
 						&mut hit_events,
+						&sound_volume,
 					);
 				},
 			}

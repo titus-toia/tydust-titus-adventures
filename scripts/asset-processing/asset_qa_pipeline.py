@@ -215,6 +215,7 @@ def main():
 		(assets_dir / "doodads", "doodads"),
 		(assets_dir / "structures", "structures"),
 		(assets_dir / "sprites" / "ships", "ships"),
+		(assets_dir / "sprites" / "ships" / "player", "player ships"),
 		(assets_dir / "particles", "particles"),
 	]
 

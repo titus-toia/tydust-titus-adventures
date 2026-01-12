@@ -12,8 +12,8 @@ mod resources;
 use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
 use systems::weapons::{fire_weapons, move_projectiles_straight, move_projectiles_sine, move_angled_projectiles, move_homing_projectiles, manage_orbital_entities, orbital_auto_fire, cleanup_projectiles};
-use systems::lightning::{update_charge_meter, render_lightning_bolts, render_lightning_arcs, spawn_pending_baby_whips, cleanup_lightning_visuals, render_lightning_impacts, render_lightning_aoe, process_pending_sounds, process_fading_sounds, update_lightning_glitter, render_lightning_glitter, render_defensive_field, update_defensive_field_damage};
-use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, update_distance_locked, process_level_events, process_tutorials, process_phases, apply_doodad_drift, scroll_doodads, cleanup_doodads, MusicState, TitleMusicState, MusicEnabled, DebugSpeed, toggle_debug_speed, toggle_music, SelectedLevel, GamePaused, toggle_pause, InfoOverlayEnabled, toggle_info_overlay, play_title_music, stop_title_music};
+use systems::lightning::{update_charge_meter, render_lightning_bolts, render_lightning_arcs, spawn_pending_baby_whips, cleanup_lightning_visuals, render_lightning_impacts, render_lightning_aoe, process_pending_sounds, process_fading_sounds, update_lightning_glitter, render_lightning_glitter, render_defensive_field, update_defensive_field_damage, DefensiveFieldHitTracker};
+use systems::level::{load_level, update_level_timer, process_enemy_waves, process_doodads, update_distance_locked, process_level_events, process_tutorials, process_phases, apply_doodad_drift, scroll_doodads, cleanup_doodads, MusicState, TitleMusicState, MusicEnabled, DebugSpeed, toggle_debug_speed, toggle_music, SelectedLevel, GamePaused, toggle_pause, InfoOverlayEnabled, toggle_info_overlay, play_title_music, stop_title_music, SoundVolume, adjust_sound_volume};
 use systems::parallax::{init_parallax_timers, spawn_procedural_parallax, scroll_parallax, cleanup_parallax};
 use systems::enemies::{update_enemy_movement, cleanup_enemies, execute_enemy_behaviors, update_formations, setup_enemy_shooters, enemy_shooting, move_enemy_projectiles, init_enemy_rotation, rotate_enemies_to_movement, shimmer_enemies};
 use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_weapon_selection, handle_start_game, cleanup_menu};
@@ -25,7 +25,8 @@ use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, 
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
-use resources::{SelectedShip, SelectedWeapon, GameState};
+use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow};
+use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
 fn main() {
@@ -42,6 +43,8 @@ fn main() {
 		println!("OPTIONS:");
 		println!("  --skip-menu, --random    Skip menu and start with random ship/weapon");
 		println!("  --start=N                Start level at distance N (e.g. --start=5000)");
+		println!("  --volume=N               Set sound volume 0-100 (default: 100)");
+		println!("  --bloom=N                Set bloom glow 0-100 (0=off, default: 15)");
 		println!("  --no-music               Disable music");
 		println!("  --help, -h               Show this help message");
 		return;
@@ -56,6 +59,33 @@ fn main() {
 		.and_then(|arg| arg.strip_prefix("--start="))
 		.and_then(|val| val.parse().ok())
 		.unwrap_or(0.0);
+
+	// Parse --volume=N argument (0-100, default 100)
+	let volume_percent: u32 = args.iter()
+		.find(|arg| arg.starts_with("--volume="))
+		.and_then(|arg| arg.strip_prefix("--volume="))
+		.and_then(|val| val.parse().ok())
+		.unwrap_or(100)
+		.min(100); // Clamp to max 100
+	let initial_volume = (volume_percent as f32) / 100.0;
+
+	// Parse --bloom=N argument (0-100, default 15)
+	let bloom_level: u32 = args.iter()
+		.find(|arg| arg.starts_with("--bloom="))
+		.and_then(|arg| arg.strip_prefix("--bloom="))
+		.and_then(|val| val.parse().ok())
+		.unwrap_or(15)
+		.min(100); // Clamp to max 100
+
+	if volume_percent != 100 {
+		println!("🔊 Starting with volume: {}%", volume_percent);
+	}
+
+	if bloom_level == 0 {
+		println!("✨ Bloom disabled");
+	} else if bloom_level != 15 {
+		println!("✨ Bloom level: {}%", bloom_level);
+	}
 
 	// If skipping menu, select random ship and weapon
 	let (initial_ship, initial_weapon, initial_state) = if skip_menu {
@@ -106,6 +136,9 @@ fn main() {
 		.init_resource::<GamePaused>()
 		.insert_resource(InfoOverlayEnabled(true))
 		.init_resource::<ChargeMeter>()
+		.init_resource::<DefensiveFieldHitTracker>()
+		.insert_resource(SoundVolume::new(initial_volume))
+		.insert_resource(BloomLevel::new(bloom_level))
 		.add_event::<WeaponSwitchEvent>()
 		.add_event::<WeaponUpgradeEvent>()
 		.add_event::<PlayerHitEvent>()
@@ -124,7 +157,7 @@ fn main() {
 		// Playing state: spawn game on enter
 		.add_systems(
 			OnEnter(GameState::Playing),
-			(spawn_background, init_parallax_timers, spawn_player, load_level, spawn_info_overlay).chain()
+			(spawn_background, init_parallax_timers, spawn_player, load_level, spawn_info_overlay, spawn_player_hud).chain()
 		)
 		// Exit button and info button work in all states
 		.add_systems(Update, (exit_button_system, info_button_system))
@@ -139,13 +172,15 @@ fn main() {
 			toggle_pause,
 			toggle_info_overlay,
 			toggle_music,
+			adjust_sound_volume,
 			update_level_timer,
 			update_info_overlay,
 			toggle_info_overlay_visibility,
 		).run_if(in_state(GameState::Playing)))
+		// Charge meter must run before fire_weapons to set pending_fire_tier
+		.add_systems(Update, (update_charge_meter, fire_weapons).chain()
+			.run_if(in_state(GameState::Playing)))
 		.add_systems(Update, (
-			update_charge_meter,
-			fire_weapons,
 			move_projectiles_straight,
 			move_projectiles_sine,
 			move_angled_projectiles,
@@ -221,19 +256,43 @@ fn main() {
 			render_lightning_glitter,
 			render_defensive_field,
 		).run_if(in_state(GameState::Playing)))
+		.add_systems(Update, (
+			animate_defense_hexagons,
+			update_digital_display_text,
+			update_charge_meter_ui,
+			render_enhanced_mode_sparks,
+			render_capacitor_glow,
+		).run_if(in_state(GameState::Playing)))
 		.run();
 }
 
-fn setup(mut commands: Commands) {
-	commands.spawn((
+fn setup(mut commands: Commands, bloom_level: Res<BloomLevel>) {
+	let mut camera = commands.spawn((
 		Camera2d,
+		Camera {
+			hdr: bloom_level.is_enabled(), // Enable HDR only if bloom level > 0
+			..default()
+		},
 		Projection::Orthographic(OrthographicProjection {
 			scaling_mode: ScalingMode::FixedVertical { viewport_height: WORLD_HEIGHT },
 			..OrthographicProjection::default_2d()
 		}),
 	));
 
-	info!("Tydust initialized - world height: {} gu", WORLD_HEIGHT);
+	// Add bloom component if enabled (level > 0)
+	if bloom_level.is_enabled() {
+		camera.insert(bevy::core_pipeline::bloom::Bloom {
+			intensity: bloom_level.level,        // Scale intensity by bloom level (0.01-1.0)
+			low_frequency_boost: 0.6,            // Boost for larger glows
+			low_frequency_boost_curvature: 0.9,  // Smoothness of large glows
+			high_pass_frequency: 1.0,            // Threshold for what glows
+			composite_mode: bevy::core_pipeline::bloom::BloomCompositeMode::Additive,
+			..default()
+		});
+		info!("Tydust initialized - world height: {} gu (HDR + Bloom: {:.0}%)", WORLD_HEIGHT, bloom_level.level * 100.0);
+	} else {
+		info!("Tydust initialized - world height: {} gu (Bloom disabled)", WORLD_HEIGHT);
+	}
 }
 
 #[derive(Component)]

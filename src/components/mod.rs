@@ -872,6 +872,46 @@ pub struct EnemyDeathEvent {
 	pub enemy_type: EnemyType,
 }
 
+// === Defense HUD Components ===
+
+#[derive(Component)]
+pub struct DefenseHexagon {
+	pub layer: DefenseLayer,
+	pub base_size: f32,
+	pub pulse_phase: f32,
+	pub pulse_speed: f32,
+	pub particle_spawn_timer: Timer,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DefenseLayer {
+	Shield2,   // Cyan outermost
+	Shield1,   // Deep blue middle
+	Armor,     // Bronze innermost
+}
+
+#[derive(Component)]
+pub struct ArmorDamageState {
+	pub current_state: ArmorState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ArmorState {
+	Intact,       // 100-70% health
+	Cracked,      // 70-40% health
+	HeavyCracks,  // 40-15% health
+	Shattered,    // <15% health
+}
+
+#[derive(Component)]
+pub struct DefenseParticle {
+	pub source_layer: DefenseLayer,
+	pub velocity: Vec2,
+	pub lifetime: Timer,
+}
+
+// === Charge Meter Resource ===
+
 #[derive(Resource)]
 pub struct ChargeMeter {
 	pub current: f32,
@@ -879,16 +919,25 @@ pub struct ChargeMeter {
 	pub recharge_rate: f32,
 	pub is_charging: bool,
 	pub charge_consumed_this_frame: bool,
+	/// Charge being built up during current hold (0.4 base + 1/sec)
+	pub charge_building: f32,
+	/// When hold started (for calculating hold duration)
+	pub hold_start_time: Option<f32>,
+	/// Tier to fire with (set on Space release, cleared after firing)
+	pub pending_fire_tier: Option<f32>,
 }
 
 impl Default for ChargeMeter {
 	fn default() -> Self {
 		Self {
-			current: 2.0,
-			max: 2.0,
-			recharge_rate: 0.5,
+			current: 4.0,
+			max: 4.0,
+			recharge_rate: 1.0, // 1 charge per second
 			is_charging: false,
 			charge_consumed_this_frame: false,
+			charge_building: 0.0,
+			hold_start_time: None,
+			pending_fire_tier: None,
 		}
 	}
 }

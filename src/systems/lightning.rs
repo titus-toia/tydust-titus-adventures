@@ -1,13 +1,35 @@
 use bevy::prelude::*;
 use bevy_kira_audio::prelude::*;
 use rand::Rng;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use crate::components::{
 	Weapon, WeaponType, Enemy, Health, Player,
 	EnemyHitEvent, ChargeMeter, Collider,
 	LightningBolt, LightningImpact, LightningAoeEffect, PendingBabyWhip, LightningArc,
 	LightningGlitter, PendingSound, FadingSound,
 };
+
+/// Tracks last time each enemy was hit by defensive field (for sound throttling)
+#[derive(Resource, Default)]
+pub struct DefensiveFieldHitTracker {
+	last_hit_times: HashMap<Entity, f64>,
+}
+
+impl DefensiveFieldHitTracker {
+	pub fn should_play_sound(&mut self, enemy: Entity, current_time: f64, cooldown: f64) -> bool {
+		let last_hit = self.last_hit_times.get(&enemy).copied().unwrap_or(0.0);
+		if current_time - last_hit >= cooldown {
+			self.last_hit_times.insert(enemy, current_time);
+			true
+		} else {
+			false
+		}
+	}
+
+	pub fn cleanup(&mut self, valid_entities: &HashSet<Entity>) {
+		self.last_hit_times.retain(|entity, _| valid_entities.contains(entity));
+	}
+}
 
 const VIEWPORT_HEIGHT: f32 = 1000.0;
 const VIEWPORT_TOP: f32 = VIEWPORT_HEIGHT / 2.0; // 500.0
@@ -41,6 +63,62 @@ const GLITTER_LIFETIME_MIN: f32 = 0.25;
 const GLITTER_LIFETIME_MAX: f32 = 0.55;
 const GLITTER_SIZE_MIN: f32 = 0.4;     // Tiny spark arm length
 const GLITTER_SIZE_MAX: f32 = 1.2;
+
+/// Parameters for a charge tier at a specific level
+#[derive(Clone, Copy)]
+pub struct TierParams {
+	pub whips: u8,
+	pub max_chains: u8,
+	pub range: f32,
+	pub aoe_radius: f32,
+	pub damage_mult: f32,
+	pub damage_falloff: f32,
+	pub baby_chance: f32,
+}
+
+/// Tier parameter tables for levels 8, 9, 10
+/// Index by (level - 8, tier_index) where tier_index = (tier / 0.4) as usize
+const TIER_PARAMS: [[[TierParams; 6]; 3]; 1] = [[
+	// Level 8: tiers 0, 0.4, 0.8, 1.2, 1.6, 2.0
+	[
+		TierParams { whips: 2, max_chains: 3, range: 280.0, aoe_radius: 112.0, damage_mult: 0.75, damage_falloff: 0.10, baby_chance: 0.15 },
+		TierParams { whips: 3, max_chains: 4, range: 300.0, aoe_radius: 140.0, damage_mult: 1.0, damage_falloff: 0.05, baby_chance: 0.30 },
+		TierParams { whips: 3, max_chains: 5, range: 325.0, aoe_radius: 161.0, damage_mult: 1.15, damage_falloff: 0.035, baby_chance: 0.38 },
+		TierParams { whips: 3, max_chains: 6, range: 350.0, aoe_radius: 182.0, damage_mult: 1.375, damage_falloff: 0.02, baby_chance: 0.45 },
+		TierParams { whips: 4, max_chains: 7, range: 385.0, aoe_radius: 210.0, damage_mult: 1.55, damage_falloff: 0.01, baby_chance: 0.55 },
+		TierParams { whips: 5, max_chains: 9, range: 420.0, aoe_radius: 245.0, damage_mult: 1.8, damage_falloff: 0.0, baby_chance: 0.65 },
+	],
+	// Level 9: tiers 0, 0.4, 0.8, 1.2, 1.6, 2.0
+	[
+		TierParams { whips: 3, max_chains: 4, range: 300.0, aoe_radius: 126.0, damage_mult: 0.80, damage_falloff: 0.08, baby_chance: 0.20 },
+		TierParams { whips: 4, max_chains: 5, range: 350.0, aoe_radius: 168.0, damage_mult: 1.0, damage_falloff: 0.03, baby_chance: 0.40 },
+		TierParams { whips: 4, max_chains: 6, range: 400.0, aoe_radius: 196.0, damage_mult: 1.25, damage_falloff: 0.015, baby_chance: 0.50 },
+		TierParams { whips: 5, max_chains: 8, range: 450.0, aoe_radius: 224.0, damage_mult: 1.556, damage_falloff: 0.0, baby_chance: 0.60 },
+		TierParams { whips: 5, max_chains: 10, range: 500.0, aoe_radius: 260.0, damage_mult: 1.75, damage_falloff: 0.0, baby_chance: 0.70 },
+		TierParams { whips: 6, max_chains: 12, range: 560.0, aoe_radius: 300.0, damage_mult: 2.0, damage_falloff: 0.0, baby_chance: 0.80 },
+	],
+	// Level 10: tiers 0, 0.4, 0.8, 1.2, 1.6, 2.0
+	[
+		TierParams { whips: 3, max_chains: 4, range: 300.0, aoe_radius: 140.0, damage_mult: 0.85, damage_falloff: 0.05, baby_chance: 0.30 },
+		TierParams { whips: 5, max_chains: 6, range: 400.0, aoe_radius: 196.0, damage_mult: 1.0, damage_falloff: 0.01, baby_chance: 0.50 },
+		TierParams { whips: 5, max_chains: 8, range: 475.0, aoe_radius: 252.0, damage_mult: 1.35, damage_falloff: 0.005, baby_chance: 0.60 },
+		TierParams { whips: 6, max_chains: 12, range: 550.0, aoe_radius: 308.0, damage_mult: 1.8, damage_falloff: 0.0, baby_chance: 0.70 },
+		TierParams { whips: 7, max_chains: 14, range: 600.0, aoe_radius: 360.0, damage_mult: 2.1, damage_falloff: 0.0, baby_chance: 0.80 },
+		TierParams { whips: 8, max_chains: 18, range: 680.0, aoe_radius: 420.0, damage_mult: 2.5, damage_falloff: 0.0, baby_chance: 0.90 },
+	],
+]];
+
+/// Get parameters for a given level and charge tier
+/// For levels < 8, returns level 8 tier 0.4 params (basic shot)
+fn get_tier_params(level: u8, charge_tier: f32) -> TierParams {
+	// Clamp level to 8-10 range
+	let level_idx = ((level.max(8).min(10) - 8) as usize).min(2);
+
+	// Convert tier to index: 0=0, 0.4=1, 0.8=2, 1.2=3, 1.6=4, 2.0=5
+	let tier_idx = ((charge_tier / 0.4).round() as usize).min(5);
+
+	TIER_PARAMS[0][level_idx][tier_idx]
+}
 
 struct RaycastResult {
 	hit_enemy: Option<Entity>,
@@ -178,15 +256,35 @@ fn perform_hitscan_ray(
 	}
 }
 
-fn calculate_whip_directions(level: u8, is_charged: bool) -> Vec<f32> {
+fn calculate_whip_directions(level: u8, charge_tier: f32) -> Vec<f32> {
 	// Returns angle offsets in radians
-	match (level, is_charged) {
-		(1..=3, _) => vec![0.0],
-		(4..=6, _) => vec![-0.087, 0.087], // ±5°
-		(7..=8, _) => vec![-0.174, 0.0, 0.174], // -10°, 0°, +10°
-		(9, false) => vec![-0.174, -0.087, 0.087, 0.174],
-		(9, true) | (10, false) => vec![-0.174, -0.087, 0.0, 0.087, 0.174],
-		(10, true) => vec![-0.262, -0.174, -0.087, 0.0, 0.087, 0.174, 0.262], // ±15°
+	// For levels 8+, use tier params
+	if level >= 8 {
+		let params = get_tier_params(level, charge_tier);
+		let num_whips = params.whips as usize;
+		generate_whip_angles(num_whips)
+	} else {
+		// Levels 1-7: old hardcoded behavior
+		match level {
+			1..=3 => vec![0.0],
+			4..=6 => vec![-0.087, 0.087], // ±5°
+			7 => vec![-0.174, 0.0, 0.174], // -10°, 0°, +10°
+			_ => vec![0.0],
+		}
+	}
+}
+
+/// Generate evenly-spaced whip angles for a given count
+fn generate_whip_angles(num_whips: usize) -> Vec<f32> {
+	match num_whips {
+		1 => vec![0.0],
+		2 => vec![-0.087, 0.087],           // ±5°
+		3 => vec![-0.174, 0.0, 0.174],      // -10°, 0°, +10°
+		4 => vec![-0.174, -0.058, 0.058, 0.174],
+		5 => vec![-0.209, -0.105, 0.0, 0.105, 0.209], // ±12°, ±6°
+		6 => vec![-0.227, -0.136, -0.045, 0.045, 0.136, 0.227], // ±13°, ±7.8°, ±2.6°
+		7 => vec![-0.262, -0.174, -0.087, 0.0, 0.087, 0.174, 0.262], // ±15°
+		8 => vec![-0.279, -0.199, -0.120, -0.040, 0.040, 0.120, 0.199, 0.279], // ±16°
 		_ => vec![0.0],
 	}
 }
@@ -407,6 +505,7 @@ fn execute_chain_sequence(
 	recursion_depth: u8,
 	audio: &Audio,
 	asset_server: &AssetServer,
+	sound_volume: &crate::systems::level::SoundVolume,
 ) {
 	let mut current_pos = start_pos;
 
@@ -432,7 +531,7 @@ fn execute_chain_sequence(
 
 			// Chain arc sound (lighter than main impact)
 			audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-				.with_volume(0.15);
+				.with_volume(sound_volume.apply(0.15));
 
 			// Apply damage
 			let chain_damage = damage * (1.0 - damage_falloff * chain_index as f32);
@@ -485,72 +584,53 @@ pub fn fire_lightning_weapon(
 	spawn_pos: Vec3,
 	weapon: &Weapon,
 	damage: f32,
-	charge_meter: &mut ChargeMeter,
+	charge_tier: f32, // 0.0, 0.4, 0.8, 1.2, 1.6, or 2.0
 	enemies: &Query<(Entity, &Transform, &Health, &Collider), With<Enemy>>,
 	hit_events: &mut EventWriter<EnemyHitEvent>,
+	sound_volume: &crate::systems::level::SoundVolume,
 ) {
 	let level = weapon.level;
 
-	// Check charge state (levels 8-10 only)
-	let is_charged = level >= 8 && charge_meter.current >= 1.0;
-
-	// Consume charge
-	if level >= 8 {
-		if is_charged {
-			charge_meter.current = 0.0;
-			charge_meter.charge_consumed_this_frame = true;
-		} else if charge_meter.current >= 0.3 {
-			charge_meter.current -= 0.3;
-			charge_meter.charge_consumed_this_frame = true;
-		} else {
-			return; // Not enough charge
-		}
-	}
-
-	// Level-based config - AoE radius increased by 40%
-	let (max_chains, chain_range, aoe_radius, damage_mult, damage_falloff) = match (level, is_charged) {
-		(1, _) => (0, 0.0, 56.0, 1.0, 0.0),      // was 40
-		(2, _) => (1, 150.0, 70.0, 1.0, 0.2),    // was 50
-		(3, _) => (2, 180.0, 84.0, 1.0, 0.2),    // was 60
-		(4, _) => (2, 200.0, 98.0, 1.0, 0.15),   // was 70
-		(5, _) => (3, 250.0, 112.0, 1.0, 0.10),  // was 80
-		(6, _) => (4, 280.0, 126.0, 1.0, 0.08),  // was 90
-		(7, _) => (4, 300.0, 140.0, 1.0, 0.05),  // was 100
-		(8, false) => (4, 300.0, 140.0, 1.0, 0.05),   // was 100
-		(8, true) => (6, 350.0, 182.0, 1.375, 0.02),  // was 130
-		(9, false) => (5, 350.0, 168.0, 1.0, 0.03),   // was 120
-		(9, true) => (8, 450.0, 224.0, 1.556, 0.0),   // was 160
-		(10, false) => (6, 400.0, 196.0, 1.0, 0.01),  // was 140
-		(10, true) => (12, 550.0, 308.0, 1.8, 0.0),  // was 220
-		_ => (6, 400.0, 196.0, 1.0, 0.01),           // was 140
-	};
-
-	// Baby whip spawn chance
-	let baby_spawn_chance = match (level, is_charged) {
-		(0..=4, _) => 0.0,
-		(5, _) => 0.15,
-		(6, _) => 0.25,
-		(7, _) => 0.30,
-		(8, false) => 0.30,
-		(8, true) => 0.45,
-		(9, false) => 0.40,
-		(9, true) => 0.60,
-		(10, false) => 0.50,
-		(10, true) => 0.70,
-		_ => 0.0,
+	// Get parameters based on level and tier
+	let (max_chains, chain_range, aoe_radius, damage_mult, damage_falloff, baby_spawn_chance): (u8, f32, f32, f32, f32, f32) = if level >= 8 {
+		let params = get_tier_params(level, charge_tier);
+		(
+			params.max_chains,
+			params.range,
+			params.aoe_radius,
+			params.damage_mult,
+			params.damage_falloff,
+			params.baby_chance,
+		)
+	} else {
+		// Levels 1-7: old hardcoded behavior
+		let (mc, cr, ar, dm, df): (u8, f32, f32, f32, f32) = match level {
+			1 => (0, 0.0, 56.0, 1.0, 0.0),
+			2 => (1, 150.0, 70.0, 1.0, 0.2),
+			3 => (2, 180.0, 84.0, 1.0, 0.2),
+			4 => (2, 200.0, 98.0, 1.0, 0.15),
+			5 => (3, 250.0, 112.0, 1.0, 0.10),
+			6 => (4, 280.0, 126.0, 1.0, 0.08),
+			7 => (4, 300.0, 140.0, 1.0, 0.05),
+			_ => (4, 300.0, 140.0, 1.0, 0.05),
+		};
+		let baby: f32 = match level {
+			0..=4 => 0.0,
+			5 => 0.15,
+			6 => 0.25,
+			7 => 0.30,
+			_ => 0.0,
+		};
+		(mc, cr, ar, dm, df, baby)
 	};
 
 	let actual_damage = damage * damage_mult;
 
-	// Visual feedback for charged shots
-	let bolt_color = if is_charged {
-		Color::srgb(0.8, 1.0, 1.0) // Brighter cyan
-	} else {
-		Color::srgb(0.7, 0.9, 1.0)
-	};
+	// Visual feedback for higher tiers
+	let bolt_intensity = if charge_tier >= 1.2 { 1.0 } else { 0.9 };
 
-	// Calculate whip directions
-	let whip_angles = calculate_whip_directions(level, is_charged);
+	// Calculate whip directions (uses tier-based count for levels 8+)
+	let whip_angles = calculate_whip_directions(level, charge_tier);
 	let num_whips = whip_angles.len();
 	let base_direction = Vec2::Y; // Fire upward
 
@@ -571,7 +651,7 @@ pub fn fire_lightning_weapon(
 			lifetime: Timer::from_seconds(0.15, TimerMode::Once),
 			thickness_start: 2.0,
 			thickness_end: 4.0,
-			intensity: if is_charged { 1.0 } else { 0.9 },
+			intensity: bolt_intensity,
 			is_baby: false,
 			recursion_depth: 0,
 		});
@@ -629,6 +709,7 @@ pub fn fire_lightning_weapon(
 				0, // recursion_depth
 				audio,
 				asset_server,
+				sound_volume,
 			);
 
 			// Main finale discharge at bolt's visual end
@@ -661,7 +742,8 @@ pub fn fire_lightning_weapon(
 	}
 
 	// Audio - main fire sounds (one per whip, staggered by 15ms)
-	let fire_sound = if is_charged {
+	// Higher tier = charged sound
+	let fire_sound = if charge_tier >= 1.2 {
 		"sounds/lightning/lightning_charged.ogg"
 	} else {
 		"sounds/lightning/lightning_standard.ogg"
@@ -689,8 +771,13 @@ pub fn fire_lightning_weapon(
 	});
 	// Crackle: removed for now (may use on discharge later)
 
-	info!("Lightning hitscan fired: level={}, charged={}, whips={}, max_chains={}",
-		level, is_charged, num_whips, max_chains);
+	info!("Lightning hitscan fired: level={}, tier={:.1}, whips={}, max_chains={}",
+		level, charge_tier, num_whips, max_chains);
+}
+
+/// Quantize charge to nearest tier: 0, 0.4, 0.8, 1.2, 1.6, 2.0
+fn quantize_charge_tier(charge: f32) -> f32 {
+	((charge / 0.4).round() * 0.4).clamp(0.0, 2.0)
 }
 
 pub fn update_charge_meter(
@@ -701,23 +788,57 @@ pub fn update_charge_meter(
 ) {
 	let Ok(weapon) = weapon_query.get_single() else { return };
 
+	// Reset frame flags
 	charge_meter.charge_consumed_this_frame = false;
+	charge_meter.pending_fire_tier = None;
 
 	// Only active for LightningChain at level 8+
 	if weapon.weapon_type != WeaponType::LightningChain || weapon.level < 8 {
 		charge_meter.current = charge_meter.max;
 		charge_meter.is_charging = false;
+		charge_meter.charge_building = 0.0;
 		return;
 	}
 
-	let fire_held = keyboard.pressed(KeyCode::Space);
+	let dt = time.delta_secs();
+	let just_pressed = keyboard.just_pressed(KeyCode::Space);
+	let pressed = keyboard.pressed(KeyCode::Space);
+	let just_released = keyboard.just_released(KeyCode::Space);
 
-	if fire_held && charge_meter.current > 0.0 {
+	// Start building charge on press
+	if just_pressed {
 		charge_meter.is_charging = true;
-		charge_meter.current = (charge_meter.current - 0.2 * time.delta_secs()).max(0.0);
-	} else {
+		charge_meter.charge_building = 0.4; // Base charge for tap
+	}
+
+	// Continue building while held (1.0 charge/sec, max 2.0 per shot)
+	if pressed && charge_meter.is_charging {
+		charge_meter.charge_building = (charge_meter.charge_building + dt).min(2.0);
+	}
+
+	// Fire on release
+	if just_released && charge_meter.is_charging {
+		// Can only fire with charge we actually have
+		let affordable = charge_meter.charge_building.min(charge_meter.current);
+		let tier = quantize_charge_tier(affordable);
+
+		// Consume charge (if tier is 0, we still "fire" but consume nothing)
+		if tier > 0.0 {
+			charge_meter.current = (charge_meter.current - tier).max(0.0);
+			charge_meter.charge_consumed_this_frame = true;
+		}
+
+		// Signal to fire with this tier (tier 0 = empty shot)
+		charge_meter.pending_fire_tier = Some(tier);
+
+		// Reset building state
 		charge_meter.is_charging = false;
-		charge_meter.current = (charge_meter.current + charge_meter.recharge_rate * time.delta_secs())
+		charge_meter.charge_building = 0.0;
+	}
+
+	// Passive recharge when not charging (1.0/sec)
+	if !charge_meter.is_charging {
+		charge_meter.current = (charge_meter.current + charge_meter.recharge_rate * dt)
 			.min(charge_meter.max);
 	}
 }
@@ -1058,6 +1179,7 @@ pub fn spawn_pending_baby_whips(
 	mut hit_events: EventWriter<EnemyHitEvent>,
 	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
+	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
 	for (entity, mut pending_whip) in pending.iter_mut() {
 		pending_whip.delay_timer.tick(time.delta());
@@ -1087,7 +1209,7 @@ pub fn spawn_pending_baby_whips(
 
 			// Baby whip fire sound (sparkly glitter effect)
 			audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
-				.with_volume(0.2);
+				.with_volume(sound_volume.apply(0.2));
 
 			// Baby whip AoE is 60% of parent size
 			let baby_aoe_radius = pending_whip.parent_aoe_radius * 0.6;
@@ -1098,7 +1220,7 @@ pub fn spawn_pending_baby_whips(
 
 				// Baby whip impact (quieter than main impact)
 				audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-					.with_volume(0.15);
+					.with_volume(sound_volume.apply(0.15));
 
 				hit_events.send(EnemyHitEvent {
 					enemy: hit_entity,
@@ -1140,6 +1262,7 @@ pub fn spawn_pending_baby_whips(
 					pending_whip.recursion_depth,
 					&audio,
 					&asset_server,
+					&sound_volume,
 				);
 
 				// Baby discharge at bolt visual end (15% damage)
@@ -1292,6 +1415,7 @@ pub fn process_pending_sounds(
 	audio: Res<Audio>,
 	asset_server: Res<AssetServer>,
 	mut audio_instances: ResMut<Assets<AudioInstance>>,
+	sound_volume: Res<crate::systems::level::SoundVolume>,
 ) {
 	for (entity, mut sound) in pending.iter_mut() {
 		sound.delay.tick(time.delta());
@@ -1299,7 +1423,7 @@ pub fn process_pending_sounds(
 		if sound.delay.finished() {
 			// Play the sound and get the instance handle
 			let handle = audio.play(asset_server.load(sound.sound_path))
-				.with_volume(sound.volume as f64)
+				.with_volume(sound_volume.apply(sound.volume))
 				.handle();
 
 			// If fade is configured, spawn a FadingSound to handle it
@@ -1431,6 +1555,7 @@ pub fn update_defensive_field_damage(
 	player_query: Query<(&Transform, &Weapon), With<Player>>,
 	enemies: Query<(Entity, &Transform, &Collider), With<Enemy>>,
 	mut hit_events: EventWriter<EnemyHitEvent>,
+	mut hit_tracker: ResMut<DefensiveFieldHitTracker>,
 ) {
 	let Ok((transform, weapon)) = player_query.get_single() else { return };
 
@@ -1441,22 +1566,28 @@ pub fn update_defensive_field_damage(
 
 	let player_pos = transform.translation.truncate();
 	let dt = time.delta_secs();
+	let current_time = time.elapsed_secs_f64();
 
 	// Get level-based parameters (level 8 = index 0, level 9 = index 1, level 10 = index 2)
 	let level_idx = ((weapon.level - 8) as usize).min(2);
 	let (field_radius, base_dps, _) = FIELD_PARAMS[level_idx];
 
 	// Field strength: inversely proportional to charge (empty = 1.0, full = 0.25)
-	let charge_ratio = charge_meter.current / charge_meter.max;
+	// Cap at 2.0 for calculation - having 4.0 stock shouldn't weaken field beyond 2.0 level
+	let charge_ratio = charge_meter.current.min(2.0) / 2.0;
 	let field_strength = 1.0 - (charge_ratio * 0.75);
 
 	// Actual damage per second scales with field strength
 	let actual_dps = base_dps * field_strength;
 	let damage_this_frame = actual_dps * dt;
 
+	// Track valid enemies for cleanup
+	let mut valid_enemies = HashSet::new();
+
 	// Check enemies in range
 	let hull_radius = 35.0;
 	for (entity, enemy_transform, collider) in enemies.iter() {
+		valid_enemies.insert(entity);
 		let enemy_pos = enemy_transform.translation.truncate();
 		let dist = player_pos.distance(enemy_pos);
 
@@ -1466,13 +1597,23 @@ pub fn update_defensive_field_damage(
 			let normalized_dist = (dist - hull_radius) / (field_radius - hull_radius);
 			let falloff = 1.0 - normalized_dist.clamp(0.0, 1.0) * 0.5; // 100% at hull, 50% at edge
 
+			// Check if enough time has passed to play sound again (0.15 second cooldown per enemy)
+			let hit_sound = if hit_tracker.should_play_sound(entity, current_time, 0.15) {
+				Some("sounds/enemy_hit.ogg")
+			} else {
+				None
+			};
+
 			hit_events.send(EnemyHitEvent {
 				enemy: entity,
 				damage: damage_this_frame * falloff,
-				hit_sound: Some("sounds/lightning/electric_zap.ogg"),
+				hit_sound,
 			});
 		}
 	}
+
+	// Cleanup dead enemies from tracker
+	hit_tracker.cleanup(&valid_enemies);
 }
 
 /// Render defensive electric field around player - stronger when charge is depleted
@@ -1499,7 +1640,8 @@ pub fn render_defensive_field(
 	let (globe_radius, _, visual_intensity) = FIELD_PARAMS[level_idx];
 
 	// Field strength: inversely proportional to charge (empty = 1.0, full = 0.25)
-	let charge_ratio = charge_meter.current / charge_meter.max;
+	// Cap at 2.0 for calculation - having 4.0 stock shouldn't weaken field beyond 2.0 level
+	let charge_ratio = charge_meter.current.min(2.0) / 2.0;
 	let field_strength = (1.0 - (charge_ratio * 0.75)) * visual_intensity;
 
 	let hull_radius = 35.0;
