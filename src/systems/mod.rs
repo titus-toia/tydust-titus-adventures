@@ -14,3 +14,4 @@ pub mod menu;
 pub mod collision;
 pub mod info_overlay;
 pub mod player_hud;
+pub mod effects;

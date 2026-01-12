@@ -8,6 +8,9 @@ mod components;
 mod systems;
 mod level;
 mod resources;
+mod materials;
+
+use materials::MaterialsPlugin;
 
 use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
@@ -26,6 +29,7 @@ use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
 use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow};
+use systems::effects::{update_shader_effects, cleanup_dissolved_entities};
 use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
@@ -123,6 +127,7 @@ fn main() {
 			..default()
 		}))
 		.add_plugins(AudioPlugin)
+		.add_plugins(MaterialsPlugin)
 		.add_plugins(FrameTimeDiagnosticsPlugin)
 		.insert_state(initial_state)
 		.insert_resource(SelectedShip { ship_type: initial_ship })
@@ -262,6 +267,8 @@ fn main() {
 			update_charge_meter_ui,
 			render_enhanced_mode_sparks,
 			render_capacitor_glow,
+			update_shader_effects,
+			cleanup_dissolved_entities,
 		).run_if(in_state(GameState::Playing)))
 		.run();
 }

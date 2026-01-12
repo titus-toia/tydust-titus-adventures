@@ -941,3 +941,34 @@ impl Default for ChargeMeter {
 		}
 	}
 }
+
+// === Shader Effects Component ===
+
+#[derive(Component)]
+pub struct ShaderEffects {
+	pub glow_intensity: f32,
+	pub glow_color: [f32; 4],
+	pub pulse_speed: f32,
+	pub pulse_amount: f32,
+	pub flash_amount: f32,
+	pub flash_decay_speed: f32,
+	pub dissolve_amount: f32,
+	pub dissolve_speed: f32,
+	pub is_dissolving: bool,
+}
+
+impl Default for ShaderEffects {
+	fn default() -> Self {
+		Self {
+			glow_intensity: 0.0,
+			glow_color: [1.0, 1.0, 1.0, 1.0],
+			pulse_speed: 0.0,
+			pulse_amount: 0.0,
+			flash_amount: 0.0,
+			flash_decay_speed: 3.0,
+			dissolve_amount: 0.0,
+			dissolve_speed: 0.0,
+			is_dissolving: false,
+		}
+	}
+}
