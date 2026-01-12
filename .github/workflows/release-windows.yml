@@ -1,0 +1,80 @@
+name: Release Windows Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Package distribution
+        shell: bash
+        run: |
+          mkdir -p dist/tydust-windows
+          cp target/release/tydust.exe dist/tydust-windows/
+          cp -r assets dist/tydust-windows/
+
+          # Copy music files if they exist
+          cp level-1-music-full.wav dist/tydust-windows/assets/ 2>/dev/null || true
+          cp phase*.wav dist/tydust-windows/assets/ 2>/dev/null || true
+
+          # Create README
+          cat > dist/tydust-windows/README.txt << 'EOF'
+          TYDUST - Vertical Shooter
+          =========================
+
+          How to Run:
+          -----------
+          Double-click tydust.exe
+
+          Controls:
+          ---------
+          Arrow Keys - Move ship
+          Space - Fire primary weapon
+          Click X (top-right) - Exit game
+
+          Requirements:
+          -------------
+          Windows 10/11
+          DirectX compatible graphics
+          EOF
+
+      - name: Create zip
+        shell: bash
+        run: |
+          cd dist
+          7z a -tzip tydust-windows-${{ github.ref_name }}.zip tydust-windows/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/tydust-windows-${{ github.ref_name }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

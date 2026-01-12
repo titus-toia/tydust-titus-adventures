@@ -529,9 +529,11 @@ fn execute_chain_sequence(
 				intensity: 0.9 - (chain_index as f32 * 0.1),
 			});
 
-			// Chain arc sound (lighter than main impact)
-			audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-				.with_volume(sound_volume.apply(0.15));
+			// Chain arc sound (lighter than main impact) - only play 50% of the time to avoid audio saturation
+			if rand::thread_rng().gen_bool(0.5) {
+				audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
+					.with_volume(sound_volume.apply(0.15));
+			}
 
 			// Apply damage
 			let chain_damage = damage * (1.0 - damage_falloff * chain_index as f32);
@@ -1207,9 +1209,11 @@ pub fn spawn_pending_baby_whips(
 				recursion_depth: pending_whip.recursion_depth,
 			});
 
-			// Baby whip fire sound (sparkly glitter effect)
-			audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
-				.with_volume(sound_volume.apply(0.2));
+			// Baby whip fire sound (sparkly glitter effect) - only play 30% of the time to avoid audio saturation
+			if rand::thread_rng().gen_bool(0.3) {
+				audio.play(asset_server.load("sounds/lightning/fireworks_glitter.ogg"))
+					.with_volume(sound_volume.apply(0.2));
+			}
 
 			// Baby whip AoE is 60% of parent size
 			let baby_aoe_radius = pending_whip.parent_aoe_radius * 0.6;
@@ -1218,9 +1222,11 @@ pub fn spawn_pending_baby_whips(
 			if let Some(hit_entity) = ray_result.hit_enemy {
 				spawn_impact_buzz(&mut commands, ray_result.hit_position);
 
-				// Baby whip impact (quieter than main impact)
-				audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
-					.with_volume(sound_volume.apply(0.15));
+				// Baby whip impact (quieter than main impact) - only play 30% of the time to avoid audio saturation
+				if rand::thread_rng().gen_bool(0.3) {
+					audio.play(asset_server.load("sounds/lightning/lightning_wave_light.ogg"))
+						.with_volume(sound_volume.apply(0.15));
+				}
 
 				hit_events.send(EnemyHitEvent {
 					enemy: hit_entity,
