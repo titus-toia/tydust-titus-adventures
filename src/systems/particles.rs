@@ -83,6 +83,8 @@ pub fn spawn_explosion_particles(
 	mut death_events: EventReader<EnemyDeathEvent>,
 	asset_server: Res<AssetServer>,
 ) {
+	// NOTE: legacy system (kept temporarily). Death presentation is now owned by `process_enemy_death_fx`.
+	// This function is no longer scheduled from main.
 	let mut rng = rand::thread_rng();
 
 	for event in death_events.read() {

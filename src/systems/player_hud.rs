@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::camera::CameraProjection;
 use crate::components::{Player, PlayerDefenses, DefenseHexagon, DefenseLayer, ArmorDamageState, ArmorState, ChargeMeter, WeaponType, Weapon};
 use crate::resources::SelectedWeapon;
 
@@ -17,6 +16,10 @@ pub struct Shield1Text;
 
 #[derive(Component)]
 pub struct ArmorText;
+
+/// Marker for entities that need viewport-relative positioning
+#[derive(Component)]
+pub struct HudNeedsRepositioning;
 
 /// Marker for the charge meter rail sprite
 #[derive(Component)]
@@ -69,6 +72,52 @@ const LIGHTBULB_SCALE: f32 = 0.067;  // 10% larger
 const OFFLINE_ICON_SCALE: f32 = 0.123;  // 40% larger
 const OFFLINE_ICON_X: f32 = -80.0;  // 5px right
 
+/// Reposition HUD elements once camera is available
+pub fn reposition_hud_on_camera_ready(
+	mut commands: Commands,
+	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
+	windows: Query<&Window>,
+	mut hud_query: Query<(Entity, &mut Transform), With<HudNeedsRepositioning>>,
+) {
+	// Check if camera is available
+	let Ok((camera, projection)) = camera_query.get_single() else { return };
+	let Ok(window) = windows.get_single() else { return };
+
+	let viewport_size = camera.logical_viewport_size()
+		.unwrap_or(Vec2::new(window.width(), window.height()));
+
+	let Projection::Orthographic(ortho) = projection else { return };
+
+	let left_edge = ortho.area.min.x;
+	let bottom_edge = ortho.area.min.y;
+
+	// Calculate proper center
+	let mesh_width = 1024.0 * 0.4;
+	let mesh_half_width = mesh_width / 2.0;
+	let desired_padding_from_edge = 20.0;
+
+	let new_center_x = left_edge + mesh_half_width + desired_padding_from_edge;
+	let new_center_y = bottom_edge + 160.0;
+
+	// Old fallback center
+	let old_center_x = -810.0;
+	let old_center_y = -340.0;
+
+	// Calculate delta
+	let delta_x = new_center_x - old_center_x;
+	let delta_y = new_center_y - old_center_y;
+
+	info!("Repositioning HUD: old_center=({}, {}), new_center=({}, {}), delta=({}, {})",
+		old_center_x, old_center_y, new_center_x, new_center_y, delta_x, delta_y);
+
+	// Apply delta to all HUD entities and remove marker
+	for (entity, mut transform) in hud_query.iter_mut() {
+		transform.translation.x += delta_x;
+		transform.translation.y += delta_y;
+		commands.entity(entity).remove::<HudNeedsRepositioning>();
+	}
+}
+
 /// Spawn the player HUD container with defense display
 pub fn spawn_player_hud(
 	mut commands: Commands,
@@ -76,34 +125,40 @@ pub fn spawn_player_hud(
 	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
 	windows: Query<&Window>,
 ) {
-	// Calculate actual viewport left edge based on camera projection
-	let (camera, projection) = camera_query.single();
-	let window = windows.single();
+	// Try to get camera for dynamic positioning, fall back to hardcoded if not available yet
+	let center = if let Ok((camera, projection)) = camera_query.get_single() {
+		if let Ok(window) = windows.get_single() {
+			let viewport_size = camera.logical_viewport_size()
+				.unwrap_or(Vec2::new(window.width(), window.height()));
 
-	// Get viewport area from camera
-	let viewport_size = camera.logical_viewport_size().unwrap_or(Vec2::new(window.width(), window.height()));
+			if let Projection::Orthographic(ortho) = projection {
+				let left_edge = ortho.area.min.x;
+				let bottom_edge = ortho.area.min.y;
 
-	// For orthographic projection with FixedVertical
-	let Projection::Orthographic(ortho) = projection else {
-		return; // Fallback if not orthographic
+				// HUD mesh is 1024*0.4 = 409.6 wide, centered on this point
+				// So we need: left_edge + mesh_half_width + desired_padding
+				let mesh_width = 1024.0 * 0.4;
+				let mesh_half_width = mesh_width / 2.0;
+				let desired_padding_from_edge = 20.0;
+
+				let hud_center_x = left_edge + mesh_half_width + desired_padding_from_edge;
+				let hud_center_y = bottom_edge + 160.0;
+
+				info!("HUD positioning: left_edge={}, mesh_width={}, center_x={}", left_edge, mesh_width, hud_center_x);
+
+				Vec2::new(hud_center_x, hud_center_y)
+			} else {
+				info!("HUD: Camera not orthographic, using fallback");
+				Vec2::new(-810.0, -340.0)
+			}
+		} else {
+			info!("HUD: No window found, using fallback");
+			Vec2::new(-810.0, -340.0)
+		}
+	} else {
+		info!("HUD: No camera found, using fallback");
+		Vec2::new(-810.0, -340.0)
 	};
-
-	// Calculate actual world bounds
-	let aspect_ratio = viewport_size.x / viewport_size.y;
-	let viewport_height = ortho.area.height();
-	let viewport_width = viewport_height * aspect_ratio;
-
-	let left_edge = ortho.area.min.x;
-	let bottom_edge = ortho.area.min.y;
-
-	// Position HUD 78px from the left edge, 160px from bottom
-	let padding_from_left = 78.0;
-	let padding_from_bottom = 160.0;
-
-	let center = Vec2::new(
-		left_edge + padding_from_left,
-		bottom_edge + padding_from_bottom
-	);
 
 	// Spawn mesh panel background (bottom layer)
 	commands.spawn((
@@ -114,6 +169,8 @@ pub fn spawn_player_hud(
 		},
 		Transform::from_xyz(center.x + 50.0, center.y + 50.0, 10.0) // Offset 50px right, 50px up
 			.with_scale(Vec3::splat(0.4)), // Mesh scale (already vertical in file)
+		HudNeedsRepositioning,
+		PlayerHudContainer,
 	));
 
 	// Spawn digital display panel (mounted on mesh, encompasses hexagons + text)
@@ -125,6 +182,7 @@ pub fn spawn_player_hud(
 		},
 		Transform::from_xyz(center.x + 9.0, center.y, 10.05) // Position at -815
 			.with_scale(Vec3::splat(0.25)), // Same size as previous panel
+		HudNeedsRepositioning,
 	));
 
 	// Load Orbitron font for HUD
@@ -140,6 +198,7 @@ pub fn spawn_player_hud(
 		},
 		TextColor(Color::srgb(0.4, 1.0, 0.5)), // Light green to match display
 		Transform::from_xyz(center.x + 9.0, center.y + 80.0, 10.2),
+		HudNeedsRepositioning,
 	));
 
 	// Spawn Shield2 text (cyan) - top of display

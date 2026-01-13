@@ -24,13 +24,14 @@ use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_wea
 use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handle_player_hit, debug_weapon_controls};
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
 use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent, ShipType, WeaponType, ChargeMeter};
-use systems::particles::{spawn_engine_particles, update_particles, spawn_explosion_particles, spawn_player_hit_particles, spawn_enemy_hit_particles};
+use systems::particles::{spawn_engine_particles, update_particles, spawn_player_hit_particles, spawn_enemy_hit_particles};
 use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, update_shield1_regen, play_enemy_hit_sound, play_enemy_death_sound};
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
 use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow};
 use systems::effects::{apply_shader_hit_flash, update_shader_effects, cleanup_dissolved_entities};
+use systems::death_fx::process_enemy_death_fx;
 use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use materials::noise::{generate_noise_texture, EffectsNoiseTexture};
@@ -250,7 +251,7 @@ fn main() {
 			play_enemy_hit_sound,
 			spawn_enemy_hit_particles,
 			play_enemy_death_sound,
-			spawn_explosion_particles,
+			process_enemy_death_fx,
 			check_player_enemy_collisions,
 			check_enemy_projectile_player_collisions,
 			spawn_player_hit_particles,

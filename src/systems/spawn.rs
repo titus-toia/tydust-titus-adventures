@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
 use bevy::sprite::MeshMaterial2d;
 
-use crate::components::{DamageFxPolicy, Enemy, EnemyBehavior, EnemyMovement, EnemyType, Health, Collider, ShaderEffects};
+use crate::components::{DeathFx, Enemy, EnemyBehavior, EnemyMovement, EnemyType, FxPolicy, Health, HitFx, IdleFx, Collider, ShaderEffects};
 use crate::materials::EffectsMaterial;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,10 +20,18 @@ fn default_render_mode_for(enemy_type: EnemyType) -> EnemyRenderMode {
 	}
 }
 
-fn default_fx_policy_for(render_mode: EnemyRenderMode) -> DamageFxPolicy {
-	match render_mode {
-		EnemyRenderMode::Sprite => DamageFxPolicy::SpriteShimmer,
-		EnemyRenderMode::EffectsMaterial => DamageFxPolicy::ShaderFlashDissolve,
+fn default_fx_policy_for(enemy_type: EnemyType, render_mode: EnemyRenderMode) -> FxPolicy {
+	match (enemy_type, render_mode) {
+		(EnemyType::SmallAsteroid | EnemyType::MediumAsteroid | EnemyType::LargeAsteroid, EnemyRenderMode::EffectsMaterial) => {
+			FxPolicy::new(IdleFx::None, HitFx::ShaderFlash, DeathFx::AsteroidDissolveAndDebris)
+		}
+		(_, EnemyRenderMode::Sprite) => {
+			FxPolicy::new(IdleFx::SpriteShimmer, HitFx::None, DeathFx::SpriteExplosion)
+		}
+		// Fallback: shader-rendered non-asteroid (not expected yet)
+		(_, EnemyRenderMode::EffectsMaterial) => {
+			FxPolicy::new(IdleFx::None, HitFx::ShaderFlash, DeathFx::SpriteExplosion)
+		}
 	}
 }
 
@@ -40,7 +48,7 @@ pub fn spawn_enemy_with_behavior(
 	behavior: EnemyBehavior,
 ) -> Entity {
 	let render_mode = default_render_mode_for(enemy_type);
-	let fx_policy = default_fx_policy_for(render_mode);
+	let fx_policy = default_fx_policy_for(enemy_type, render_mode);
 
 	match render_mode {
 		EnemyRenderMode::Sprite => {
@@ -95,7 +103,7 @@ pub fn spawn_enemy_with_movement(
 	movement: EnemyMovement,
 ) -> Entity {
 	let render_mode = default_render_mode_for(enemy_type);
-	let fx_policy = default_fx_policy_for(render_mode);
+	let fx_policy = default_fx_policy_for(enemy_type, render_mode);
 
 	match render_mode {
 		EnemyRenderMode::Sprite => {

@@ -5,7 +5,7 @@ use super::level::CurrentLevel;
 use std::f32::consts::{PI, FRAC_PI_2};
 
 pub fn update_enemy_movement(
-	mut query: Query<(&mut Transform, &mut EnemyMovement)>,
+	mut query: Query<(&mut Transform, &mut EnemyMovement), Without<crate::components::Dying>>,
 	time: Res<Time>,
 	level: Option<Res<CurrentLevel>>,
 ) {
@@ -44,7 +44,7 @@ pub fn update_enemy_movement(
 
 pub fn cleanup_enemies(
 	mut commands: Commands,
-	query: Query<(Entity, &Transform, &Enemy), With<Enemy>>,
+	query: Query<(Entity, &Transform, &Enemy), (With<Enemy>, Without<crate::components::Dying>)>,
 ) {
 	let despawn_y = -(HALF_WORLD_HEIGHT + 200.0);
 	for (entity, transform, enemy) in query.iter() {
@@ -58,7 +58,7 @@ pub fn cleanup_enemies(
 // === New Behavior System ===
 
 pub fn execute_enemy_behaviors(
-	mut query: Query<(&mut Transform, &mut EnemyBehavior, &mut Sprite), (Without<Player>, Without<FormationLeader>)>,
+	mut query: Query<(&mut Transform, &mut EnemyBehavior, &mut Sprite), (Without<Player>, Without<FormationLeader>, Without<crate::components::Dying>)>,
 	time: Res<Time>,
 	player_query: Query<&Transform, With<Player>>,
 	formation_query: Query<&Transform, With<FormationLeader>>,
@@ -479,13 +479,13 @@ pub fn rotate_enemies_to_movement(
 }
 
 pub fn shimmer_enemies(
-	mut query: Query<(&mut Sprite, Option<&crate::components::DamageFxPolicy>)>,
+	mut query: Query<(&mut Sprite, Option<&crate::components::FxPolicy>)>,
 	time: Res<Time>,
 ) {
 	let elapsed = time.elapsed_secs();
 
 	for (mut sprite, policy) in query.iter_mut() {
-		if !matches!(policy, Some(crate::components::DamageFxPolicy::SpriteShimmer)) {
+		if !matches!(policy.map(|p| p.idle), Some(crate::components::IdleFx::SpriteShimmer)) {
 			continue;
 		}
 		// Shimmer effect - pulsing between 0.8 and 1.3

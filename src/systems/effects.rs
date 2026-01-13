@@ -1,15 +1,15 @@
 use bevy::prelude::*;
 use bevy::sprite::MeshMaterial2d;
-use crate::components::{DamageFxPolicy, EnemyHitEvent, ShaderEffects};
+use crate::components::{EnemyHitEvent, FxPolicy, HitFx, ShaderEffects};
 use crate::materials::EffectsMaterial;
 
 pub fn apply_shader_hit_flash(
 	mut hit_events: EventReader<EnemyHitEvent>,
-	mut query: Query<(&mut ShaderEffects, Option<&DamageFxPolicy>)>,
+	mut query: Query<(&mut ShaderEffects, Option<&FxPolicy>)>,
 ) {
 	for event in hit_events.read() {
 		let Ok((mut effects, policy)) = query.get_mut(event.enemy) else { continue };
-		if !matches!(policy, Some(DamageFxPolicy::ShaderFlashDissolve)) {
+		if !matches!(policy.map(|p| p.on_hit), Some(HitFx::ShaderFlash)) {
 			continue;
 		}
 

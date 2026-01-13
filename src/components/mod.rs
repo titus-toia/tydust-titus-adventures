@@ -969,15 +969,56 @@ impl Default for ChargeMeter {
 	}
 }
 
-// === Shader Effects Component ===
+// === FX Policy (presentation) ===
+//
+// This is the one place that should "know" how an entity looks/feels:
+// - idle look (e.g. shimmer)
+// - hit response (e.g. flash)
+// - death presentation (e.g. explode vs dissolve + debris)
+//
+// Gameplay systems should only emit events like EnemyHitEvent / EnemyDeathEvent.
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DamageFxPolicy {
-	/// Apply the old sprite shimmer effect (color pulse).
-	SpriteShimmer,
-	/// Use shader-driven flash/dissolve behavior (`ShaderEffects` + `EffectsMaterial`).
-	ShaderFlashDissolve,
+pub struct FxPolicy {
+	pub idle: IdleFx,
+	pub on_hit: HitFx,
+	pub on_death: DeathFx,
 }
+
+impl FxPolicy {
+	pub const fn new(idle: IdleFx, on_hit: HitFx, on_death: DeathFx) -> Self {
+		Self { idle, on_hit, on_death }
+	}
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IdleFx {
+	None,
+	SpriteShimmer,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HitFx {
+	None,
+	ShaderFlash,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeathFx {
+	/// Spawn explosion particles and despawn immediately (sprite-style).
+	SpriteExplosion,
+	/// Start shader dissolve and spawn debris/smoke chunks. Entity is despawned by dissolve cleanup.
+	AsteroidDissolveAndDebris,
+}
+
+impl Default for FxPolicy {
+	fn default() -> Self {
+		// Safe default: do nothing special on idle/hit, but still explode on death.
+		Self::new(IdleFx::None, HitFx::None, DeathFx::SpriteExplosion)
+	}
+}
+
+// === Shader Effects Component ===
 
 #[derive(Component)]
 pub struct ShaderEffects {
