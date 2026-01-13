@@ -29,7 +29,7 @@ use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, 
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
-use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow, reposition_hud_on_camera_ready};
+use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow};
 use systems::effects::{apply_shader_hit_flash, update_shader_effects, cleanup_dissolved_entities};
 use systems::death_fx::process_enemy_death_fx;
 use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
@@ -166,7 +166,7 @@ fn main() {
 		// Playing state: spawn game on enter
 		.add_systems(
 			OnEnter(GameState::Playing),
-			(spawn_background, init_parallax_timers, spawn_player, load_level, spawn_info_overlay, spawn_player_hud).chain()
+			(spawn_background, init_parallax_timers, spawn_player, load_level, spawn_info_overlay).chain()
 		)
 		// Exit button and info button work in all states
 		.add_systems(Update, (exit_button_system, info_button_system))
@@ -269,7 +269,7 @@ fn main() {
 			render_defensive_field,
 		).run_if(in_state(GameState::Playing)))
 		.add_systems(Update, (
-			reposition_hud_on_camera_ready,
+			spawn_player_hud,
 			animate_defense_hexagons,
 			update_digital_display_text,
 			update_charge_meter_ui,
