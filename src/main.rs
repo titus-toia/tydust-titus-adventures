@@ -269,6 +269,7 @@ fn main() {
 			render_defensive_field,
 		).run_if(in_state(GameState::Playing)))
 		.add_systems(Update, (
+			reposition_hud_on_camera_ready,
 			animate_defense_hexagons,
 			update_digital_display_text,
 			update_charge_meter_ui,
