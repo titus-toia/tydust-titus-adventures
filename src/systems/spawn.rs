@@ -5,6 +5,14 @@ use bevy::sprite::MeshMaterial2d;
 use crate::components::{DeathFx, Enemy, EnemyBehavior, EnemyMovement, EnemyType, FxPolicy, Health, HitFx, IdleFx, Collider, ShaderEffects};
 use crate::materials::EffectsMaterial;
 
+fn stable_z_jitter(transform: &Transform) -> f32 {
+	// Tiny deterministic Z offset to stabilize render ordering between overlapping transparent quads.
+	// Prevents flicker when multiple asteroids share the same Z and overlap.
+	let x = transform.translation.x;
+	let y = transform.translation.y;
+	((x * 12.9898 + y * 78.233).sin() * 43758.5453).fract() * 0.001
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EnemyRenderMode {
 	Sprite,
@@ -69,11 +77,21 @@ pub fn spawn_enemy_with_behavior(
 		EnemyRenderMode::EffectsMaterial => {
 			let texture = asset_server.load(sprite_path);
 			let mesh = meshes.add(Mesh::from(bevy::math::primitives::Rectangle::new(size, size)));
-			let material = materials.add(EffectsMaterial::with_dissolve(
+			let mut mat = EffectsMaterial::with_dissolve(
 				texture,
 				noise_texture.clone(),
 				LinearRgba::new(0.55, 0.75, 0.95, 1.0),
-			));
+			);
+			// Reduce thick internal edge bands on dissolve for asteroids.
+			mat.params.dissolve_edge_width = 0.03;
+			mat.params.dissolve_edge_brightness = 1.6;
+			// Avoid hard white flash blending.
+			mat.params.flash_color = LinearRgba::new(0.75, 0.72, 0.68, 1.0);
+
+			let material = materials.add(mat);
+
+			let mut transform = transform;
+			transform.translation.z += stable_z_jitter(&transform);
 
 			commands.spawn((
 				Mesh2d(mesh),
@@ -124,11 +142,19 @@ pub fn spawn_enemy_with_movement(
 		EnemyRenderMode::EffectsMaterial => {
 			let texture = asset_server.load(sprite_path);
 			let mesh = meshes.add(Mesh::from(bevy::math::primitives::Rectangle::new(size, size)));
-			let material = materials.add(EffectsMaterial::with_dissolve(
+			let mut mat = EffectsMaterial::with_dissolve(
 				texture,
 				noise_texture.clone(),
 				LinearRgba::new(0.55, 0.75, 0.95, 1.0),
-			));
+			);
+			mat.params.dissolve_edge_width = 0.03;
+			mat.params.dissolve_edge_brightness = 1.6;
+			mat.params.flash_color = LinearRgba::new(0.75, 0.72, 0.68, 1.0);
+
+			let material = materials.add(mat);
+
+			let mut transform = transform;
+			transform.translation.z += stable_z_jitter(&transform);
 
 			commands.spawn((
 				Mesh2d(mesh),

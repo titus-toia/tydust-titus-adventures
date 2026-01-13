@@ -35,7 +35,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 	// DISSOLVE EFFECT
 	// ═══════════════════════════════════════════════════════════
 	if (params.dissolve_amount > 0.0) {
-		let noise = sample_noise(in.uv * 3.0);
+		// Higher frequency noise reduces the "paint girder" look for crumbling materials.
+		let noise = sample_noise(in.uv * 9.0);
 		let dissolve_threshold = params.dissolve_amount;
 
 		if (noise < dissolve_threshold && original.a > 0.1) {
