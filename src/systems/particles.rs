@@ -74,7 +74,8 @@ pub fn update_particles(
 
 		// Fade out based on remaining lifetime
 		let remaining = particle.lifetime.fraction_remaining();
-		sprite.color = Color::srgba(1.0, 1.0, 1.0, remaining);
+	// Preserve existing RGB tint and only fade alpha (useful for smoke/dust coloring).
+	sprite.color.set_alpha(remaining);
 	}
 }
 

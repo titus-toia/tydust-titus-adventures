@@ -5,9 +5,12 @@ use crate::components::{
 	DeathFx, Dying, EnemyDeathEvent, EnemyType, FxPolicy, Particle, ShaderEffects,
 };
 
-// Temporary toggle: asteroid breakup "asset shower" (debris/smoke sprites).
-// Keep dissolve, but disable the spawned particle cards until we have better textures/tuning.
-const ASTEROID_DEBRIS_SHOWER_ENABLED: bool = false;
+// "Crumble into dust" tuning. This intentionally avoids big square-card spam:
+// - low counts
+// - small sizes
+// - non-uniform aspect ratios
+// - tinted smoke (RGB preserved by particle fade system)
+const ASTEROID_DUST_ENABLED: bool = true;
 
 /// Centralized death presentation system.
 /// Owns: dissolve start, debris/explosion particles, despawn (for non-dissolve deaths).
@@ -36,37 +39,41 @@ pub fn process_enemy_death_fx(
 				// Start shader dissolve (body breaks apart) if present.
 				if let Ok(Some(mut effects)) = shader_query.get_mut(entity) {
 					effects.is_dissolving = true;
-					effects.dissolve_speed = 4.5;
-					effects.flash_amount = 1.0;
-					effects.flash_decay_speed = 10.0;
-					effects.glow_intensity = effects.glow_intensity.max(1.0);
-					effects.glow_color = [0.9, 0.7, 0.4, 1.0];
-					effects.pulse_amount = effects.pulse_amount.max(0.25);
-					effects.pulse_speed = effects.pulse_speed.max(16.0);
+					// Crumble: slightly slower than "pop", less white-out, more ember edge.
+					effects.dissolve_speed = 2.6;
+					effects.flash_amount = 0.18;
+					effects.flash_decay_speed = 8.0;
+					effects.glow_intensity = effects.glow_intensity.max(0.9);
+					effects.glow_color = [0.65, 0.55, 0.45, 1.0]; // dusty warm
+					effects.pulse_amount = effects.pulse_amount.max(0.12);
+					effects.pulse_speed = effects.pulse_speed.max(10.0);
 				}
 
-				if ASTEROID_DEBRIS_SHOWER_ENABLED {
-					// Chunky debris + dust (rugged, not confetti).
-					let (chunk_count, chunk_size, chunk_speed, chunk_lifetime) = match event.enemy_type {
-						EnemyType::LargeAsteroid => (18, 14.0..34.0, 120.0..260.0, 0.7..1.3),
-						EnemyType::MediumAsteroid => (14, 12.0..28.0, 110.0..230.0, 0.6..1.1),
-						_ => (10, 10.0..22.0, 90.0..200.0, 0.5..0.9),
+				if ASTEROID_DUST_ENABLED {
+					// Dust plume: small + anisotropic so it doesn't read as square cards.
+					let (dust_count, w_range, h_range, speed_range, lifetime_range) = match event.enemy_type {
+						EnemyType::LargeAsteroid => (18, 10.0..26.0, 6.0..18.0, 60.0..180.0, 0.35..0.75),
+						EnemyType::MediumAsteroid => (14, 9.0..22.0, 6.0..16.0, 55.0..160.0, 0.30..0.65),
+						_ => (10, 8.0..18.0, 5.0..14.0, 45.0..140.0, 0.25..0.55),
 					};
 
-					for _ in 0..chunk_count {
+					for _ in 0..dust_count {
 						let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-						let speed = rng.gen_range(chunk_speed.clone());
+						let speed = rng.gen_range(speed_range.clone());
 						let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
-						let size = rng.gen_range(chunk_size.clone());
-						let lifetime = rng.gen_range(chunk_lifetime.clone());
+
+						let w = rng.gen_range(w_range.clone());
+						let h = rng.gen_range(h_range.clone());
+						let lifetime = rng.gen_range(lifetime_range.clone());
 
 						commands.spawn((
 							Sprite {
-								image: asset_server.load("particles/debris_metal.png"),
-								custom_size: Some(Vec2::splat(size)),
+								image: asset_server.load("particles/smoke_gray.png"),
+								custom_size: Some(Vec2::new(w, h)),
+								color: Color::srgba(0.65, 0.65, 0.68, 0.8),
 								..default()
 							},
-							Transform::from_xyz(event.position.x, event.position.y, 1.1)
+							Transform::from_xyz(event.position.x, event.position.y, 1.05)
 								.with_rotation(Quat::from_rotation_z(rng.gen_range(0.0..std::f32::consts::TAU))),
 							Particle {
 								lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
@@ -75,20 +82,22 @@ pub fn process_enemy_death_fx(
 						));
 					}
 
-					for _ in 0..6 {
+					// A few tiny grit specks (non-confetti) for texture.
+					for _ in 0..4 {
 						let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-						let speed = rng.gen_range(40.0..110.0);
+						let speed = rng.gen_range(90.0..220.0);
 						let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
-						let size = rng.gen_range(26.0..50.0);
-						let lifetime = rng.gen_range(0.7..1.4);
+						let size = rng.gen_range(3.0..7.0);
+						let lifetime = rng.gen_range(0.18..0.35);
 
 						commands.spawn((
 							Sprite {
-								image: asset_server.load("particles/smoke_gray.png"),
+								image: asset_server.load("particles/spark_white.png"),
 								custom_size: Some(Vec2::splat(size)),
+								color: Color::srgba(0.75, 0.72, 0.68, 0.9),
 								..default()
 							},
-							Transform::from_xyz(event.position.x, event.position.y, 1.05),
+							Transform::from_xyz(event.position.x, event.position.y, 1.08),
 							Particle {
 								lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
 								velocity,
