@@ -5,6 +5,10 @@ use crate::resources::SelectedWeapon;
 #[derive(Component)]
 pub struct PlayerHudContainer;
 
+/// Universal marker for ALL HUD entities (for cleanup)
+#[derive(Component)]
+pub struct HudElement;
+
 #[derive(Component)]
 pub struct DefenseDisplayText;
 
@@ -68,31 +72,61 @@ const LIGHTBULB_SCALE: f32 = 0.067;  // 10% larger
 const OFFLINE_ICON_SCALE: f32 = 0.123;  // 40% larger
 const OFFLINE_ICON_X: f32 = -80.0;  // 5px right
 
+/// Resource to track HUD spawn state (reset on state entry)
+#[derive(Resource, Default)]
+pub struct HudSpawnState {
+	pub spawned: bool,
+	pub viewport_width_at_spawn: f32,
+}
+
+/// Reset HUD spawn state when entering Playing - call this on OnEnter(Playing)
+pub fn reset_hud_spawn_state(mut commands: Commands) {
+	commands.insert_resource(HudSpawnState::default());
+}
+
 /// Spawn the player HUD container with defense display
 pub fn spawn_player_hud(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
 	windows: Query<&Window>,
-	mut hud_spawned: Local<bool>,
+	mut hud_state: ResMut<HudSpawnState>,
+	hud_entities: Query<Entity, With<HudElement>>,
 ) {
-	// Only spawn once
-	if *hud_spawned {
-		return;
-	}
-
-	// Wait for camera to be ready
+	// Get camera first to check viewport
 	let Ok((camera, projection)) = camera_query.get_single() else {
-		return; // Try again next frame
+		return;
 	};
 	let Ok(window) = windows.get_single() else {
 		return;
 	};
 
 	let Projection::Orthographic(ortho) = projection else {
-		warn!("Camera projection is not orthographic");
 		return;
 	};
+
+	let current_viewport_width = ortho.area.width();
+
+	// If HUD already spawned, check if viewport changed significantly
+	if hud_state.spawned {
+		let width_changed = (current_viewport_width - hud_state.viewport_width_at_spawn).abs() > 10.0;
+		if width_changed {
+			info!("Viewport width changed from {} to {}, despawning {} HUD entities for respawn",
+				hud_state.viewport_width_at_spawn, current_viewport_width, hud_entities.iter().count());
+			// Despawn ALL HUD entities
+			for entity in hud_entities.iter() {
+				commands.entity(entity).despawn_recursive();
+			}
+			hud_state.spawned = false;
+			hud_state.viewport_width_at_spawn = 0.0;
+			return; // Will respawn next frame
+		}
+		return;
+	}
+
+	// Log viewport and window info before spawning
+	info!("HUD spawn: viewport_width={}, window={}x{}",
+		current_viewport_width, window.width(), window.height());
 
 	// Calculate viewport-relative position
 	let left_edge = ortho.area.min.x;
@@ -100,7 +134,7 @@ pub fn spawn_player_hud(
 
 	let mesh_width = 1024.0 * 0.4;  // 409.6
 	let mesh_half_width = mesh_width / 2.0;  // 204.8
-	let desired_padding_from_edge = 10.0;
+	let desired_padding_from_edge = -85.0; // Negative to account for transparent padding in sprite
 
 	// Note: mesh spawns at center.x + 50.0, so we need to account for that
 	// Mesh left edge should be at: left_edge + padding
@@ -114,7 +148,8 @@ pub fn spawn_player_hud(
 	info!("Spawning HUD at viewport position: left_edge={}, center=({}, {}), mesh will be at ({}, {})",
 		left_edge, center.x, center.y, center.x + 50.0, center.y + 50.0);
 
-	*hud_spawned = true;
+	hud_state.spawned = true;
+	hud_state.viewport_width_at_spawn = ortho.area.width();
 
 	// Spawn mesh panel background (bottom layer)
 	commands.spawn((
@@ -126,6 +161,7 @@ pub fn spawn_player_hud(
 		Transform::from_xyz(center.x + 50.0, center.y + 50.0, 10.0) // Offset 50px right, 50px up
 			.with_scale(Vec3::splat(0.4)), // Mesh scale (already vertical in file)
 		PlayerHudContainer,
+		HudElement,
 	));
 
 	// Spawn digital display panel (mounted on mesh, encompasses hexagons + text)
@@ -137,6 +173,7 @@ pub fn spawn_player_hud(
 		},
 		Transform::from_xyz(center.x + 9.0, center.y, 10.05) // Position at -815
 			.with_scale(Vec3::splat(0.25)), // Same size as previous panel
+		HudElement,
 	));
 
 	// Load Orbitron font for HUD
@@ -152,6 +189,7 @@ pub fn spawn_player_hud(
 		},
 		TextColor(Color::srgb(0.4, 1.0, 0.5)), // Light green to match display
 		Transform::from_xyz(center.x + 9.0, center.y + 80.0, 10.2),
+		HudElement,
 	));
 
 	// Spawn Shield2 text (cyan) - top of display
@@ -165,6 +203,7 @@ pub fn spawn_player_hud(
 		TextColor(Color::srgb(0.0, 1.0, 1.0)), // Cyan
 		Transform::from_xyz(center.x + 9.0 - 28.0, center.y + 50.0, 10.2), // Spread further apart
 		Shield2Text,
+		HudElement,
 	));
 
 	// Spawn Shield1 text (blue) - top center
@@ -178,6 +217,7 @@ pub fn spawn_player_hud(
 		TextColor(Color::srgb(0.1, 0.4, 1.0)), // Deep blue
 		Transform::from_xyz(center.x + 9.0, center.y + 50.0, 10.2),
 		Shield1Text,
+		HudElement,
 	));
 
 	// Spawn Armor text (bronze) - top right
@@ -191,6 +231,7 @@ pub fn spawn_player_hud(
 		TextColor(Color::srgb(0.7, 0.6, 0.4)), // Bronze
 		Transform::from_xyz(center.x + 9.0 + 28.0, center.y + 50.0, 10.2), // Spread further apart
 		ArmorText,
+		HudElement,
 	));
 
 	// Spawn Shield2 hexagon (outermost, cyan) - layered base + glow
@@ -205,6 +246,7 @@ pub fn spawn_player_hud(
 			pulse_speed: 1.0,
 			particle_spawn_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
 		},
+		HudElement,
 	)).with_children(|parent| {
 		// Glow overlay (child sprite, alpha varies with health)
 		parent.spawn((
@@ -226,6 +268,7 @@ pub fn spawn_player_hud(
 			pulse_speed: 1.0,
 			particle_spawn_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
 		},
+		HudElement,
 	)).with_children(|parent| {
 		// Glow overlay (child sprite, alpha varies with health)
 		parent.spawn((
@@ -250,6 +293,7 @@ pub fn spawn_player_hud(
 		ArmorDamageState {
 			current_state: ArmorState::Intact,
 		},
+		HudElement,
 	));
 
 	// === CHARGE METER (capacitor bank) ===
@@ -277,6 +321,7 @@ pub fn spawn_player_hud(
 		Transform::from_xyz(charge_meter_center.x, charge_meter_center.y, 10.04)
 			.with_scale(Vec3::new(panel_scale_x, panel_scale_y, 1.0)),
 		ChargeMeterRail,
+		HudElement,
 	));
 
 	// Vertical layout within panel
@@ -292,6 +337,7 @@ pub fn spawn_player_hud(
 		Sprite::from_image(asset_server.load("ui/capacitor_rail.png")),
 		Transform::from_xyz(charge_meter_center.x, rail_y, 10.05)
 			.with_scale(Vec3::splat(rail_scale)),
+		HudElement,
 	));
 
 	// Spawn 10 capacitors (each represents 0.4 charge)
@@ -302,6 +348,7 @@ pub fn spawn_player_hud(
 			Transform::from_xyz(x, capacitor_y, 10.1)
 				.with_scale(Vec3::splat(CAPACITOR_SCALE)),
 			ChargeMeterCapacitor { index: i },
+			HudElement,
 		));
 	}
 
@@ -319,6 +366,7 @@ pub fn spawn_player_hud(
 		Transform::from_xyz(charge_meter_center.x, title_y, 10.1),
 		Visibility::Hidden,
 		EnhancedModeOnline,
+		HudElement,
 	));
 
 	// Vintage lightbulbs flanking the "Enhanced mode online" text
@@ -340,6 +388,7 @@ pub fn spawn_player_hud(
 			Visibility::Hidden,
 			EnhancedModeOnline, // Reuse marker for visibility toggling
 			EnhancedModeLightbulb { threshold },
+			HudElement,
 		));
 	}
 
@@ -350,6 +399,7 @@ pub fn spawn_player_hud(
 			.with_scale(Vec3::splat(OFFLINE_ICON_SCALE)),
 		Visibility::Hidden,
 		EnhancedModeOffline,
+		HudElement,
 	));
 
 	// "Enhanced mode offline." text
@@ -364,6 +414,7 @@ pub fn spawn_player_hud(
 		Transform::from_xyz(charge_meter_center.x + 10.0, charge_meter_center.y, 10.1),
 		Visibility::Hidden,
 		EnhancedModeOffline,
+		HudElement,
 	));
 }
 
@@ -638,16 +689,16 @@ pub fn update_charge_meter_ui(
 	// Get weapon level
 	let weapon_level = weapon_query.get_single().map(|w| w.level).unwrap_or(1);
 
-	// Show panel for any lightning weapon, but capacitors only for level 8+
+	// Show panel for all weapons (can be repurposed for weapon-specific info later)
 	let is_lightning = selected_weapon.weapon_type == WeaponType::LightningChain;
-	let show_panel = is_lightning; // Panel visible for all lightning levels
+	let show_panel = true; // Panel always visible
 	let show_capacitors = is_lightning && weapon_level >= 8;
 	let show_offline = is_lightning && weapon_level < 8;
 	let show_online = is_lightning && weapon_level >= 8;
 
-	// Hide/show panel + rail (visible for any lightning weapon)
+	// Panel + rail always visible for all weapons
 	for mut visibility in rail_query.iter_mut() {
-		*visibility = if show_panel { Visibility::Visible } else { Visibility::Hidden };
+		*visibility = Visibility::Visible;
 	}
 
 	// Hide/show offline message (when level < 8)
