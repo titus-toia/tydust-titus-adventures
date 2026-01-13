@@ -17,10 +17,6 @@ pub struct Shield1Text;
 #[derive(Component)]
 pub struct ArmorText;
 
-/// Marker for entities that need viewport-relative positioning
-#[derive(Component)]
-pub struct HudNeedsRepositioning;
-
 /// Marker for the charge meter rail sprite
 #[derive(Component)]
 pub struct ChargeMeterRail;
@@ -77,14 +73,21 @@ pub fn reposition_hud_on_camera_ready(
 	mut commands: Commands,
 	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
 	windows: Query<&Window>,
-	mut hud_query: Query<(Entity, &mut Transform), With<HudNeedsRepositioning>>,
+	mut hud_containers: Query<&mut Transform, With<PlayerHudContainer>>,
+	mut shield2_text: Query<&mut Transform, (With<Shield2Text>, Without<PlayerHudContainer>)>,
+	mut shield1_text: Query<&mut Transform, (With<Shield1Text>, Without<PlayerHudContainer>, Without<Shield2Text>)>,
+	mut armor_text: Query<&mut Transform, (With<ArmorText>, Without<PlayerHudContainer>, Without<Shield2Text>, Without<Shield1Text>)>,
+	mut hexagons: Query<&mut Transform, (With<DefenseHexagon>, Without<PlayerHudContainer>, Without<Shield2Text>, Without<Shield1Text>, Without<ArmorText>)>,
+	mut hud_repositioned: Local<bool>,
 ) {
+	// Only reposition once
+	if *hud_repositioned {
+		return;
+	}
+
 	// Check if camera is available
 	let Ok((camera, projection)) = camera_query.get_single() else { return };
 	let Ok(window) = windows.get_single() else { return };
-
-	let viewport_size = camera.logical_viewport_size()
-		.unwrap_or(Vec2::new(window.width(), window.height()));
 
 	let Projection::Orthographic(ortho) = projection else { return };
 
@@ -110,12 +113,29 @@ pub fn reposition_hud_on_camera_ready(
 	info!("Repositioning HUD: old_center=({}, {}), new_center=({}, {}), delta=({}, {})",
 		old_center_x, old_center_y, new_center_x, new_center_y, delta_x, delta_y);
 
-	// Apply delta to all HUD entities and remove marker
-	for (entity, mut transform) in hud_query.iter_mut() {
+	// Apply delta to all HUD entities
+	for mut transform in hud_containers.iter_mut() {
 		transform.translation.x += delta_x;
 		transform.translation.y += delta_y;
-		commands.entity(entity).remove::<HudNeedsRepositioning>();
 	}
+	for mut transform in shield2_text.iter_mut() {
+		transform.translation.x += delta_x;
+		transform.translation.y += delta_y;
+	}
+	for mut transform in shield1_text.iter_mut() {
+		transform.translation.x += delta_x;
+		transform.translation.y += delta_y;
+	}
+	for mut transform in armor_text.iter_mut() {
+		transform.translation.x += delta_x;
+		transform.translation.y += delta_y;
+	}
+	for mut transform in hexagons.iter_mut() {
+		transform.translation.x += delta_x;
+		transform.translation.y += delta_y;
+	}
+
+	*hud_repositioned = true;
 }
 
 /// Spawn the player HUD container with defense display
@@ -169,7 +189,6 @@ pub fn spawn_player_hud(
 		},
 		Transform::from_xyz(center.x + 50.0, center.y + 50.0, 10.0) // Offset 50px right, 50px up
 			.with_scale(Vec3::splat(0.4)), // Mesh scale (already vertical in file)
-		HudNeedsRepositioning,
 		PlayerHudContainer,
 	));
 
@@ -182,7 +201,6 @@ pub fn spawn_player_hud(
 		},
 		Transform::from_xyz(center.x + 9.0, center.y, 10.05) // Position at -815
 			.with_scale(Vec3::splat(0.25)), // Same size as previous panel
-		HudNeedsRepositioning,
 	));
 
 	// Load Orbitron font for HUD
@@ -198,7 +216,6 @@ pub fn spawn_player_hud(
 		},
 		TextColor(Color::srgb(0.4, 1.0, 0.5)), // Light green to match display
 		Transform::from_xyz(center.x + 9.0, center.y + 80.0, 10.2),
-		HudNeedsRepositioning,
 	));
 
 	// Spawn Shield2 text (cyan) - top of display
