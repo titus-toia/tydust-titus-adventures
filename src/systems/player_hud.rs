@@ -98,16 +98,21 @@ pub fn spawn_player_hud(
 	let left_edge = ortho.area.min.x;
 	let bottom_edge = ortho.area.min.y;
 
-	let mesh_width = 1024.0 * 0.4;
-	let mesh_half_width = mesh_width / 2.0;
-	let desired_padding_from_edge = 20.0;
+	let mesh_width = 1024.0 * 0.4;  // 409.6
+	let mesh_half_width = mesh_width / 2.0;  // 204.8
+	let desired_padding_from_edge = 10.0;
 
-	let center_x = left_edge + mesh_half_width + desired_padding_from_edge;
+	// Note: mesh spawns at center.x + 50.0, so we need to account for that
+	// Mesh left edge should be at: left_edge + padding
+	// Mesh center should be at: left_edge + padding + mesh_half_width
+	// Since mesh spawns at center.x + 50.0, we need: center.x = desired_mesh_center - 50.0
+	let center_x = left_edge + desired_padding_from_edge + mesh_half_width - 50.0;
 	let center_y = bottom_edge + 160.0;
 
 	let center = Vec2::new(center_x, center_y);
 
-	info!("Spawning HUD at viewport position: left_edge={}, center=({}, {})", left_edge, center.x, center.y);
+	info!("Spawning HUD at viewport position: left_edge={}, center=({}, {}), mesh will be at ({}, {})",
+		left_edge, center.x, center.y, center.x + 50.0, center.y + 50.0);
 
 	*hud_spawned = true;
 
