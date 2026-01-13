@@ -5,6 +5,10 @@ use crate::components::{
 	DeathFx, Dying, EnemyDeathEvent, EnemyType, FxPolicy, Particle, ShaderEffects,
 };
 
+// Temporary toggle: asteroid breakup "asset shower" (debris/smoke sprites).
+// Keep dissolve, but disable the spawned particle cards until we have better textures/tuning.
+const ASTEROID_DEBRIS_SHOWER_ENABLED: bool = false;
+
 /// Centralized death presentation system.
 /// Owns: dissolve start, debris/explosion particles, despawn (for non-dissolve deaths).
 pub fn process_enemy_death_fx(
@@ -41,54 +45,56 @@ pub fn process_enemy_death_fx(
 					effects.pulse_speed = effects.pulse_speed.max(16.0);
 				}
 
-				// Chunky debris + dust (rugged, not confetti).
-				let (chunk_count, chunk_size, chunk_speed, chunk_lifetime) = match event.enemy_type {
-					EnemyType::LargeAsteroid => (18, 14.0..34.0, 120.0..260.0, 0.7..1.3),
-					EnemyType::MediumAsteroid => (14, 12.0..28.0, 110.0..230.0, 0.6..1.1),
-					_ => (10, 10.0..22.0, 90.0..200.0, 0.5..0.9),
-				};
+				if ASTEROID_DEBRIS_SHOWER_ENABLED {
+					// Chunky debris + dust (rugged, not confetti).
+					let (chunk_count, chunk_size, chunk_speed, chunk_lifetime) = match event.enemy_type {
+						EnemyType::LargeAsteroid => (18, 14.0..34.0, 120.0..260.0, 0.7..1.3),
+						EnemyType::MediumAsteroid => (14, 12.0..28.0, 110.0..230.0, 0.6..1.1),
+						_ => (10, 10.0..22.0, 90.0..200.0, 0.5..0.9),
+					};
 
-				for _ in 0..chunk_count {
-					let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-					let speed = rng.gen_range(chunk_speed.clone());
-					let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
-					let size = rng.gen_range(chunk_size.clone());
-					let lifetime = rng.gen_range(chunk_lifetime.clone());
+					for _ in 0..chunk_count {
+						let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+						let speed = rng.gen_range(chunk_speed.clone());
+						let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+						let size = rng.gen_range(chunk_size.clone());
+						let lifetime = rng.gen_range(chunk_lifetime.clone());
 
-					commands.spawn((
-						Sprite {
-							image: asset_server.load("particles/debris_metal.png"),
-							custom_size: Some(Vec2::splat(size)),
-							..default()
-						},
-						Transform::from_xyz(event.position.x, event.position.y, 1.1)
-							.with_rotation(Quat::from_rotation_z(rng.gen_range(0.0..std::f32::consts::TAU))),
-						Particle {
-							lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
-							velocity,
-						},
-					));
-				}
+						commands.spawn((
+							Sprite {
+								image: asset_server.load("particles/debris_metal.png"),
+								custom_size: Some(Vec2::splat(size)),
+								..default()
+							},
+							Transform::from_xyz(event.position.x, event.position.y, 1.1)
+								.with_rotation(Quat::from_rotation_z(rng.gen_range(0.0..std::f32::consts::TAU))),
+							Particle {
+								lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+								velocity,
+							},
+						));
+					}
 
-				for _ in 0..6 {
-					let angle = rng.gen_range(0.0..std::f32::consts::TAU);
-					let speed = rng.gen_range(40.0..110.0);
-					let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
-					let size = rng.gen_range(26.0..50.0);
-					let lifetime = rng.gen_range(0.7..1.4);
+					for _ in 0..6 {
+						let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+						let speed = rng.gen_range(40.0..110.0);
+						let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+						let size = rng.gen_range(26.0..50.0);
+						let lifetime = rng.gen_range(0.7..1.4);
 
-					commands.spawn((
-						Sprite {
-							image: asset_server.load("particles/smoke_gray.png"),
-							custom_size: Some(Vec2::splat(size)),
-							..default()
-						},
-						Transform::from_xyz(event.position.x, event.position.y, 1.05),
-						Particle {
-							lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
-							velocity,
-						},
-					));
+						commands.spawn((
+							Sprite {
+								image: asset_server.load("particles/smoke_gray.png"),
+								custom_size: Some(Vec2::splat(size)),
+								..default()
+							},
+							Transform::from_xyz(event.position.x, event.position.y, 1.05),
+							Particle {
+								lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+								velocity,
+							},
+						));
+					}
 				}
 
 				// Do NOT despawn here; shader cleanup will remove when dissolve finishes.
