@@ -890,9 +890,14 @@ pub struct EnemyHitEvent {
 
 #[derive(Event)]
 pub struct EnemyDeathEvent {
+	pub entity: Entity,
 	pub position: Vec2,
 	pub enemy_type: EnemyType,
 }
+
+/// Marker: this entity is in a death animation (e.g. shader dissolve) and should no longer interact.
+#[derive(Component)]
+pub struct Dying;
 
 // === Defense HUD Components ===
 
@@ -965,6 +970,14 @@ impl Default for ChargeMeter {
 }
 
 // === Shader Effects Component ===
+
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DamageFxPolicy {
+	/// Apply the old sprite shimmer effect (color pulse).
+	SpriteShimmer,
+	/// Use shader-driven flash/dissolve behavior (`ShaderEffects` + `EffectsMaterial`).
+	ShaderFlashDissolve,
+}
 
 #[derive(Component)]
 pub struct ShaderEffects {

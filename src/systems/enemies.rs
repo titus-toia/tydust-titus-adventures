@@ -479,12 +479,15 @@ pub fn rotate_enemies_to_movement(
 }
 
 pub fn shimmer_enemies(
-	mut query: Query<(&mut Sprite, &Enemy)>,
+	mut query: Query<(&mut Sprite, Option<&crate::components::DamageFxPolicy>)>,
 	time: Res<Time>,
 ) {
 	let elapsed = time.elapsed_secs();
 
-	for (mut sprite, _enemy) in query.iter_mut() {
+	for (mut sprite, policy) in query.iter_mut() {
+		if !matches!(policy, Some(crate::components::DamageFxPolicy::SpriteShimmer)) {
+			continue;
+		}
 		// Shimmer effect - pulsing between 0.8 and 1.3
 		let shimmer = 1.05 + ((elapsed * 3.5).sin() * 0.25);
 		sprite.color = Color::srgba(shimmer, shimmer, shimmer, 1.0);

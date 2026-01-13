@@ -750,6 +750,7 @@ pub fn fire_lightning_weapon(
 		"sounds/lightning/lightning_standard.ogg"
 	};
 	let fire_priority = if charge_tier >= 1.2 { 240 } else { 210 };
+	let fire_max_concurrent = if charge_tier >= 1.2 { 8 } else { 5 };
 
 	for whip_index in 0..num_whips {
 		let delay_secs = (whip_index as f32) * 0.015; // 15ms per whip
@@ -759,7 +760,7 @@ pub fn fire_lightning_weapon(
 			volume: 0.42,
 			priority: fire_priority,
 			cooldown_secs: 0.0,
-			max_concurrent: 1,
+			max_concurrent: fire_max_concurrent,
 			steal_oldest: false,
 			fade_after: None,
 			fade_duration: 0.0,

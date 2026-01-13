@@ -41,11 +41,11 @@ pub fn check_projectile_enemy_collisions(
 pub fn apply_enemy_damage(
 	mut commands: Commands,
 	mut hit_events: EventReader<EnemyHitEvent>,
-	mut enemies: Query<(&mut Health, &Transform, &Enemy)>,
+	mut enemies: Query<(Entity, &mut Health, &Transform, &Enemy, Option<&mut crate::components::ShaderEffects>), Without<crate::components::Dying>>,
 	mut death_events: EventWriter<EnemyDeathEvent>,
 ) {
 	for event in hit_events.read() {
-		if let Ok((mut health, transform, enemy)) = enemies.get_mut(event.enemy) {
+		if let Ok((entity, mut health, transform, enemy, shader_effects)) = enemies.get_mut(event.enemy) {
 			health.current -= event.damage;
 
 			if enemy.enemy_type == crate::components::EnemyType::Boss {
@@ -57,10 +57,29 @@ pub fn apply_enemy_damage(
 					info!("☠️  BOSS DESTROYED!");
 				}
 				death_events.send(EnemyDeathEvent {
+					entity,
 					position: transform.translation.truncate(),
 					enemy_type: enemy.enemy_type,
 				});
-				commands.entity(event.enemy).despawn();
+
+				// If this enemy is shader-rendered, dissolve it instead of instantly despawning.
+				// Otherwise, keep the old immediate-despawn behavior.
+				if let Some(mut effects) = shader_effects {
+					effects.is_dissolving = true;
+					effects.dissolve_speed = 4.5; // fast "break apart" read
+					effects.flash_amount = 1.0;
+					effects.flash_decay_speed = 10.0;
+					effects.glow_intensity = effects.glow_intensity.max(1.0);
+					effects.glow_color = [0.9, 0.7, 0.4, 1.0]; // warm edge read for rock/metal
+					effects.pulse_amount = effects.pulse_amount.max(0.25);
+					effects.pulse_speed = effects.pulse_speed.max(16.0);
+
+					commands.entity(entity)
+						.insert(crate::components::Dying)
+						.remove::<Collider>();
+				} else {
+					commands.entity(entity).despawn();
+				}
 			}
 		}
 	}

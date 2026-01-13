@@ -86,6 +86,60 @@ pub fn spawn_explosion_particles(
 	let mut rng = rand::thread_rng();
 
 	for event in death_events.read() {
+		// Extra breakup debris for asteroids: chunky shards that sell "splitting apart"
+		// while the asteroid body dissolves via shader.
+		if matches!(event.enemy_type, EnemyType::SmallAsteroid | EnemyType::MediumAsteroid | EnemyType::LargeAsteroid) {
+			let (chunk_count, chunk_size, chunk_speed, chunk_lifetime) = match event.enemy_type {
+				EnemyType::LargeAsteroid => (18, 14.0..34.0, 120.0..260.0, 0.7..1.3),
+				EnemyType::MediumAsteroid => (14, 12.0..28.0, 110.0..230.0, 0.6..1.1),
+				_ => (10, 10.0..22.0, 90.0..200.0, 0.5..0.9),
+			};
+
+			for _ in 0..chunk_count {
+				let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+				let speed = rng.gen_range(chunk_speed.clone());
+				let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+				let size = rng.gen_range(chunk_size.clone());
+				let lifetime = rng.gen_range(chunk_lifetime.clone());
+
+				commands.spawn((
+					Sprite {
+						image: asset_server.load("particles/debris_metal.png"),
+						custom_size: Some(Vec2::splat(size)),
+						..default()
+					},
+					Transform::from_xyz(event.position.x, event.position.y, 1.1)
+						.with_rotation(Quat::from_rotation_z(rng.gen_range(0.0..std::f32::consts::TAU))),
+					Particle {
+						lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+						velocity,
+					},
+				));
+			}
+
+			// A little dust/smoke to keep it rugged (not fiery).
+			for _ in 0..6 {
+				let angle = rng.gen_range(0.0..std::f32::consts::TAU);
+				let speed = rng.gen_range(40.0..110.0);
+				let velocity = Vec2::new(angle.cos() * speed, angle.sin() * speed);
+				let size = rng.gen_range(26.0..50.0);
+				let lifetime = rng.gen_range(0.7..1.4);
+
+				commands.spawn((
+					Sprite {
+						image: asset_server.load("particles/smoke_gray.png"),
+						custom_size: Some(Vec2::splat(size)),
+						..default()
+					},
+					Transform::from_xyz(event.position.x, event.position.y, 1.05),
+					Particle {
+						lifetime: Timer::from_seconds(lifetime, TimerMode::Once),
+						velocity,
+					},
+				));
+			}
+		}
+
 		// Scale explosion based on enemy type - more dramatic explosions
 		let (particle_count, size_range, speed_range, lifetime_range) = match event.enemy_type {
 			EnemyType::Boss => (60, 30.0..60.0, 200.0..400.0, 0.5..0.9),

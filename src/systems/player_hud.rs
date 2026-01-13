@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::render::camera::CameraProjection;
 use crate::components::{Player, PlayerDefenses, DefenseHexagon, DefenseLayer, ArmorDamageState, ArmorState, ChargeMeter, WeaponType, Weapon};
 use crate::resources::SelectedWeapon;
 
@@ -69,9 +70,40 @@ const OFFLINE_ICON_SCALE: f32 = 0.123;  // 40% larger
 const OFFLINE_ICON_X: f32 = -80.0;  // 5px right
 
 /// Spawn the player HUD container with defense display
-pub fn spawn_player_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
-	// World-space position for hexagons (bottom-left visible area)
-	let center = Vec2::new(-810.0, -340.0); // Adjusted 75px to the right
+pub fn spawn_player_hud(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
+	windows: Query<&Window>,
+) {
+	// Calculate actual viewport left edge based on camera projection
+	let (camera, projection) = camera_query.single();
+	let window = windows.single();
+
+	// Get viewport area from camera
+	let viewport_size = camera.logical_viewport_size().unwrap_or(Vec2::new(window.width(), window.height()));
+
+	// For orthographic projection with FixedVertical
+	let Projection::Orthographic(ortho) = projection else {
+		return; // Fallback if not orthographic
+	};
+
+	// Calculate actual world bounds
+	let aspect_ratio = viewport_size.x / viewport_size.y;
+	let viewport_height = ortho.area.height();
+	let viewport_width = viewport_height * aspect_ratio;
+
+	let left_edge = ortho.area.min.x;
+	let bottom_edge = ortho.area.min.y;
+
+	// Position HUD 78px from the left edge, 160px from bottom
+	let padding_from_left = 78.0;
+	let padding_from_bottom = 160.0;
+
+	let center = Vec2::new(
+		left_edge + padding_from_left,
+		bottom_edge + padding_from_bottom
+	);
 
 	// Spawn mesh panel background (bottom layer)
 	commands.spawn((
@@ -746,6 +778,8 @@ pub fn render_charge_meter_ticks(
 	weapon_query: Query<&Weapon, With<Player>>,
 	charge_meter: Res<ChargeMeter>,
 	time: Res<Time>,
+	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
+	windows: Query<&Window>,
 ) {
 	// Only show for lightning weapon level 8+
 	if selected_weapon.weapon_type != WeaponType::LightningChain {
@@ -757,8 +791,24 @@ pub fn render_charge_meter_ticks(
 		return;
 	}
 
-	// Same positioning calculation as spawn_player_hud
-	let center = Vec2::new(-810.0, -340.0);
+	// Dynamic positioning based on viewport
+	let Ok((camera, projection)) = camera_query.get_single() else { return };
+	let Ok(window) = windows.get_single() else { return };
+	let viewport_size = camera.logical_viewport_size()
+		.unwrap_or(Vec2::new(window.width(), window.height()));
+
+	let Projection::Orthographic(ortho) = projection else { return };
+
+	let left_edge = ortho.area.min.x;
+	let bottom_edge = ortho.area.min.y;
+
+	let padding_from_left = 78.0;
+	let padding_from_bottom = 160.0;
+
+	let center = Vec2::new(
+		left_edge + padding_from_left,
+		bottom_edge + padding_from_bottom
+	);
 	let mesh_center = Vec2::new(center.x + 50.0, center.y + 50.0);
 	let mesh_width = 1024.0 * 0.4;
 	let padding = 60.0;
@@ -836,6 +886,8 @@ pub fn render_enhanced_mode_sparks(
 	weapon_query: Query<&Weapon, With<Player>>,
 	charge_meter: Res<ChargeMeter>,
 	time: Res<Time>,
+	camera_query: Query<(&Camera, &Projection), With<Camera2d>>,
+	windows: Query<&Window>,
 ) {
 	// Only show for lightning weapon level 8+
 	if selected_weapon.weapon_type != WeaponType::LightningChain {
@@ -847,8 +899,24 @@ pub fn render_enhanced_mode_sparks(
 		return;
 	}
 
-	// Same positioning as spawn_player_hud
-	let center = Vec2::new(-810.0, -340.0);
+	// Dynamic positioning based on viewport
+	let Ok((camera, projection)) = camera_query.get_single() else { return };
+	let Ok(window) = windows.get_single() else { return };
+	let viewport_size = camera.logical_viewport_size()
+		.unwrap_or(Vec2::new(window.width(), window.height()));
+
+	let Projection::Orthographic(ortho) = projection else { return };
+
+	let left_edge = ortho.area.min.x;
+	let bottom_edge = ortho.area.min.y;
+
+	let padding_from_left = 78.0;
+	let padding_from_bottom = 160.0;
+
+	let center = Vec2::new(
+		left_edge + padding_from_left,
+		bottom_edge + padding_from_bottom
+	);
 	let mesh_center = Vec2::new(center.x + 50.0, center.y + 50.0);
 	let mesh_width = 1024.0 * 0.4;
 	let charge_meter_y = mesh_center.y + mesh_width / 2.0 - 75.0 - 35.0 + 85.0 - 45.0;

@@ -30,9 +30,10 @@ use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
 use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow};
-use systems::effects::{update_shader_effects, cleanup_dissolved_entities};
+use systems::effects::{apply_shader_hit_flash, update_shader_effects, cleanup_dissolved_entities};
 use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+use materials::noise::{generate_noise_texture, EffectsNoiseTexture};
 
 fn main() {
 	// Parse command-line arguments
@@ -245,6 +246,7 @@ fn main() {
 		.add_systems(Update, (
 			check_projectile_enemy_collisions,
 			apply_enemy_damage,
+			apply_shader_hit_flash,
 			play_enemy_hit_sound,
 			spawn_enemy_hit_particles,
 			play_enemy_death_sound,
@@ -277,7 +279,12 @@ fn main() {
 		.run();
 }
 
-fn setup(mut commands: Commands, bloom_level: Res<BloomLevel>) {
+fn setup(mut commands: Commands, bloom_level: Res<BloomLevel>, mut images: ResMut<Assets<Image>>) {
+	// Shared noise texture for shader effects (dissolve/glow, etc.)
+	// Safe to create once at startup; reused by all `EffectsMaterial` instances.
+	let noise = generate_noise_texture(&mut images);
+	commands.insert_resource(EffectsNoiseTexture(noise));
+
 	let mut camera = commands.spawn((
 		Camera2d,
 		Camera {

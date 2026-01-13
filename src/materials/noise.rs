@@ -2,6 +2,9 @@ use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
+#[derive(Resource, Clone)]
+pub struct EffectsNoiseTexture(pub Handle<Image>);
+
 pub fn generate_noise_texture(images: &mut Assets<Image>) -> Handle<Image> {
 	let size = 256usize;
 	let mut data = vec![0u8; size * size * 4];

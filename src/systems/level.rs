@@ -455,10 +455,14 @@ pub fn process_enemy_waves(
 	mut level: ResMut<CurrentLevel>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut effects_materials: ResMut<Assets<crate::materials::EffectsMaterial>>,
+	noise_texture: Res<crate::materials::noise::EffectsNoiseTexture>,
 	mut formation_registry: ResMut<crate::components::FormationRegistry>,
 ) {
-	use crate::components::{Enemy, EnemyType, EnemyMovement, MovementPattern, EnemyBehavior, FormationLeader, FormationMember, Health, Collider};
+	use crate::components::{EnemyType, EnemyMovement, MovementPattern, EnemyBehavior, FormationLeader, FormationMember};
 	use crate::level::{FormationRole, EnemySpawn};
+	use crate::systems::spawn::{spawn_enemy_with_behavior, spawn_enemy_with_movement};
 
 	let current_distance = level.distance;
 	let scroll_speed = level.get_scroll_speed();
@@ -542,14 +546,16 @@ pub fn process_enemy_waves(
 				// YAML Y position is ignored - enemies enter from top of screen
 				let spawn_y = 600.0;  // Above viewport top edge (Y=500)
 
-				let mut entity_commands = commands.spawn((
-					Sprite {
-						image: asset_server.load(sprite_path),
-						custom_size: Some(Vec2::splat(size)),
-						..default()
-					},
+				let entity_id = spawn_enemy_with_behavior(
+					&mut commands,
+					&asset_server,
+					&mut meshes,
+					&mut effects_materials,
+					&noise_texture.0,
+					enemy_type,
+					sprite_path,
+					size,
 					Transform::from_xyz(enemy.position[0], spawn_y, 0.5),
-					Enemy { enemy_type },
 					EnemyBehavior {
 						behaviors: behaviors.clone(),
 						current_index: 0,
@@ -557,15 +563,12 @@ pub fn process_enemy_waves(
 						total_time_alive: 0.0,
 						spawn_position: Vec2::new(enemy.position[0], spawn_y),
 					},
-					Health::for_enemy_type(enemy_type),
-					Collider::for_enemy_type(enemy_type),
-				));
+				);
 
 				if let Some(ref formation_id) = enemy.formation_id {
 					match enemy.formation_role {
 						Some(FormationRole::Leader) => {
-							let entity_id = entity_commands.id();
-							entity_commands.insert(FormationLeader {
+							commands.entity(entity_id).insert(FormationLeader {
 								formation_id: formation_id.clone(),
 								member_offsets: Vec::new(),
 							});
@@ -576,7 +579,7 @@ pub fn process_enemy_waves(
 								let offset = enemy.formation_offset
 									.map(|o| Vec2::new(o[0], o[1]))
 									.unwrap_or(Vec2::ZERO);
-								entity_commands.insert(FormationMember {
+								commands.entity(entity_id).insert(FormationMember {
 									formation_id: formation_id.clone(),
 									leader: *leader_entity,
 									offset,
@@ -611,22 +614,22 @@ pub fn process_enemy_waves(
 					MovementPattern::Straight { speed: 100.0 }
 				};
 
-				commands.spawn((
-					Sprite {
-						image: asset_server.load(sprite_path),
-						custom_size: Some(Vec2::splat(size)),
-						..default()
-					},
+				spawn_enemy_with_movement(
+					&mut commands,
+					&asset_server,
+					&mut meshes,
+					&mut effects_materials,
+					&noise_texture.0,
+					enemy_type,
+					sprite_path,
+					size,
 					Transform::from_xyz(enemy.position[0], enemy.position[1], 0.5),
-					Enemy { enemy_type },
 					EnemyMovement {
 						pattern: movement_pattern,
 						spawn_x: enemy.position[0],
 						time_alive: 0.0,
 					},
-					Health::for_enemy_type(enemy_type),
-					Collider::for_enemy_type(enemy_type),
-				));
+				);
 
 				// Mark this enemy as spawned
 				level.spawned_enemies.insert((wave_idx, enemy_idx));

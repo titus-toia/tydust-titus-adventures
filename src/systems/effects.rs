@@ -1,7 +1,26 @@
 use bevy::prelude::*;
 use bevy::sprite::MeshMaterial2d;
-use crate::components::ShaderEffects;
+use crate::components::{DamageFxPolicy, EnemyHitEvent, ShaderEffects};
 use crate::materials::EffectsMaterial;
+
+pub fn apply_shader_hit_flash(
+	mut hit_events: EventReader<EnemyHitEvent>,
+	mut query: Query<(&mut ShaderEffects, Option<&DamageFxPolicy>)>,
+) {
+	for event in hit_events.read() {
+		let Ok((mut effects, policy)) = query.get_mut(event.enemy) else { continue };
+		if !matches!(policy, Some(DamageFxPolicy::ShaderFlashDissolve)) {
+			continue;
+		}
+
+		// A rugged, high-contrast "impact" flash for shader-rendered entities.
+		effects.flash_amount = (effects.flash_amount + 0.7).min(1.0);
+		effects.flash_decay_speed = 9.0;
+		effects.glow_intensity = effects.glow_intensity.max(0.6);
+		effects.pulse_amount = effects.pulse_amount.max(0.15);
+		effects.pulse_speed = effects.pulse_speed.max(12.0);
+	}
+}
 
 pub fn update_shader_effects(
 	time: Res<Time>,

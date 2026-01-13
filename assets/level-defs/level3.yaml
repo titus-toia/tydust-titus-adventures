@@ -116,6 +116,51 @@ structures:
     position: 550
     spawn_distance: 1500
 
+  # ============================================
+  # Cargo Platform Isometric Square Formation
+  #   - 4 platforms arranged in 3D square (isometric view)
+  #   - Platform tilt: -61.8° (detected via PCA analysis)
+  #   - Visual layout:
+  #        TL ---- TR    (back edge, far from camera)
+  #        /        /
+  #       /        /
+  #      BL ---- BR      (front edge, close to camera)
+  #
+  #   Calculated spacing (from orientation analysis):
+  #   - X spacing: 285px (along platform width axis)
+  #   - Depth: 600 GU between back/front edges
+  #   - Z-order: Increases diagonally (back-left → front-right)
+  # ============================================
+
+  # Back edge (far from camera) - appears first
+  - sprite: structures/cargo_platform_variant.png
+    layer: mega_structures
+    position: -143
+    spawn_distance: 2200
+    z_order: 1
+    size: [864, 1184]
+
+  - sprite: structures/cargo_platform_variant.png
+    layer: mega_structures
+    position: 143
+    spawn_distance: 2200
+    z_order: 2
+    size: [864, 1184]
+
+  # Front edge (close to camera) - appears later
+  - sprite: structures/cargo_platform_variant.png
+    layer: mega_structures
+    position: -143
+    spawn_distance: 2800
+    z_order: 3
+    size: [864, 1184]
+
+  - sprite: structures/cargo_platform_variant.png
+    layer: mega_structures
+    position: 143
+    spawn_distance: 2800
+    z_order: 4
+    size: [864, 1184]
 
   # ============================================
   # SECTION A: Residential Outskirts (6000-7200 GU)

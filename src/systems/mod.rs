@@ -16,3 +16,4 @@ pub mod info_overlay;
 pub mod player_hud;
 pub mod effects;
 pub mod audio;
+pub mod spawn;
