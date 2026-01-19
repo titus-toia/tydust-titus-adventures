@@ -1,0 +1,223 @@
+version: 1
+enemies:
+  Scout:
+    sprite_path: "enemies/scout.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [71, 13, 184, 240]
+    collision_bounds_px: [71, 13, 184, 240]
+    content_size_px: [114, 228]
+    content_center_offset_px: [0, 1]
+    collision_center_offset_px: [0, 1]
+    gameplay_height_gu: 60
+    collision_shape: "ellipse"
+    collision_scale: 1
+  ScoutSting:
+    sprite_path: "enemies/scout_sting.png"
+    texture_px: [144, 244]
+    visual_bounds_px: [3, 5, 139, 239]
+    collision_bounds_px: [4, 9, 139, 238]
+    content_size_px: [137, 235]
+    content_center_offset_px: [-0.5, -0.5]
+    collision_center_offset_px: [0, -2]
+    gameplay_height_gu: 64
+    collision_shape: "ellipse"
+    collision_scale: 1
+    sockets:
+      -
+        id: "left"
+        offset_px: [-30, -40]
+        tags: ["left"]
+      -
+        id: "right"
+        offset_px: [30, -40]
+        tags: ["right"]
+  Fighter:
+    sprite_path: "enemies/fighter.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [61, 67, 194, 196]
+    collision_bounds_px: [61, 68, 194, 196]
+    content_size_px: [134, 130]
+    content_center_offset_px: [0, -4]
+    collision_center_offset_px: [0, -4.5]
+    gameplay_height_gu: 80
+    collision_shape: "circle"
+    collision_scale: 1
+  HeavyGunship:
+    sprite_path: "enemies/heavy_gunship.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [35, 32, 220, 224]
+    collision_bounds_px: [35, 32, 220, 224]
+    content_size_px: [186, 193]
+    content_center_offset_px: [0, -0.5]
+    collision_center_offset_px: [0, -0.5]
+    gameplay_height_gu: 150
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Boss:
+    sprite_path: "enemies/boss.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [23, 19, 232, 236]
+    collision_bounds_px: [23, 19, 232, 236]
+    content_size_px: [210, 218]
+    content_center_offset_px: [0, 0]
+    collision_center_offset_px: [0, 0]
+    gameplay_height_gu: 300
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Interceptor:
+    sprite_path: "enemies/interceptor.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [64, 46, 191, 215]
+    collision_bounds_px: [64, 46, 191, 215]
+    content_size_px: [128, 170]
+    content_center_offset_px: [0, -3]
+    collision_center_offset_px: [0, -3]
+    gameplay_height_gu: 50
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Drone:
+    sprite_path: "enemies/drone.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [34, 56, 222, 183]
+    collision_bounds_px: [34, 56, 221, 183]
+    content_size_px: [189, 128]
+    content_center_offset_px: [0.5, 8]
+    collision_center_offset_px: [0, 8]
+    gameplay_height_gu: 40
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Bomber:
+    sprite_path: "enemies/bomber.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [19, 37, 234, 229]
+    collision_bounds_px: [20, 38, 234, 228]
+    content_size_px: [216, 193]
+    content_center_offset_px: [-1, -5.5]
+    collision_center_offset_px: [-0.5, -5.5]
+    gameplay_height_gu: 120
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Corvette:
+    sprite_path: "enemies/corvette.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [60, 11, 195, 242]
+    collision_bounds_px: [60, 11, 195, 242]
+    content_size_px: [136, 232]
+    content_center_offset_px: [0, 1]
+    collision_center_offset_px: [0, 1]
+    gameplay_height_gu: 180
+    collision_shape: "ellipse"
+    collision_scale: 1
+  Drill:
+    sprite_path: "enemies/drill/drill_0.png"
+    texture_px: [512, 512]
+    visual_bounds_px: [62, 29, 449, 483]
+    collision_bounds_px: [63, 30, 448, 482]
+    content_size_px: [388, 455]
+    content_center_offset_px: [0, -0.5]
+    collision_center_offset_px: [0, -0.5]
+    gameplay_height_gu: 90
+    collision_shape: "ellipse"
+    collision_scale: 1
+    frame_group:
+      frames: ["enemies/drill/drill_0.png", "enemies/drill/drill_1.png", "enemies/drill/drill_2.png", "enemies/drill/drill_3.png", "enemies/drill/drill_4.png", "enemies/drill/drill_5.png"]
+      union_visual_bounds_px: [62, 29, 449, 483]
+      union_collision_bounds_px: [63, 30, 448, 482]
+  SmallAsteroid:
+    sprite_path: "enemies/small_asteroid.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [48, 55, 207, 206]
+    collision_bounds_px: [50, 57, 207, 198]
+    content_size_px: [160, 152]
+    content_center_offset_px: [0, -3]
+    collision_center_offset_px: [1, 0]
+    gameplay_height_gu: 30
+    collision_shape: "circle"
+    collision_scale: 1
+  MediumAsteroid:
+    sprite_path: "enemies/medium_asteroid.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [36, 64, 217, 183]
+    collision_bounds_px: [36, 64, 216, 183]
+    content_size_px: [182, 120]
+    content_center_offset_px: [-1, 4]
+    collision_center_offset_px: [-1.5, 4]
+    gameplay_height_gu: 45
+    collision_shape: "circle"
+    collision_scale: 1
+  LargeAsteroid:
+    sprite_path: "enemies/large_asteroid.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [51, 17, 204, 236]
+    collision_bounds_px: [51, 17, 204, 236]
+    content_size_px: [154, 220]
+    content_center_offset_px: [0, 1]
+    collision_center_offset_px: [0, 1]
+    gameplay_height_gu: 90
+    collision_shape: "circle"
+    collision_scale: 1
+  StationDebris:
+    sprite_path: "enemies/station_debris.png"
+    texture_px: [256, 256]
+    visual_bounds_px: [40, 22, 230, 247]
+    collision_bounds_px: [40, 22, 230, 247]
+    content_size_px: [191, 226]
+    content_center_offset_px: [7.5, -7]
+    collision_center_offset_px: [7.5, -7]
+    gameplay_height_gu: 80
+    collision_shape: "circle"
+    collision_scale: 1
+  AsteroidTurret:
+    sprite_path: "enemies/asteroid_turret.png"
+    texture_px: [1024, 1024]
+    visual_bounds_px: [94, 123, 909, 912]
+    collision_bounds_px: [96, 124, 908, 911]
+    content_size_px: [816, 790]
+    content_center_offset_px: [-10, -6]
+    collision_center_offset_px: [-9.5, -6]
+    gameplay_height_gu: 90
+    collision_shape: "circle"
+    collision_scale: 1
+    sockets:
+      -
+        id: "center"
+        offset_px: [0, 0]
+        tags: ["center"]
+    fire_cooldown: 0.8
+  Ironclad:
+    sprite_path: "enemies/ironclad.png"
+    texture_px: [546, 829]
+    visual_bounds_px: [6, 6, 539, 820]
+    collision_bounds_px: [7, 8, 538, 819]
+    content_size_px: [534, 815]
+    content_center_offset_px: [0, 1]
+    collision_center_offset_px: [0, 0.5]
+    gameplay_height_gu: 75
+    collision_shape: "ellipse"
+    collision_scale: 1
+  EnemiesDrillOriginalDrill:
+    sprite_path: "enemies/drill_original/drill_0.png"
+    texture_px: [1024, 1024]
+    visual_bounds_px: [124, 57, 900, 967]
+    collision_bounds_px: [125, 59, 899, 966]
+    content_size_px: [777, 911]
+    content_center_offset_px: [0.5, -0.5]
+    collision_center_offset_px: [0.5, -1]
+    gameplay_height_gu: 273.3
+    collision_shape: "circle"
+    collision_scale: 1
+    frame_group:
+      frames: ["enemies/drill_original/drill_0.png", "enemies/drill_original/drill_1.png", "enemies/drill_original/drill_2.png", "enemies/drill_original/drill_3.png", "enemies/drill_original/drill_4.png", "enemies/drill_original/drill_5.png"]
+      union_visual_bounds_px: [124, 57, 900, 967]
+      union_collision_bounds_px: [125, 59, 899, 966]
+  EnemiesScoutStingFull:
+    sprite_path: "enemies/scout_sting_full.png"
+    texture_px: [512, 512]
+    visual_bounds_px: [187, 139, 323, 373]
+    collision_bounds_px: [188, 143, 323, 372]
+    content_size_px: [137, 235]
+    content_center_offset_px: [-0.5, -0.5]
+    collision_center_offset_px: [0, -2]
+    gameplay_height_gu: 70.5
+    collision_shape: "ellipse"
+    collision_scale: 1

@@ -1,6 +1,8 @@
 use bevy::prelude::*;
+use bevy::text::{Text2d, TextColor, TextFont};
 use rand::Rng;
-use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType, PlayerHitEvent, EnemyHitEvent, Enemy};
+use crate::components::{Particle, ParticleEmitter, Player, EnemyDeathEvent, EnemyType, PlayerHitEvent, EnemyHitEvent, Enemy, FloatingDamageNumber};
+use crate::resources::DamageNumbersEnabled;
 
 pub fn spawn_engine_particles(
 	mut commands: Commands,
@@ -278,5 +280,88 @@ pub fn spawn_player_hit_particles(
 				},
 			));
 		}
+	}
+}
+
+// === Floating Damage Numbers ===
+
+// Damage number color palette for visual distinction
+const DAMAGE_COLORS: &[(f32, f32, f32)] = &[
+	(1.0, 0.9, 0.2),   // Yellow/gold
+	(1.0, 0.5, 0.1),   // Orange
+	(0.2, 1.0, 0.4),   // Green
+	(0.4, 0.9, 1.0),   // Cyan
+	(1.0, 0.4, 0.6),   // Pink
+	(0.8, 0.6, 1.0),   // Lavender
+];
+
+pub fn spawn_floating_damage_numbers(
+	mut commands: Commands,
+	mut hit_events: EventReader<EnemyHitEvent>,
+	enemy_query: Query<&Transform, With<Enemy>>,
+	asset_server: Res<AssetServer>,
+	damage_numbers_enabled: Res<DamageNumbersEnabled>,
+) {
+	if !damage_numbers_enabled.0 {
+		// Clear events even if disabled so they don't pile up
+		hit_events.clear();
+		return;
+	}
+
+	let mut rng = rand::thread_rng();
+
+	for event in hit_events.read() {
+		let Ok(enemy_transform) = enemy_query.get(event.enemy) else { continue };
+		let pos = enemy_transform.translation.truncate();
+
+		// Random angle between -45 and 45 degrees from vertical (in radians)
+		let angle_offset: f32 = rng.gen_range(-0.785..0.785); // ~45 degrees
+		let base_speed: f32 = 80.0;
+		let velocity = Vec2::new(
+			angle_offset.sin() * base_speed,
+			angle_offset.cos() * base_speed,
+		);
+
+		// Pick random color from palette
+		let color_idx = rng.gen_range(0..DAMAGE_COLORS.len());
+		let (r, g, b) = DAMAGE_COLORS[color_idx];
+
+		commands.spawn((
+			Text2d::new(format!("{:.0}", event.damage)),
+			TextFont {
+				font: asset_server.load("fonts/Orbitron-Variable.ttf"),
+				font_size: 18.0,
+				..default()
+			},
+			TextColor(Color::srgb(r, g, b)),
+			Transform::from_xyz(pos.x, pos.y, 2.0),
+			FloatingDamageNumber {
+				lifetime: Timer::from_seconds(0.8, TimerMode::Once),
+				velocity,
+			},
+		));
+	}
+}
+
+pub fn update_floating_damage_numbers(
+	mut commands: Commands,
+	mut query: Query<(Entity, &mut Transform, &mut TextColor, &mut FloatingDamageNumber)>,
+	time: Res<Time>,
+) {
+	for (entity, mut transform, mut color, mut damage_num) in query.iter_mut() {
+		damage_num.lifetime.tick(time.delta());
+
+		if damage_num.lifetime.finished() {
+			commands.entity(entity).despawn();
+			continue;
+		}
+
+		// Move along velocity direction
+		transform.translation.x += damage_num.velocity.x * time.delta_secs();
+		transform.translation.y += damage_num.velocity.y * time.delta_secs();
+
+		// Fade out
+		let alpha = damage_num.lifetime.fraction_remaining();
+		color.0 = color.0.with_alpha(alpha);
 	}
 }

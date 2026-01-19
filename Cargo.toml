@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.15", features = ["x11"] }
 bevy_kira_audio = { version = "0.21", features = ["mp3"] }
+bevy_hanabi = { version = "0.15", features = ["2d"] }
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use crate::components::{
 	Enemy, Player, Projectile, Collider, Health, PlayerDefenses, DamageSink,
 	Invincible, ContactDamage, EnemyHitEvent, EnemyDeathEvent, PlayerHitEvent,
-	EnemyProjectile,
+	EnemyProjectile, ProjectileHitbox, HitboxShape, CapsuleAxis,
 };
 use crate::systems::level::GamePaused;
 use crate::systems::audio::PlaySfxEvent;
@@ -10,22 +10,63 @@ use crate::systems::audio::PlaySfxEvent;
 const SHIELD2_REGEN_DELAY_SECS: f64 = 2.0;
 const SHIELD2_REGEN_DURATION_SECS: f64 = 1.5;
 const SHIELD1_REGEN_PER_SEC: f32 = 5.0;
+const DEFAULT_ENEMY_DEATH_CAP: u8 = 3;
 
 pub fn check_projectile_enemy_collisions(
 	mut commands: Commands,
 	projectiles: Query<(Entity, &Transform, &Projectile)>,
-	enemies: Query<(Entity, &Transform, &Collider, &Enemy), Without<Player>>,
+	enemies: Query<(Entity, &Transform, &Collider, Option<&ProjectileHitbox>, &Enemy), Without<Player>>,
 	mut hit_events: EventWriter<EnemyHitEvent>,
 ) {
 	for (proj_entity, proj_transform, projectile) in projectiles.iter() {
 		let proj_pos = proj_transform.translation.truncate();
 		let proj_radius = projectile.damage.sqrt() * 2.0; // Rough projectile size from damage
 
-		for (enemy_entity, enemy_transform, collider, _enemy) in enemies.iter() {
+		for (enemy_entity, enemy_transform, collider, projectile_hitbox, _enemy) in enemies.iter() {
 			let enemy_pos = enemy_transform.translation.truncate();
-			let distance = proj_pos.distance(enemy_pos);
+			let hit = if let Some(hitbox) = projectile_hitbox {
+				let inv_rotation = enemy_transform.rotation.conjugate();
+				let local_proj = inv_rotation * Vec3::new(
+					proj_pos.x - enemy_pos.x,
+					proj_pos.y - enemy_pos.y,
+					0.0,
+				);
+				let local = Vec2::new(local_proj.x, local_proj.y) - hitbox.offset;
 
-			if distance < proj_radius + collider.radius {
+				match hitbox.shape {
+					HitboxShape::Circle { radius } => {
+						local.length_squared() <= (proj_radius + radius).powi(2)
+					}
+					HitboxShape::Ellipse { radii } => {
+						let rx = radii.x + proj_radius;
+						let ry = radii.y + proj_radius;
+						if rx <= 0.0 || ry <= 0.0 {
+							false
+						} else {
+							(local.x * local.x) / (rx * rx) + (local.y * local.y) / (ry * ry) <= 1.0
+						}
+					}
+					HitboxShape::Capsule { radius, half_length, axis } => {
+						let effective_radius = radius + proj_radius;
+						let (dx, dy) = match axis {
+							CapsuleAxis::Vertical => {
+								let clamped_y = local.y.clamp(-half_length, half_length);
+								(local.x, local.y - clamped_y)
+							}
+							CapsuleAxis::Horizontal => {
+								let clamped_x = local.x.clamp(-half_length, half_length);
+								(local.x - clamped_x, local.y)
+							}
+						};
+						dx * dx + dy * dy <= effective_radius * effective_radius
+					}
+				}
+			} else {
+				let distance = proj_pos.distance(enemy_pos);
+				distance < proj_radius + collider.radius
+			};
+
+			if hit {
 				hit_events.send(EnemyHitEvent {
 					enemy: enemy_entity,
 					damage: projectile.damage,
@@ -66,6 +107,8 @@ pub fn apply_enemy_damage(
 				commands.entity(entity)
 					.insert(crate::components::Dying)
 					.remove::<Collider>();
+				commands.entity(entity)
+					.remove::<ProjectileHitbox>();
 			}
 		}
 	}
@@ -91,23 +134,32 @@ pub fn check_player_enemy_collisions(
 		if distance < player_collider.radius + enemy_collider.radius {
 			let damage = ContactDamage::for_enemy_type(enemy.enemy_type);
 
+			let mut sink = DamageSink::Armor;
+			let mut depleted = false;
+
 			if let Ok(mut defenses) = player_defenses.get_single_mut() {
 				// Any hit resets shield regen cooldown/state.
 				defenses.last_damage_time = time.elapsed_secs_f64();
 				defenses.shield2_regen_start_time = None;
 				defenses.shield2_regen_from = defenses.shield2;
 
-				let hit_result = defenses.take_damage(damage);
+				sink = defenses.take_damage(damage);
+				depleted = match sink {
+					DamageSink::Shield2 => defenses.shield2 <= 0.0,
+					DamageSink::Shield1 => defenses.shield1 <= 0.0,
+					DamageSink::Armor => defenses.armor <= 0.0,
+					DamageSink::Dead => true,
+				};
 				info!("Player hit for {:.0} damage! Hit: {:?}, Armor: {:.0}/{:.0}",
-					damage, hit_result, defenses.armor, defenses.armor_max);
+					damage, sink, defenses.armor, defenses.armor_max);
 
-				if hit_result == DamageSink::Dead {
+				if sink == DamageSink::Dead {
 					info!("Player armor destroyed! Game Over!");
 				}
 			}
 
-			hit_events.send(PlayerHitEvent);
-			commands.entity(player_entity).insert(Invincible::new(1.0));
+			hit_events.send(PlayerHitEvent { sink, depleted });
+			commands.entity(player_entity).insert(Invincible::new(0.05));
 			break;
 		}
 	}
@@ -152,24 +204,33 @@ pub fn check_enemy_projectile_player_collisions(
 		let distance = player_pos.distance(proj_pos);
 
 		if distance < proj_radius + player_collider.radius {
+			let mut sink = DamageSink::Armor;
+			let mut depleted = false;
+
 			if let Ok(mut defenses) = player_defenses.get_single_mut() {
 				// Any hit resets shield regen cooldown/state.
 				defenses.last_damage_time = time.elapsed_secs_f64();
 				defenses.shield2_regen_start_time = None;
 				defenses.shield2_regen_from = defenses.shield2;
 
-				let hit_result = defenses.take_damage(projectile.damage);
+				sink = defenses.take_damage(projectile.damage);
+				depleted = match sink {
+					DamageSink::Shield2 => defenses.shield2 <= 0.0,
+					DamageSink::Shield1 => defenses.shield1 <= 0.0,
+					DamageSink::Armor => defenses.armor <= 0.0,
+					DamageSink::Dead => true,
+				};
 				info!("Player hit by projectile for {:.0} damage! Hit: {:?}, Armor: {:.0}/{:.0}",
-					projectile.damage, hit_result, defenses.armor, defenses.armor_max);
+					projectile.damage, sink, defenses.armor, defenses.armor_max);
 
-				if hit_result == DamageSink::Dead {
+				if sink == DamageSink::Dead {
 					info!("Player armor destroyed! Game Over!");
 				}
 			}
 
 			commands.entity(proj_entity).despawn();
-			hit_events.send(PlayerHitEvent);
-			commands.entity(player_entity).insert(Invincible::new(1.0));
+			hit_events.send(PlayerHitEvent { sink, depleted });
+			commands.entity(player_entity).insert(Invincible::new(0.05));
 			break; // Only one hit per frame
 		}
 	}
@@ -278,6 +339,33 @@ pub fn play_enemy_death_sound(
 	mut sfx_events: EventWriter<PlaySfxEvent>,
 ) {
 	for _ in death_events.read() {
-		sfx_events.send(PlaySfxEvent::simple("sounds/enemy_death.ogg", 0.75, 80, 0.02));
+		sfx_events.send(PlaySfxEvent {
+			sound_path: "sounds/enemy_death.ogg",
+			volume: 0.75,
+			priority: 80,
+			cooldown_secs: 0.02,
+			max_concurrent: DEFAULT_ENEMY_DEATH_CAP,
+			when_full: crate::systems::audio::SfxWhenFull::Reject,
+			fade_after: None,
+			fade_duration: 0.0,
+		});
+	}
+}
+
+pub fn play_player_hit_sound(
+	mut hit_events: EventReader<PlayerHitEvent>,
+	mut sfx_events: EventWriter<PlaySfxEvent>,
+) {
+	for event in hit_events.read() {
+		let sound_path = match (event.sink, event.depleted) {
+			(DamageSink::Shield2, false) => "sounds/player/shield2_hit.ogg",
+			(DamageSink::Shield2, true) => "sounds/player/shield2_down.ogg",
+			(DamageSink::Shield1, false) => "sounds/player/shield1_hit.ogg",
+			(DamageSink::Shield1, true) => "sounds/player/shield1_down.ogg",
+			(DamageSink::Armor, _) => "sounds/player/armor_hit.ogg",
+			(DamageSink::Dead, _) => "sounds/player/armor_hit.ogg", // Could add death sound later
+		};
+
+		sfx_events.send(PlaySfxEvent::simple(sound_path, 0.7, 150, 0.05));
 	}
 }

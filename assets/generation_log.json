@@ -39,5 +39,7 @@
   "assets/ui/shield1_cold_metal_blue_bright_cyan.png": "Based on maybe_deepblue: Add bright electric cyan glow to edges and rim of the hexagon, intense neon cyan rim lighting, preserve the weathered metal texture and shape",
   "assets/ui/shield1_cold_metal_blue_dark_navy.png": "Based on maybe_deepblue: Add subtle dim navy blue glow to edges, minimal cyan highlights, soft glow effect, preserve the weathered metal texture and shape",
   "assets/ui/shield1_cold_metal_blue_teal_aqua.png": "Based on maybe_deepblue: Add vibrant teal-cyan aqua glow to edges and rim, bright turquoise rim lighting, preserve the weathered metal texture and shape",
-  "assets/ui/shield1_cold_metal_blue_lightning.png": "Based on maybe_deepblue: Add intense royal blue glow with electric lightning effects on edges, strong sapphire energy, dramatic blue lighting, preserve the weathered metal texture and shape"
+  "assets/ui/shield1_cold_metal_blue_lightning.png": "Based on maybe_deepblue: Add intense royal blue glow with electric lightning effects on edges, strong sapphire energy, dramatic blue lighting, preserve the weathered metal texture and shape",
+  "assets/sprites/raiders/scout.png": "Scout reconnaissance ship, pre-rendered 3D sprite, top-down view, facing downward, sleek blue-gray hull with bright blue sensor eye, minimal design, 512x512",
+  "assets/enemies/asteroid_turret_socket.png": "Turret mounting point carved into asteroid, pre-rendered 3D sprite, overhead perspective, rocky irregular asteroid with mechanical turret socket embedded in surface, weathered stone and metal integration, glossy armored platform, hard shadows, isolated on white background, game sprite, 400x400"
 }

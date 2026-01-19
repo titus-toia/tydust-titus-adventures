@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::components::{
-	DeathFx, Dying, EnemyDeathEvent, EnemyType, FxPolicy, Particle, ShaderEffects,
+	DeathFx, Dying, EnemyDeathEvent, EnemyType, FxPolicy, OneshotEffect, Particle, ShaderEffects, SpriteFrameAnimation,
 };
+use crate::systems::hanabi_fx::{ExplosionEffects, ExplosionSize, spawn_explosion_effect};
 
 // "Crumble into dust" tuning. This intentionally avoids big square-card spam:
 // - low counts
@@ -20,6 +21,7 @@ pub fn process_enemy_death_fx(
 	mut shader_query: Query<Option<&mut ShaderEffects>>,
 	fx_query: Query<Option<&FxPolicy>>,
 	asset_server: Res<AssetServer>,
+	explosion_effects: Option<Res<ExplosionEffects>>,
 ) {
 	let mut rng = rand::thread_rng();
 
@@ -145,6 +147,45 @@ pub fn process_enemy_death_fx(
 							velocity,
 						},
 					));
+				}
+
+				commands.entity(entity).despawn_recursive();
+			}
+			DeathFx::FrameExplosion => {
+				// Spawn animated explosion sprite sequence
+				let frames: Vec<Handle<Image>> = (1..=9)
+					.map(|i| asset_server.load(format!("sprites/explosion_1_small/frame{}.png", i)))
+					.collect();
+
+				if !frames.is_empty() {
+					commands.spawn((
+						Sprite {
+							image: frames[0].clone(),
+							custom_size: Some(Vec2::splat(120.0)), // Explosion size
+							..default()
+						},
+						Transform::from_xyz(event.position.x, event.position.y, 1.5),
+						SpriteFrameAnimation::oneshot_fps(frames, 20.0), // 20 FPS for snappy explosion
+						OneshotEffect,
+					));
+				}
+
+				// Spawn Hanabi GPU particle burst for DemonStar-style spark shower
+				if let Some(ref effects) = explosion_effects {
+					let size = match event.enemy_type {
+						EnemyType::Boss => ExplosionSize::Large,
+						EnemyType::HeavyGunship | EnemyType::Corvette | EnemyType::LargeAsteroid => ExplosionSize::Medium,
+						_ => ExplosionSize::Small,
+					};
+					info!("Spawning Hanabi explosion at {:?}, size {:?}", event.position, size);
+					spawn_explosion_effect(
+						&mut commands,
+						effects,
+						Vec3::new(event.position.x, event.position.y, 1.2),
+						size,
+					);
+				} else {
+					warn!("ExplosionEffects resource not available!");
 				}
 
 				commands.entity(entity).despawn_recursive();

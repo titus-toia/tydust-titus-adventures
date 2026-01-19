@@ -3,6 +3,7 @@ use bevy_kira_audio::prelude::*;
 use std::fs;
 use crate::level::{LevelData, LevelDataV2, LevelDataV3};
 use crate::components::DistanceLocked;
+use crate::resources::EnemyAssetRegistry;
 use super::world::{sizes, doodad_sizes};
 
 #[derive(Resource, Default)]
@@ -459,8 +460,9 @@ pub fn process_enemy_waves(
 	mut effects_materials: ResMut<Assets<crate::materials::EffectsMaterial>>,
 	noise_texture: Res<crate::materials::noise::EffectsNoiseTexture>,
 	mut formation_registry: ResMut<crate::components::FormationRegistry>,
+	enemy_assets: Res<EnemyAssetRegistry>,
 ) {
-	use crate::components::{EnemyType, EnemyMovement, MovementPattern, EnemyBehavior, FormationLeader, FormationMember};
+	use crate::components::{EnemyType, EnemyMovement, MovementPattern, EnemyBehavior, FormationLeader, FormationMember, EnemyFireOverride};
 	use crate::level::{FormationRole, EnemySpawn};
 	use crate::systems::spawn::{spawn_enemy_with_behavior, spawn_enemy_with_movement};
 
@@ -522,6 +524,7 @@ pub fn process_enemy_waves(
 
 			let (sprite_path, size, enemy_type) = match enemy.enemy_type.as_str() {
 				"Scout" => ("enemies/scout.png", sizes::SCOUT, EnemyType::Scout),
+				"ScoutSting" => ("enemies/scout_sting.png", sizes::SCOUT_STING, EnemyType::ScoutSting),
 				"Fighter" => ("enemies/fighter.png", sizes::FIGHTER, EnemyType::Fighter),
 				"HeavyGunship" => ("enemies/heavy_gunship.png", sizes::HEAVY_GUNSHIP, EnemyType::HeavyGunship),
 				"Boss" => ("enemies/boss.png", sizes::BOSS, EnemyType::Boss),
@@ -529,10 +532,12 @@ pub fn process_enemy_waves(
 				"Drone" => ("enemies/drone.png", sizes::DRONE, EnemyType::Drone),
 				"Bomber" => ("enemies/bomber.png", sizes::BOMBER, EnemyType::Bomber),
 				"Corvette" => ("enemies/corvette.png", sizes::CORVETTE, EnemyType::Corvette),
+				"Drill" => ("enemies/drill/drill_0.png", sizes::DRILL, EnemyType::Drill),
 				"SmallAsteroid" => ("enemies/small_asteroid.png", sizes::SMALL_ASTEROID, EnemyType::SmallAsteroid),
 				"MediumAsteroid" => ("enemies/medium_asteroid.png", sizes::MEDIUM_ASTEROID, EnemyType::MediumAsteroid),
 				"LargeAsteroid" => ("enemies/large_asteroid.png", sizes::LARGE_ASTEROID, EnemyType::LargeAsteroid),
 				"StationDebris" => ("enemies/station_debris.png", sizes::STATION_DEBRIS, EnemyType::StationDebris),
+				"AsteroidTurret" => ("enemies/asteroid_turret.png", sizes::ASTEROID_TURRET, EnemyType::AsteroidTurret),
 				_ => ("enemies/scout.png", sizes::SCOUT, EnemyType::Scout),
 			};
 
@@ -552,6 +557,7 @@ pub fn process_enemy_waves(
 					&mut meshes,
 					&mut effects_materials,
 					&noise_texture.0,
+					&enemy_assets,
 					enemy_type,
 					sprite_path,
 					size,
@@ -565,6 +571,10 @@ pub fn process_enemy_waves(
 					},
 				);
 
+				if let Some(firing) = enemy.firing.clone() {
+					commands.entity(entity_id).insert(EnemyFireOverride { overrides: firing });
+				}
+
 				if let Some(ref formation_id) = enemy.formation_id {
 					match enemy.formation_role {
 						Some(FormationRole::Leader) => {
@@ -575,16 +585,14 @@ pub fn process_enemy_waves(
 							formation_registry.formations.insert(formation_id.clone(), entity_id);
 						}
 						Some(FormationRole::Member) => {
-							if let Some(leader_entity) = formation_registry.formations.get(formation_id) {
-								let offset = enemy.formation_offset
-									.map(|o| Vec2::new(o[0], o[1]))
-									.unwrap_or(Vec2::ZERO);
-								commands.entity(entity_id).insert(FormationMember {
-									formation_id: formation_id.clone(),
-									leader: *leader_entity,
-									offset,
-								});
-							}
+							let offset = enemy.formation_offset
+								.map(|o| Vec2::new(o[0], o[1]))
+								.unwrap_or(Vec2::ZERO);
+							// Robust: members follow by `formation_id` at runtime, so spawn order doesn't matter.
+							commands.entity(entity_id).insert(FormationMember {
+								formation_id: formation_id.clone(),
+								offset,
+							});
 						}
 						None => {}
 					}
@@ -614,12 +622,13 @@ pub fn process_enemy_waves(
 					MovementPattern::Straight { speed: 100.0 }
 				};
 
-				spawn_enemy_with_movement(
+				let entity_id = spawn_enemy_with_movement(
 					&mut commands,
 					&asset_server,
 					&mut meshes,
 					&mut effects_materials,
 					&noise_texture.0,
+					&enemy_assets,
 					enemy_type,
 					sprite_path,
 					size,
@@ -630,6 +639,10 @@ pub fn process_enemy_waves(
 						time_alive: 0.0,
 					},
 				);
+
+				if let Some(firing) = enemy.firing.clone() {
+					commands.entity(entity_id).insert(EnemyFireOverride { overrides: firing });
+				}
 
 				// Mark this enemy as spawned
 				level.spawned_enemies.insert((wave_idx, enemy_idx));

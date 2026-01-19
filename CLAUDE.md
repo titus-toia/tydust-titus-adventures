@@ -16,10 +16,13 @@
 5. **Never assume old assets are garbage** - the user may want to keep them
 
 ### Asset Workflow (MANDATORY):
-1. Generate → `generated_imgs/[category]/`
-2. Process (resize, background removal) → stays in `generated_imgs/`
-3. **ASK USER** if they want to replace existing asset
-4. Only then → move to `assets/[category]/`
+1. Generate → `generated_imgs/`
+2. **STOP - Show user the raw output and WAIT FOR APPROVAL**
+   - Do NOT process, rename, or move anything until user gives the go signal
+   - User may want to iterate, regenerate, or reject entirely
+3. Only after user approval: Process (background removal, staging by category)
+4. **ASK USER** before moving to `assets/` (especially if replacing existing)
+5. Only then → move to `assets/[category]/`
 
 ## Directory Organization
 
@@ -292,7 +295,29 @@ mcp__nano-banana__generate_image(prompt=user_description)
 - `"game sprite"` or `"game asset"`
 - `"no surrounding space"` (to prevent black space backgrounds)
 
-### 3. Stage in generated_imgs/ by Category
+### 3. STOP - Wait for User Approval
+
+**CRITICAL: Do NOT proceed until user gives the go signal.**
+
+After generating, show the user:
+- The raw generated image(s)
+- Brief notes on what came out (orientation, style, any issues)
+
+Then **WAIT**. The user may want to:
+- Approve and continue to processing
+- Request iteration/edits on the current image
+- Regenerate with different prompts
+- Reject entirely and try something else
+
+**Do NOT:**
+- Rename or move files
+- Run background removal
+- Update generation logs
+- Stage into category folders
+
+Until user explicitly approves (e.g., "looks good", "process it", "go ahead").
+
+### 4. Stage in generated_imgs/ by Category
 
 Gemini MCP automatically saves to: `generated_imgs/generated-{timestamp}-{id}.png`
 
@@ -310,7 +335,7 @@ mv generated_imgs/generated-*.png generated_imgs/doodads/cargo_container.png
 
 Stage by **category directory** in `generated_imgs/`, not the final asset path. This staging area is for organization and review before processing.
 
-### 4. Remove Backgrounds (in staging area)
+### 5. Remove Backgrounds (in staging area)
 
 Process staged asset with rembg:
 
@@ -324,7 +349,7 @@ output = remove(img)
 output.save(path)
 ```
 
-### 5. Update Generation Log
+### 6. Update Generation Log
 
 **File:** `assets/generation_log.json`
 
@@ -349,7 +374,7 @@ log[final_asset_path] = full_prompt_used
 json.dump(log, open(log_path, 'w'), indent=2)
 ```
 
-### 6. Move to Final Asset Directory
+### 7. Move to Final Asset Directory
 
 Move from staging to final location:
 
@@ -363,7 +388,7 @@ mv generated_imgs/structures/mining_platform.png assets/structures/mining_platfo
 mv generated_imgs/enemies/raider_boss.png assets/sprites/raiders/raider_boss.png
 ```
 
-### 7. Run QA Pipeline
+### 8. Run QA Pipeline
 
 After moving to final asset directory, run the automated QA pipeline:
 
@@ -387,7 +412,7 @@ This will:
 - Background already removed via rembg in staging
 - QA pipeline ensures any remaining white is cleaned
 
-### 8. Confirm to User
+### 9. Confirm to User
 
 Report back with:
 - ✓ Category detected
@@ -402,35 +427,48 @@ Report back with:
 
 **User says:** "Generate an industrial cargo container"
 
-**Your response:**
+**Your response (Phase 1 - Generate & Wait):**
 
 1. **Detect category:** `doodads` (contains "cargo container")
 
 2. **Enhance prompt:**
    - Original: "industrial cargo container"
-   - Enhanced: "industrial cargo container, top-down view, isolated asset on white background, game sprite, clean edges, 400x300"
+   - Enhanced: "industrial cargo container, pre-rendered 3D sprite, top-down view, glossy metallic materials, weathered steel, isolated on white background, game sprite, 400x300"
 
 3. **Generate:** Call `mcp__nano-banana__generate_image` with enhanced prompt
 
-4. **Stage in generated_imgs/:**
+4. **STOP - Show user and wait:**
+   ```
+   Generated industrial cargo container.
+   - Style: Pre-rendered 3D, weathered metal look
+   - Orientation: Top-down ✓
+   - Notes: Clean edges, good isolation
+
+   Let me know if this looks good, or if you want to iterate/regenerate.
+   ```
+
+**User says:** "looks good, process it"
+
+**Your response (Phase 2 - Process):**
+
+5. **Stage in generated_imgs/:**
    - From: `generated_imgs/generated-2026-01-10T15-30-45-123Z.png`
    - To: `generated_imgs/doodads/industrial_cargo_container.png`
 
-5. **Remove background:**
+6. **Remove background:**
    - Process in staging with rembg to clean edges
 
-6. **Update log:** Add entry to `assets/generation_log.json` (with final asset path)
+7. **Update log:** Add entry to `assets/generation_log.json` (with final asset path)
 
-7. **Move to final location:**
+8. **Move to final location:**
    - From: `generated_imgs/doodads/industrial_cargo_container.png`
    - To: `assets/doodads/industrial_cargo_container.png`
 
-8. **Run QA:** Execute asset QA pipeline on final location
+9. **Run QA:** Execute asset QA pipeline on final location
 
-9. **Report:**
+10. **Report:**
    ```
-   ✓ Generated industrial cargo container
-   ✓ Category: doodads
+   ✓ Processed industrial cargo container
    ✓ Staged to: generated_imgs/doodads/industrial_cargo_container.png
    ✓ Moved to: assets/doodads/industrial_cargo_container.png
    ✓ Background removed (rembg)
@@ -502,14 +540,15 @@ If planet has atmospheric glow with excess black corners:
 
 ## Important Notes
 
+- **ALWAYS** wait for user approval after generating before processing anything
 - **ALWAYS** detect category automatically - don't ask user unless ambiguous
 - **ALWAYS** enhance prompts with isolation keywords
-- **ALWAYS** move file from generated_imgs/ to correct assets/ directory
+- **ALWAYS** move file from generated_imgs/ to correct assets/ directory (after approval)
 - **ALWAYS** update generation_log.json
 - **ALWAYS** run appropriate background removal based on category
 - **ALWAYS** run QA pipeline after background removal
-- **NEVER** leave generated files in generated_imgs/ directory
-- **NEVER** skip the workflow steps
+- **NEVER** process, rename, or move files until user gives the go signal
+- **NEVER** skip the approval step - user may want to iterate or reject
 
 **Post-processing order is critical:**
 

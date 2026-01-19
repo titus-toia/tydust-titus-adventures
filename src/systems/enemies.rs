@@ -1,5 +1,14 @@
 use bevy::prelude::*;
-use crate::components::{Enemy, EnemyType, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis, EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyPreviousPosition, EnemyProjectileType};
+use crate::components::{
+	Enemy, EnemyType, EnemyMovement, MovementPattern, Player, EnemyBehavior, BehaviorType, SineAxis,
+	EasingType, FormationLeader, FormationMember, EnemyShooter, EnemyProjectile, EnemyPreviousPosition,
+	EnemyProjectileType, EnemyFireOverride, EnemyFireConfig, EnemyWeaponSockets, FirePattern, AimMode,
+	SocketSelector, PlayerVelocity, WeaponSocket,
+};
+use crate::materials::ProjectileMaterialHandles;
+use crate::resources::EnemyAssetRegistry;
+use bevy::render::mesh::Mesh2d;
+use bevy::sprite::MeshMaterial2d;
 use super::world::HALF_WORLD_HEIGHT;
 use super::level::CurrentLevel;
 use std::f32::consts::{PI, FRAC_PI_2};
@@ -58,11 +67,10 @@ pub fn cleanup_enemies(
 // === New Behavior System ===
 
 pub fn execute_enemy_behaviors(
-	mut query: Query<(&mut Transform, &mut EnemyBehavior, &mut Sprite), (Without<Player>, Without<FormationLeader>, Without<crate::components::Dying>)>,
-	mut query_no_sprite: Query<(&mut Transform, &mut EnemyBehavior), (Without<Player>, Without<FormationLeader>, Without<Sprite>, Without<crate::components::Dying>)>,
+	mut query: Query<(&mut Transform, &mut EnemyBehavior, &mut Sprite), (Without<Player>, Without<FormationMember>, Without<crate::components::Dying>)>,
+	mut query_no_sprite: Query<(&mut Transform, &mut EnemyBehavior), (Without<Player>, Without<FormationMember>, Without<Sprite>, Without<crate::components::Dying>)>,
 	time: Res<Time>,
 	player_query: Query<&Transform, With<Player>>,
-	formation_query: Query<&Transform, With<FormationLeader>>,
 	level: Option<Res<CurrentLevel>>,
 ) {
 	let delta = time.delta_secs();
@@ -108,7 +116,6 @@ pub fn execute_enemy_behaviors(
 			elapsed,
 			delta,
 			&player_query,
-			&formation_query,
 		);
 	}
 
@@ -141,7 +148,6 @@ pub fn execute_enemy_behaviors(
 			elapsed,
 			delta,
 			&player_query,
-			&formation_query,
 		);
 	}
 }
@@ -154,7 +160,6 @@ fn execute_behavior(
 	elapsed: f32,
 	delta: f32,
 	player_query: &Query<&Transform, With<Player>>,
-	_formation_query: &Query<&Transform, With<FormationLeader>>,
 ) {
 	match behavior {
 		BehaviorType::MoveStraight { velocity } => {
@@ -316,7 +321,6 @@ fn execute_behavior(
 					elapsed,
 					delta,
 					player_query,
-					_formation_query,
 				);
 			}
 		}
@@ -330,7 +334,6 @@ fn execute_behavior_no_sprite(
 	elapsed: f32,
 	delta: f32,
 	player_query: &Query<&Transform, With<Player>>,
-	_formation_query: &Query<&Transform, With<FormationLeader>>,
 ) {
 	match behavior {
 		BehaviorType::MoveStraight { velocity } => {
@@ -479,7 +482,6 @@ fn execute_behavior_no_sprite(
 					elapsed,
 					delta,
 					player_query,
-					_formation_query,
 				);
 			}
 		}
@@ -490,9 +492,17 @@ pub fn update_formations(
 	leader_query: Query<(&Transform, &FormationLeader)>,
 	mut member_query: Query<(&mut Transform, &FormationMember), Without<FormationLeader>>,
 ) {
+	use std::collections::HashMap;
+
+	// Build a quick lookup so members can follow leaders even if spawn order was "member first".
+	let mut leader_positions: HashMap<&str, Vec2> = HashMap::new();
+	for (leader_transform, leader) in leader_query.iter() {
+		leader_positions.insert(leader.formation_id.as_str(), leader_transform.translation.truncate());
+	}
+
 	for (mut member_transform, member) in member_query.iter_mut() {
-		if let Ok((leader_transform, _)) = leader_query.get(member.leader) {
-			let target_pos = leader_transform.translation.truncate() + member.offset;
+		if let Some(leader_pos) = leader_positions.get(member.formation_id.as_str()) {
+			let target_pos = *leader_pos + member.offset;
 			member_transform.translation = target_pos.extend(member_transform.translation.z);
 		}
 	}
@@ -502,104 +512,275 @@ pub fn update_formations(
 
 pub fn setup_enemy_shooters(
 	mut commands: Commands,
-	query: Query<(Entity, &Enemy), Without<EnemyShooter>>,
+	enemy_assets: Res<EnemyAssetRegistry>,
+	query: Query<(Entity, &Enemy, Option<&EnemyFireOverride>), Without<EnemyShooter>>,
 ) {
-	for (entity, enemy) in query.iter() {
-		if let Some((projectile_type, fire_rate)) = enemy.enemy_type.shooting_config() {
-			commands.entity(entity).insert(EnemyShooter {
-				projectile_type,
-				fire_timer: Timer::from_seconds(fire_rate, TimerMode::Repeating),
-				burst_remaining: 0,
-				burst_timer: Timer::from_seconds(0.1, TimerMode::Repeating),
-			});
+	for (entity, enemy, override_config) in query.iter() {
+		let Some((projectile_type, fire_rate)) = enemy.enemy_type.shooting_config() else {
+			continue;
+		};
+
+		let mut base_config = enemy.enemy_type.default_fire_config().unwrap_or(EnemyFireConfig {
+			aim: AimMode::AtPlayer,
+			pattern: FirePattern::Single,
+			cooldown: fire_rate,
+			sockets: SocketSelector::All,
+		});
+
+		if let Some(meta) = enemy_assets.get(enemy.enemy_type) {
+			if let Some(cooldown) = meta.fire_cooldown {
+				base_config.cooldown = cooldown.max(0.05);
+			}
 		}
+
+		let fire_config = override_config
+			.map(|override_config| base_config.apply_overrides(&override_config.overrides))
+			.unwrap_or(base_config);
+
+		let burst_interval = match fire_config.pattern {
+			FirePattern::Burst { interval, .. } => interval.max(0.01),
+			_ => 0.1,
+		};
+
+		commands.entity(entity).insert(EnemyShooter {
+			projectile_type,
+			fire_timer: Timer::from_seconds(fire_config.cooldown, TimerMode::Repeating),
+			burst_remaining: 0,
+			burst_timer: Timer::from_seconds(burst_interval, TimerMode::Repeating),
+			fire_config,
+		});
 	}
 }
 
 pub fn enemy_shooting(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut shooters: Query<(&Transform, &mut EnemyShooter), With<Enemy>>,
-	player_query: Query<&Transform, With<Player>>,
+	mut meshes: ResMut<Assets<Mesh>>,
+	projectile_materials: Res<ProjectileMaterialHandles>,
+	mut shooters: Query<(&Transform, &Enemy, &mut EnemyShooter, Option<&EnemyWeaponSockets>), With<Enemy>>,
+	player_query: Query<(&Transform, Option<&PlayerVelocity>), With<Player>>,
 	time: Res<Time>,
 ) {
-	let Ok(player_transform) = player_query.get_single() else { return };
+	let Ok((player_transform, player_velocity)) = player_query.get_single() else { return };
 	let player_pos = player_transform.translation.truncate();
+	let player_vel = player_velocity.map(|v| v.0).unwrap_or(Vec2::ZERO);
 
-	for (transform, mut shooter) in shooters.iter_mut() {
-		let enemy_pos = transform.translation.truncate();
+	for (transform, enemy, mut shooter, sockets) in shooters.iter_mut() {
 		shooter.fire_timer.tick(time.delta());
 		shooter.burst_timer.tick(time.delta());
 
 		let config = shooter.projectile_type.config();
+		let fire_config = shooter.fire_config.clone();
 
-		// Handle burst shooting
-		if shooter.burst_remaining > 0 && shooter.burst_timer.just_finished() {
-			spawn_enemy_projectiles(&mut commands, &asset_server, enemy_pos, player_pos, &shooter, &config);
-			shooter.burst_remaining -= 1;
-		}
+		let mut emit = |commands: &mut Commands| {
+			let socket_count = emit_projectiles(
+				commands,
+				&asset_server,
+				&mut meshes,
+				&projectile_materials,
+				transform,
+				sockets,
+				&fire_config,
+				player_pos,
+				player_vel,
+				&shooter.projectile_type,
+				&config,
+			);
+			if socket_count > 0 && std::env::var("TYDUST_LOG_ENEMY_FIRE").is_ok() {
+				info!(
+					"Enemy fire {:?}: aim={:?} pattern={:?} sockets={}",
+					enemy.enemy_type,
+					fire_config.aim,
+					fire_config.pattern,
+					socket_count
+				);
+			}
+		};
 
-		// Handle regular fire timer
-		if shooter.fire_timer.just_finished() {
-			if config.burst_count > 1 {
-				shooter.burst_remaining = config.burst_count;
-				shooter.burst_timer.reset();
-			} else {
-				spawn_enemy_projectiles(&mut commands, &asset_server, enemy_pos, player_pos, &shooter, &config);
+		match fire_config.pattern {
+			FirePattern::Burst { count, interval } => {
+				if shooter.burst_remaining > 0 && shooter.burst_timer.just_finished() {
+					emit(&mut commands);
+					shooter.burst_remaining = shooter.burst_remaining.saturating_sub(1);
+				}
+
+				if shooter.fire_timer.just_finished() {
+					shooter.burst_remaining = count;
+					shooter.burst_timer = Timer::from_seconds(interval.max(0.01), TimerMode::Repeating);
+					shooter.burst_timer.reset();
+				}
+			}
+			_ => {
+				if shooter.fire_timer.just_finished() {
+					emit(&mut commands);
+				}
 			}
 		}
 	}
 }
 
-fn spawn_enemy_projectiles(
+fn emit_projectiles(
 	commands: &mut Commands,
 	asset_server: &AssetServer,
-	enemy_pos: Vec2,
+	meshes: &mut Assets<Mesh>,
+	projectile_materials: &ProjectileMaterialHandles,
+	transform: &Transform,
+	sockets: Option<&EnemyWeaponSockets>,
+	fire_config: &EnemyFireConfig,
 	player_pos: Vec2,
-	shooter: &EnemyShooter,
+	player_vel: Vec2,
+	projectile_type: &EnemyProjectileType,
 	config: &crate::components::EnemyProjectileConfig,
-) {
-	let to_player = (player_pos - enemy_pos).normalize_or_zero();
-	let base_angle = to_player.y.atan2(to_player.x);
+) -> usize {
+	let resolved_sockets = resolve_sockets(transform, sockets, &fire_config.sockets);
+	let socket_count = resolved_sockets.len();
+	let pattern_angles = pattern_angles(&fire_config.pattern);
 
-	let count = config.count as i32;
-	let half_spread = config.spread_angle / 2.0;
-
-	// Select sprite based on projectile type
-	let (sprite_path, sprite_size) = match shooter.projectile_type {
-		EnemyProjectileType::PlasmaBall => ("sprites/enemy_projectiles/plasma_ball.png", Vec2::splat(48.0)),
-		EnemyProjectileType::SpreadShot => ("sprites/enemy_projectiles/spread_shot.png", Vec2::splat(24.0)),
-		_ => ("sprites/enemy_projectiles/basic_shot.png", Vec2::splat(32.0)),
-	};
-
-	for i in 0..count {
-		let angle_offset = if count == 1 {
-			0.0
-		} else if config.spread_angle >= std::f32::consts::TAU - 0.1 {
-			// Full circle (Ring pattern)
-			(i as f32 / count as f32) * std::f32::consts::TAU
-		} else {
-			// Spread pattern
-			-half_spread + (i as f32 / (count - 1).max(1) as f32) * config.spread_angle
+	for socket in resolved_sockets {
+		let aim_dir = match fire_config.aim {
+			AimMode::AtPlayer => (player_pos - socket.world_pos).normalize_or_zero(),
+			AimMode::LeadPlayer { lead_strength } => {
+				let distance = socket.world_pos.distance(player_pos);
+				let travel_time = if config.speed > 0.0 { distance / config.speed } else { 0.0 };
+				let target = player_pos + player_vel * travel_time * lead_strength;
+				(target - socket.world_pos).normalize_or_zero()
+			}
+			AimMode::FixedAngle { angle_deg } => {
+				let angle = angle_deg.to_radians();
+				Vec2::new(angle.cos(), angle.sin())
+			}
 		};
 
-		let angle = base_angle + angle_offset;
-		let velocity = Vec2::new(angle.cos(), angle.sin()) * config.speed;
+		let base_angle = aim_dir.y.atan2(aim_dir.x) + socket.angle_offset;
 
-		commands.spawn((
-			Sprite {
-				image: asset_server.load(sprite_path),
-				custom_size: Some(sprite_size),
-				..default()
-			},
-			Transform::from_xyz(enemy_pos.x, enemy_pos.y, 0.6)
-				.with_rotation(Quat::from_rotation_z(angle - FRAC_PI_2)),
-			EnemyProjectile {
-				damage: config.damage,
-				velocity,
-				lifetime: Timer::from_seconds(5.0, TimerMode::Once),
-			},
-		));
+		let sprite_size = config.size;
+
+		for angle_offset in &pattern_angles {
+			let angle = base_angle + angle_offset;
+			let velocity = Vec2::new(angle.cos(), angle.sin()) * config.speed;
+
+			match projectile_type {
+				EnemyProjectileType::BasicShot => {
+					let mesh = meshes.add(Mesh::from(bevy::math::primitives::Rectangle::new(
+						sprite_size.x,
+						sprite_size.y,
+					)));
+					let material = projectile_materials.orange_pellet.clone();
+					commands.spawn((
+						Mesh2d(mesh),
+						MeshMaterial2d(material),
+						Transform::from_xyz(socket.world_pos.x, socket.world_pos.y, 0.6)
+							.with_rotation(Quat::from_rotation_z(angle - FRAC_PI_2)),
+						EnemyProjectile {
+							damage: config.damage,
+							velocity,
+							lifetime: Timer::from_seconds(5.0, TimerMode::Once),
+						},
+					));
+				}
+				_ => {
+					// Select sprite based on projectile type
+					let (sprite_path, sprite_size) = match projectile_type {
+						EnemyProjectileType::PlasmaBall => ("sprites/enemy_projectiles/plasma_ball.png", Vec2::splat(48.0)),
+						EnemyProjectileType::SpreadShot => ("sprites/enemy_projectiles/spread_shot.png", Vec2::splat(24.0)),
+						_ => ("sprites/enemy_projectiles/basic_shot.png", Vec2::splat(32.0)),
+					};
+					commands.spawn((
+						Sprite {
+							image: asset_server.load(sprite_path),
+							custom_size: Some(sprite_size),
+							..default()
+						},
+						Transform::from_xyz(socket.world_pos.x, socket.world_pos.y, 0.6)
+							.with_rotation(Quat::from_rotation_z(angle - FRAC_PI_2)),
+						EnemyProjectile {
+							damage: config.damage,
+							velocity,
+							lifetime: Timer::from_seconds(5.0, TimerMode::Once),
+						},
+					));
+				}
+			}
+		}
+	}
+
+	socket_count
+}
+
+struct ResolvedSocket {
+	world_pos: Vec2,
+	angle_offset: f32,
+}
+
+fn resolve_sockets(
+	transform: &Transform,
+	sockets: Option<&EnemyWeaponSockets>,
+	selector: &SocketSelector,
+) -> Vec<ResolvedSocket> {
+	let mut candidates: Vec<&WeaponSocket> = Vec::new();
+	if let Some(sockets) = sockets {
+		match selector {
+			SocketSelector::All => {
+				candidates = sockets.sockets.iter().collect();
+			}
+			SocketSelector::ById { ids } => {
+				candidates = sockets
+					.sockets
+					.iter()
+					.filter(|socket| ids.iter().any(|id| id == &socket.id))
+					.collect();
+			}
+			SocketSelector::ByTag { tags } => {
+				candidates = sockets
+					.sockets
+					.iter()
+					.filter(|socket| socket.tags.iter().any(|tag| tags.contains(tag)))
+					.collect();
+			}
+		}
+	}
+
+	if candidates.is_empty() {
+		return vec![ResolvedSocket {
+			world_pos: transform.translation.truncate(),
+			angle_offset: 0.0,
+		}];
+	}
+
+	candidates
+		.into_iter()
+		.map(|socket| {
+			let rotated = transform.rotation * socket.local_offset.extend(0.0);
+			ResolvedSocket {
+				world_pos: transform.translation.truncate() + rotated.truncate(),
+				angle_offset: socket.angle_deg.unwrap_or(0.0).to_radians(),
+			}
+		})
+		.collect()
+}
+
+fn pattern_angles(pattern: &FirePattern) -> Vec<f32> {
+	match *pattern {
+		FirePattern::Single => vec![0.0],
+		FirePattern::Spread { count, angle_deg } => {
+			let count = count.max(1) as i32;
+			let spread = angle_deg.to_radians();
+			let half_spread = spread / 2.0;
+			if count == 1 {
+				vec![0.0]
+			} else {
+				(0..count)
+					.map(|i| -half_spread + (i as f32 / (count - 1) as f32) * spread)
+					.collect()
+			}
+		}
+		FirePattern::Ring { count } => {
+			let count = count.max(1) as i32;
+			(0..count)
+				.map(|i| (i as f32 / count as f32) * std::f32::consts::TAU)
+				.collect()
+		}
+		FirePattern::Burst { .. } => vec![0.0],
 	}
 }
 
@@ -666,7 +847,12 @@ pub fn rotate_enemies_to_movement(
 			if movement.length() > 0.5 {
 				let direction = movement.truncate();
 				// Calculate angle (0 degrees = pointing up)
-				let target_angle = direction.y.atan2(direction.x) - FRAC_PI_2;
+				let mut target_angle = direction.y.atan2(direction.x) - FRAC_PI_2;
+				// Some sprites are authored "pointing down" at 0° (instead of up).
+				// Apply a per-type facing correction so they still face movement correctly.
+				if matches!(enemy.enemy_type, EnemyType::Drill | EnemyType::ScoutSting) {
+					target_angle += std::f32::consts::PI;
+				}
 				transform.rotation = Quat::from_rotation_z(target_angle);
 			}
 		}

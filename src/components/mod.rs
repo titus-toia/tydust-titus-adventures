@@ -145,6 +145,25 @@ pub struct Player {
 	pub ship_type: ShipType,
 }
 
+/// A simple animated thruster sprite attached to a ship (no bloom required).
+#[derive(Component)]
+pub struct ThrusterFx {
+	/// Local offset from the parent (ship) origin.
+	pub local_offset: Vec3,
+	/// Base scale for the thruster sprite.
+	pub base_scale: Vec3,
+	/// Pulse amplitude applied to scale (fraction of base).
+	pub scale_pulse: f32,
+	/// Pulse speed in Hz.
+	pub pulse_hz: f32,
+	/// Base alpha (0..1).
+	pub base_alpha: f32,
+	/// Alpha pulse amplitude.
+	pub alpha_pulse: f32,
+	/// Per-entity phase offset (radians).
+	pub phase: f32,
+}
+
 // === Weapon System Components ===
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -417,7 +436,10 @@ pub struct WeaponUpgradeEvent {
 }
 
 #[derive(Event)]
-pub struct PlayerHitEvent;
+pub struct PlayerHitEvent {
+	pub sink: DamageSink,
+	pub depleted: bool,
+}
 
 // === Enemy Components ===
 
@@ -430,6 +452,7 @@ pub struct Enemy {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EnemyType {
 	Scout,
+	ScoutSting,
 	Fighter,
 	HeavyGunship,
 	Boss,
@@ -437,10 +460,12 @@ pub enum EnemyType {
 	Drone,
 	Bomber,
 	Corvette,
+	Drill,
 	SmallAsteroid,
 	MediumAsteroid,
 	LargeAsteroid,
 	StationDebris,
+	AsteroidTurret,
 }
 
 impl EnemyType {
@@ -449,6 +474,8 @@ impl EnemyType {
 		match self {
 			// Non-shooters
 			EnemyType::Scout => None,
+			EnemyType::ScoutSting => None,
+			EnemyType::Drill => None,
 			EnemyType::SmallAsteroid => None,
 			EnemyType::MediumAsteroid => None,
 			EnemyType::LargeAsteroid => None,
@@ -458,6 +485,7 @@ impl EnemyType {
 			EnemyType::Fighter => Some((EnemyProjectileType::BasicShot, 2.0)),
 			EnemyType::Interceptor => Some((EnemyProjectileType::Burst, 1.8)),
 			EnemyType::Drone => Some((EnemyProjectileType::Stream, 0.3)),
+			EnemyType::AsteroidTurret => Some((EnemyProjectileType::BasicShot, 1.5)),
 
 			// Heavy shooters
 			EnemyType::Bomber => Some((EnemyProjectileType::PlasmaBall, 2.5)),
@@ -466,6 +494,36 @@ impl EnemyType {
 
 			// Boss
 			EnemyType::Boss => Some((EnemyProjectileType::Ring, 1.0)),
+		}
+	}
+
+	pub fn default_fire_config(&self) -> Option<EnemyFireConfig> {
+		let (projectile_type, fire_rate) = self.shooting_config()?;
+		Some(EnemyFireConfig {
+			aim: AimMode::AtPlayer,
+			pattern: projectile_type.default_fire_pattern(),
+			cooldown: fire_rate,
+			sockets: SocketSelector::All,
+		})
+	}
+
+	pub fn manifest_key(&self) -> &'static str {
+		match self {
+			EnemyType::Scout => "Scout",
+			EnemyType::ScoutSting => "ScoutSting",
+			EnemyType::Fighter => "Fighter",
+			EnemyType::HeavyGunship => "HeavyGunship",
+			EnemyType::Boss => "Boss",
+			EnemyType::Interceptor => "Interceptor",
+			EnemyType::Drone => "Drone",
+			EnemyType::Bomber => "Bomber",
+			EnemyType::Corvette => "Corvette",
+			EnemyType::Drill => "Drill",
+			EnemyType::SmallAsteroid => "SmallAsteroid",
+			EnemyType::MediumAsteroid => "MediumAsteroid",
+			EnemyType::LargeAsteroid => "LargeAsteroid",
+			EnemyType::StationDebris => "StationDebris",
+			EnemyType::AsteroidTurret => "AsteroidTurret",
 		}
 	}
 }
@@ -600,6 +658,24 @@ impl EnemyProjectileType {
 			},
 		}
 	}
+
+	pub fn default_fire_pattern(&self) -> FirePattern {
+		let config = self.config();
+		match self {
+			EnemyProjectileType::SpreadShot => FirePattern::Spread {
+				count: config.count,
+				angle_deg: config.spread_angle.to_degrees(),
+			},
+			EnemyProjectileType::Ring => FirePattern::Ring {
+				count: config.count,
+			},
+			EnemyProjectileType::Burst => FirePattern::Burst {
+				count: config.burst_count,
+				interval: config.burst_delay,
+			},
+			_ => FirePattern::Single,
+		}
+	}
 }
 
 pub struct EnemyProjectileConfig {
@@ -611,6 +687,86 @@ pub struct EnemyProjectileConfig {
 	pub spread_angle: f32, // Angle spread for multiple projectiles
 	pub burst_count: u8,  // Shots per burst
 	pub burst_delay: f32, // Delay between burst shots
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AimMode {
+	AtPlayer,
+	LeadPlayer { lead_strength: f32 },
+	FixedAngle { angle_deg: f32 },
+}
+
+impl Default for AimMode {
+	fn default() -> Self {
+		Self::AtPlayer
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum FirePattern {
+	Single,
+	Spread { count: u8, angle_deg: f32 },
+	Burst { count: u8, interval: f32 },
+	Ring { count: u8 },
+}
+
+impl Default for FirePattern {
+	fn default() -> Self {
+		Self::Single
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SocketSelector {
+	All,
+	ById { ids: Vec<String> },
+	ByTag { tags: Vec<String> },
+}
+
+impl Default for SocketSelector {
+	fn default() -> Self {
+		Self::All
+	}
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct EnemyFireConfig {
+	pub aim: AimMode,
+	pub pattern: FirePattern,
+	pub cooldown: f32,
+	#[serde(default)]
+	pub sockets: SocketSelector,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+pub struct EnemyFireOverrides {
+	#[serde(default)]
+	pub aim: Option<AimMode>,
+	#[serde(default)]
+	pub pattern: Option<FirePattern>,
+	#[serde(default)]
+	pub cooldown: Option<f32>,
+	#[serde(default)]
+	pub sockets: Option<SocketSelector>,
+}
+
+impl EnemyFireConfig {
+	pub fn apply_overrides(&self, overrides: &EnemyFireOverrides) -> Self {
+		Self {
+			aim: overrides.aim.clone().unwrap_or_else(|| self.aim.clone()),
+			pattern: overrides.pattern.clone().unwrap_or_else(|| self.pattern.clone()),
+			cooldown: overrides.cooldown.unwrap_or(self.cooldown),
+			sockets: overrides.sockets.clone().unwrap_or_else(|| self.sockets.clone()),
+		}
+	}
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct EnemyFireOverride {
+	pub overrides: EnemyFireOverrides,
 }
 
 #[derive(Component)]
@@ -626,10 +782,14 @@ pub struct EnemyShooter {
 	pub fire_timer: Timer,
 	pub burst_remaining: u8,
 	pub burst_timer: Timer,
+	pub fire_config: EnemyFireConfig,
 }
 
 #[derive(Component)]
 pub struct EnemyPreviousPosition(pub Vec3);
+
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct PlayerVelocity(pub Vec2);
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 pub enum SineAxis {
@@ -662,8 +822,20 @@ pub struct FormationLeader {
 #[derive(Component)]
 pub struct FormationMember {
 	pub formation_id: String,
-	pub leader: Entity,
 	pub offset: Vec2,
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct WeaponSocket {
+	pub id: String,
+	pub local_offset: Vec2,
+	pub angle_deg: Option<f32>,
+	pub tags: Vec<String>,
+}
+
+#[derive(Component, Default, Clone, Debug)]
+pub struct EnemyWeaponSockets {
+	pub sockets: Vec<WeaponSocket>,
 }
 
 #[derive(Resource, Default)]
@@ -685,6 +857,12 @@ pub struct ParticleEmitter {
 	pub offset: Vec2,
 }
 
+#[derive(Component)]
+pub struct FloatingDamageNumber {
+	pub lifetime: Timer,
+	pub velocity: Vec2,
+}
+
 // === Collision & Health Components ===
 
 #[derive(Component)]
@@ -701,6 +879,7 @@ impl Health {
 	pub fn for_enemy_type(enemy_type: EnemyType) -> Self {
 		let max = match enemy_type {
 			EnemyType::Scout => 10.0,
+			EnemyType::ScoutSting => 500.0,
 			EnemyType::Fighter => 25.0,
 			EnemyType::Interceptor => 15.0,
 			EnemyType::Drone => 8.0,
@@ -708,10 +887,12 @@ impl Health {
 			EnemyType::Corvette => 60.0,
 			EnemyType::HeavyGunship => 100.0,
 			EnemyType::Boss => 500.0,
-			EnemyType::SmallAsteroid => 5.0,
-			EnemyType::MediumAsteroid => 15.0,
+			EnemyType::Drill => 30.0,
+			EnemyType::SmallAsteroid => 30.0,
+			EnemyType::MediumAsteroid => 70.0,
 			EnemyType::LargeAsteroid => 225.0,
 			EnemyType::StationDebris => 20.0,
+			EnemyType::AsteroidTurret => 180.0,
 		};
 		Self::new(max)
 	}
@@ -736,9 +917,8 @@ pub struct PlayerDefenses {
 	pub armor: f32,
 	pub armor_max: f32,
 
-	// Grace period flags - free pass on next hit to this layer
+	/// Grace period: when shield2 breaks, shield1 gets one free hit.
 	pub shield1_grace: bool,
-	pub armor_grace: bool,
 
 	/// Last time (in `Time::elapsed_secs_f64()`) the player was hit.
 	/// Used for shield2 regeneration cooldown.
@@ -759,7 +939,6 @@ impl Default for PlayerDefenses {
 			armor: 100.0,
 			armor_max: 100.0,
 			shield1_grace: false,
-			armor_grace: false,
 			last_damage_time: 0.0,
 			shield2_regen_start_time: None,
 			shield2_regen_from: 75.0,
@@ -768,44 +947,42 @@ impl Default for PlayerDefenses {
 }
 
 impl PlayerDefenses {
+	/// Apply damage. Grace between shield2→shield1, punch-through from shield1→armor.
 	pub fn take_damage(&mut self, damage: f32) -> DamageSink {
 		let mut remaining = damage;
 
 		// Shield2 (outermost)
-		if self.shield2 > 0.0 {
-			if self.shield2 > remaining {
+		if remaining > 0.0 && self.shield2 > 0.0 {
+			if self.shield2 >= remaining {
 				self.shield2 -= remaining;
 				return DamageSink::Shield2;
 			}
 			remaining -= self.shield2;
 			self.shield2 = 0.0;
-			self.shield1_grace = true;  // Grant grace period to Shield1
+			// Shield2 broke - grant grace to shield1, stop damage here
+			self.shield1_grace = true;
 			return DamageSink::Shield2;
 		}
 
-		// Shield1 (with grace period)
+		// Shield1 (with grace from shield2 break)
 		if self.shield1 > 0.0 {
+			// Check grace first
 			if self.shield1_grace {
-				self.shield1_grace = false;  // Use grace pass
-				return DamageSink::Shield1;   // Free pass!
+				self.shield1_grace = false;
+				return DamageSink::Shield1; // Free hit!
 			}
-			if self.shield1 > remaining {
+			if self.shield1 >= remaining {
 				self.shield1 -= remaining;
 				return DamageSink::Shield1;
 			}
 			remaining -= self.shield1;
 			self.shield1 = 0.0;
-			self.armor_grace = true;  // Grant grace period to Armor
-			return DamageSink::Shield1;
+			// Punch through to armor (no grace)
 		}
 
-		// Armor (innermost, with grace period)
-		if self.armor > 0.0 {
-			if self.armor_grace {
-				self.armor_grace = false;  // Use grace pass
-				return DamageSink::Armor;   // Free pass!
-			}
-			if self.armor > remaining {
+		// Armor (innermost) - no grace, punch through
+		if remaining > 0.0 && self.armor > 0.0 {
+			if self.armor >= remaining {
 				self.armor -= remaining;
 				return DamageSink::Armor;
 			}
@@ -813,7 +990,14 @@ impl PlayerDefenses {
 			return DamageSink::Dead;
 		}
 
-		DamageSink::Dead
+		// All layers depleted
+		if self.armor <= 0.0 {
+			DamageSink::Dead
+		} else if self.shield1 <= 0.0 {
+			DamageSink::Armor
+		} else {
+			DamageSink::Shield1
+		}
 	}
 }
 
@@ -843,6 +1027,7 @@ impl Collider {
 	pub fn for_enemy_type(enemy_type: EnemyType) -> Self {
 		let radius = match enemy_type {
 			EnemyType::Scout => 30.0,
+			EnemyType::ScoutSting => 28.0,
 			EnemyType::Fighter => 40.0,
 			EnemyType::Interceptor => 25.0,
 			EnemyType::Drone => 20.0,
@@ -850,12 +1035,69 @@ impl Collider {
 			EnemyType::Corvette => 50.0,
 			EnemyType::HeavyGunship => 60.0,
 			EnemyType::Boss => 150.0,
+			EnemyType::Drill => 40.0,
 			EnemyType::SmallAsteroid => 20.0,
 			EnemyType::MediumAsteroid => 35.0,
 			EnemyType::LargeAsteroid => 50.0,
 			EnemyType::StationDebris => 40.0,
+			EnemyType::AsteroidTurret => 55.0,
 		};
 		Self::new(radius)
+	}
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CollisionShape {
+	Circle,
+	Ellipse,
+	Capsule,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum HitboxShape {
+	Circle { radius: f32 },
+	Ellipse { radii: Vec2 },
+	Capsule { radius: f32, half_length: f32, axis: CapsuleAxis },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CapsuleAxis {
+	Horizontal,
+	Vertical,
+}
+
+/// Enemy projectile hitbox derived from sprite metadata (visual or collision bounds).
+#[derive(Component, Clone, Copy, Debug)]
+pub struct ProjectileHitbox {
+	pub shape: HitboxShape,
+	pub offset: Vec2,
+}
+
+impl ProjectileHitbox {
+	pub fn circle(radius: f32, offset: Vec2) -> Self {
+		Self {
+			shape: HitboxShape::Circle { radius },
+			offset,
+		}
+	}
+
+	pub fn ellipse(radii: Vec2, offset: Vec2) -> Self {
+		Self {
+			shape: HitboxShape::Ellipse { radii },
+			offset,
+		}
+	}
+
+	pub fn capsule(radius: f32, half_length: f32, axis: CapsuleAxis, offset: Vec2) -> Self {
+		Self {
+			shape: HitboxShape::Capsule {
+				radius,
+				half_length,
+				axis,
+			},
+			offset,
+		}
 	}
 }
 
@@ -866,6 +1108,7 @@ impl ContactDamage {
 	pub fn for_enemy_type(enemy_type: EnemyType) -> f32 {
 		match enemy_type {
 			EnemyType::Scout => 50.0,
+			EnemyType::ScoutSting => 50.0,
 			EnemyType::Fighter => 50.0,
 			EnemyType::Interceptor => 50.0,
 			EnemyType::Drone => 50.0,
@@ -873,11 +1116,54 @@ impl ContactDamage {
 			EnemyType::Corvette => 50.0,
 			EnemyType::HeavyGunship => 50.0,
 			EnemyType::Boss => 50.0,
+			EnemyType::Drill => 50.0,
 			EnemyType::SmallAsteroid => 50.0,
 			EnemyType::MediumAsteroid => 50.0,
 			EnemyType::LargeAsteroid => 50.0,
 			EnemyType::StationDebris => 50.0,
+			EnemyType::AsteroidTurret => 50.0,
 		}
+	}
+}
+
+// === Simple sprite animation (frame swap) ===
+
+/// Simple sprite frame animation: swaps `Sprite.image` through a list of frames.
+///
+/// This is intentionally lightweight (no atlas required): ideal for "rotation" frame sets
+/// like `assets/enemies/drill/drill_0.png`..`drill_5.png`.
+#[derive(Component)]
+pub struct SpriteFrameAnimation {
+	pub frames: Vec<Handle<Image>>,
+	pub current: usize,
+	pub timer: Timer,
+	pub looping: bool,
+}
+
+impl SpriteFrameAnimation {
+	pub fn looping_fps(frames: Vec<Handle<Image>>, fps: f32) -> Self {
+		let fps = fps.max(1.0);
+		Self {
+			frames,
+			current: 0,
+			timer: Timer::from_seconds(1.0 / fps, TimerMode::Repeating),
+			looping: true,
+		}
+	}
+
+	pub fn oneshot_fps(frames: Vec<Handle<Image>>, fps: f32) -> Self {
+		let fps = fps.max(1.0);
+		Self {
+			frames,
+			current: 0,
+			timer: Timer::from_seconds(1.0 / fps, TimerMode::Repeating),
+			looping: false,
+		}
+	}
+
+	/// Returns true if this is a non-looping animation that has finished.
+	pub fn is_finished(&self) -> bool {
+		!self.looping && self.current >= self.frames.len().saturating_sub(1)
 	}
 }
 
@@ -898,6 +1184,10 @@ pub struct EnemyDeathEvent {
 /// Marker: this entity is in a death animation (e.g. shader dissolve) and should no longer interact.
 #[derive(Component)]
 pub struct Dying;
+
+/// Marker: this entity is a one-shot effect (e.g. explosion animation) that should despawn when its animation finishes.
+#[derive(Component)]
+pub struct OneshotEffect;
 
 // === Defense HUD Components ===
 
@@ -1009,6 +1299,8 @@ pub enum DeathFx {
 	SpriteExplosion,
 	/// Start shader dissolve and spawn debris/smoke chunks. Entity is despawned by dissolve cleanup.
 	AsteroidDissolveAndDebris,
+	/// Spawn animated explosion sprite sequence (one-shot, despawns when done).
+	FrameExplosion,
 }
 
 impl Default for FxPolicy {

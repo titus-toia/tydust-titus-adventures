@@ -9,6 +9,7 @@ pub const HALF_PLAY_WIDTH: f32 = 666.5;  // 4:3 aspect ratio
 
 pub mod sizes {
 	pub const SCOUT: f32 = 60.0;
+	pub const SCOUT_STING: f32 = 64.0;
 	pub const FIGHTER: f32 = 80.0;
 	pub const HEAVY_GUNSHIP: f32 = 150.0;
 	pub const BOSS: f32 = 300.0;
@@ -16,9 +17,11 @@ pub mod sizes {
 	pub const DRONE: f32 = 40.0;
 	pub const BOMBER: f32 = 120.0;
 	pub const CORVETTE: f32 = 180.0;
+	pub const DRILL: f32 = 90.0;
 	pub const SMALL_ASTEROID: f32 = 30.0;
 	pub const MEDIUM_ASTEROID: f32 = 60.0;
 	pub const LARGE_ASTEROID: f32 = 120.0;
+	pub const ASTEROID_TURRET: f32 = 130.0;
 	pub const STATION_DEBRIS: f32 = 80.0;
 	#[allow(dead_code)]
 	pub const POWER_UP: f32 = 40.0;

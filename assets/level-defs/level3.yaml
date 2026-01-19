@@ -622,1289 +622,691 @@ structure_grids:
 # X velocity varies per asteroid (sideways drift and oscillation)
 # Perfect for testing chain lightning mechanics across extended gameplay!
 
+# Procedurally generated asteroid field for level 3
+# Zone: 1000-10000 GU (~9 screens, 75 asteroids)
+# Asteroids spawn ABOVE viewport (Y: 550-700) and scroll down into view
+# Horizontal spread constrained to 4:3 viewport (X: +/-650)
+# Patterns: Dense clusters, spiral streams, lanes, pairs, random fill
+# Behaviors: MoveStraight (75%), Accelerate (25%)
+# All asteroids have Y velocity = -100 (matches level 3 scroll speed)
+# X velocity varies per asteroid (sideways drift and oscillation)
+# Perfect for testing chain lightning mechanics across extended gameplay!
+
 enemy_waves:
-# Wave at 1123.4 GU (3 asteroids)
+# Wave at 1000.0 GU (2 asteroids)
 - enemies:
-  - enemy_type: SmallAsteroid
-    position: [250.5, 613.7]
+  - enemy_type: MediumAsteroid
+    position: [-332.1, 684.1]
     behaviors:
       - type: MoveStraight
-        velocity: [0.657627848139835, -100.0]
+        velocity: [17.669948742291126, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [569.7, 537.5]
+    position: [180.2, 695.3]
     behaviors:
       - type: MoveStraight
-        velocity: [3.832837120299268, -100.0]
+        velocity: [15.17546552438894, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-563.0, 668.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [15.530507880265494, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 1123.4
+  spawn_distance: 1000.0
 
-# Wave at 1223.6 GU (3 asteroids)
+# Wave at 1574.6 GU (2 asteroids)
 - enemies:
-  - enemy_type: SmallAsteroid
-    position: [6.7, 639.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-12.271875899446018, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [285.7, 729.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [34.67427930931537, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [340.8, 599.1]
+    position: [62.4, 707.4]
     behaviors:
       - type: MoveStraight
-        velocity: [7.092526263318526, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 1223.6
-
-# Wave at 1509.0 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-282.2, 693.9]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [8.994063987989438, -100.0]
-        acceleration: [5.118381471057194, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [8.0, 676.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [0.8933874036143314, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 1509.0
-
-# Wave at 1618.2 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-344.5, 654.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-37.91292657327577, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [385.3, 652.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [16.621224416049795, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 1618.2
-
-# Wave at 1949.2 GU (3 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-104.9, 604.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [7.662676341768783, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-304.5, 609.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [10.667609994463076, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [350.4, 634.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [35.177090164603506, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 1949.2
-
-# Wave at 2068.2 GU (5 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-348.3, 734.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-35.32915099315715, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-327.8, 688.6]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [3.4387555128702836, -100.0]
-        acceleration: [-5.778054403560656, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [262.6, 621.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-0.8742547455403433, -100.0]
+        velocity: [11.851975236424607, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [-421.5, 623.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-35.08861489487566, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [99.6, 596.3]
+    position: [-326.5, 572.3]
     behaviors:
       - type: Accelerate
-        initial_velocity: [2.428028767254322, -100.0]
-        acceleration: [-7.293874563195759, 0.0]
+        initial_velocity: [-42.020802307637254, -100.0]
+        acceleration: [-6.383977129444334, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 2068.2
+  spawn_distance: 1574.6
 
-# Wave at 2177.8 GU (7 asteroids)
+# Wave at 1800.0 GU (1 asteroid turret)
+- enemies:
+  - enemy_type: AsteroidTurret
+    position: [-200.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -60.0]
+        duration: 30.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 1800.0
+
+# Wave at 1861.8 GU (2 asteroids)
 - enemies:
   - enemy_type: MediumAsteroid
-    position: [505.4, 732.1]
+    position: [275.0, 540.9]
     behaviors:
       - type: MoveStraight
-        velocity: [17.301132527931607, -100.0]
+        velocity: [-12.05445582423522, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [574.9, 557.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [9.117836008613413, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [482.1, 618.2]
+  - enemy_type: LargeAsteroid
+    position: [411.4, 694.0]
     behaviors:
       - type: Accelerate
-        initial_velocity: [1.8908275026350534, -100.0]
-        acceleration: [-6.9014523484485135, 0.0]
+        initial_velocity: [-27.095192803589562, -100.0]
+        acceleration: [-2.9527512310546893, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 1861.8
+
+# Wave at 2567.4 GU (3 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [169.2, 527.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-6.523474933089503, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [505.8, 599.3]
+    position: [210.3, 558.8]
     behaviors:
       - type: MoveStraight
-        velocity: [-14.721904193710582, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [535.4, 563.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-34.671714418887596, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [432.8, 668.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [3.8482595519337046, -100.0]
+        velocity: [-38.01133860528758, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [-531.0, 698.9]
+    position: [0.7, 544.7]
+    behaviors:
+      - type: MoveStraight
+        velocity: [41.262783934482044, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 2567.4
+
+# Wave at 2957.1 GU (3 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-516.9, 690.2]
     behaviors:
       - type: Accelerate
-        initial_velocity: [7.63963761998303, -100.0]
-        acceleration: [5.198260194878506, 0.0]
+        initial_velocity: [26.58344293069878, -100.0]
+        acceleration: [-0.3954819504202991, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 2177.8
-
-# Wave at 2295.8 GU (3 asteroids)
-- enemies:
   - enemy_type: LargeAsteroid
-    position: [478.9, 649.5]
+    position: [-284.7, 646.1]
     behaviors:
       - type: MoveStraight
-        velocity: [0.42941089176402475, -100.0]
+        velocity: [39.78228836024769, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-92.2, 552.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [3.9296088779458316, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 2957.1
+
+# Wave at 3281.8 GU (3 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [186.5, 598.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [41.45475897405436, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [4.6, 643.0]
+    position: [-514.8, 657.8]
     behaviors:
       - type: MoveStraight
-        velocity: [-3.677801309773916, -100.0]
+        velocity: [-27.105821618884562, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [483.4, 610.8]
+  - enemy_type: MediumAsteroid
+    position: [202.8, 553.6]
     behaviors:
       - type: MoveStraight
-        velocity: [8.138956732257572, -100.0]
+        velocity: [-36.768815127497504, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 2295.8
+  spawn_distance: 3281.8
 
-# Wave at 2400.3 GU (3 asteroids)
+# Wave at 3500.0 GU (1 asteroid turret)
+- enemies:
+  - enemy_type: AsteroidTurret
+    position: [300.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -60.0]
+        duration: 30.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 3500.0
+
+# Wave at 3634.5 GU (2 asteroids)
 - enemies:
   - enemy_type: LargeAsteroid
-    position: [-242.9, 585.4]
+    position: [369.0, 547.6]
     behaviors:
       - type: MoveStraight
-        velocity: [-19.539807564769067, -100.0]
+        velocity: [-40.30691857711767, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [208.0, 746.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-40.158212884804115, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 3634.5
+
+# Wave at 3923.2 GU (5 asteroids)
+- enemies:
+  - enemy_type: LargeAsteroid
+    position: [-145.0, 688.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [33.19242851552727, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [-371.7, 612.2]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-7.811836016559582, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-114.8, 541.3]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [-3.260985076768982, -100.0]
+        acceleration: [1.956111375585035, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [21.1, 530.3]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-27.530266296844264, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [418.4, 541.6]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [-1.4358874549281495, -100.0]
+        acceleration: [-1.5833553192087582, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 3923.2
+
+# Wave at 4391.4 GU (6 asteroids)
+- enemies:
+  - enemy_type: LargeAsteroid
+    position: [3.4, 713.2]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-34.25672720605167, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [-244.0, 742.2]
+    behaviors:
+      - type: MoveStraight
+        velocity: [7.918029081625619, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-240.0, 579.0]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [25.186449241440215, -100.0]
+        acceleration: [-0.667431638102622, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [34.9, 742.8]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [36.07797022344981, -100.0]
+        acceleration: [3.531549109763114, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-437.2, 615.4]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-44.97153665113724, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-54.0, 605.8]
+    behaviors:
+      - type: MoveStraight
+        velocity: [45.73176408596731, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 4391.4
+
+# Wave at 4887.8 GU (5 asteroids)
+- enemies:
+  - enemy_type: LargeAsteroid
+    position: [13.7, 596.3]
+    behaviors:
+      - type: MoveStraight
+        velocity: [7.6588043496599525, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-568.2, 549.7]
+    behaviors:
+      - type: MoveStraight
+        velocity: [14.988443777952327, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [400.5, 675.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [11.16777657259501, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [-41.5, 571.0]
+    position: [-344.2, 566.3]
     behaviors:
       - type: MoveStraight
-        velocity: [37.94731808892558, -100.0]
+        velocity: [43.325937799370905, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [342.3, 554.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [13.213301309026448, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 2400.3
-
-# Wave at 2518.2 GU (3 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-3.8, 774.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-0.2834223162608175, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-256.7, 712.5]
+  - enemy_type: LargeAsteroid
+    position: [-240.7, 665.8]
     behaviors:
       - type: Accelerate
-        initial_velocity: [4.449753183122823, -100.0]
-        acceleration: [7.623196182353638, 0.0]
+        initial_velocity: [43.89300039271039, -100.0]
+        acceleration: [-6.153141273294365, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-285.7, 617.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-17.056775157716917, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 2518.2
+  spawn_distance: 4887.8
 
-# Wave at 2707.0 GU (1 asteroids)
+# Wave at 5200.0 GU (1 asteroid turret)
 - enemies:
-  - enemy_type: LargeAsteroid
-    position: [168.5, 607.1]
+  - enemy_type: AsteroidTurret
+    position: [-350.0, 600.0]
     behaviors:
       - type: MoveStraight
-        velocity: [31.8259556523271, -100.0]
-        duration: 20.0
+        velocity: [0.0, -60.0]
+        duration: 30.0
         transition: 'WaitForCompletion'
-  spawn_distance: 2707.0
+  spawn_distance: 5200.0
 
-# Wave at 2916.5 GU (2 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-8.0, 516.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-0.7642759304869339, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [344.5, 735.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [46.38961222178848, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 2916.5
-
-# Wave at 3019.4 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [95.1, 697.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [25.91483405384893, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-385.3, 695.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-26.82064547450502, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3019.4
-
-# Wave at 3196.4 GU (4 asteroids)
+# Wave at 5509.2 GU (2 asteroids)
 - enemies:
   - enemy_type: SmallAsteroid
-    position: [545.7, 546.7]
+    position: [-91.7, 569.2]
     behaviors:
       - type: MoveStraight
-        velocity: [-7.5220688580042125, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [272.8, 589.8]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-8.732768302879181, -100.0]
+        velocity: [-49.64543109122177, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [-395.7, 614.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-9.36854549299137, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-556.3, 595.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-6.565417966629902, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3196.4
-
-# Wave at 3299.1 GU (4 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-563.4, 702.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [0.7739294903767694, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-478.9, 651.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [1.4873809448673485, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-17.8, 652.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [15.661885891286424, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-350.4, 557.5]
+    position: [62.0, 606.9]
     behaviors:
       - type: Accelerate
-        initial_velocity: [-8.831705300379438, -100.0]
-        acceleration: [-1.834437750850011, 0.0]
+        initial_velocity: [-49.033030039166, -100.0]
+        acceleration: [6.129702292802287, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 3299.1
+  spawn_distance: 5509.2
 
-# Wave at 3414.2 GU (4 asteroids)
+# Wave at 5689.1 GU (1 asteroids)
 - enemies:
   - enemy_type: LargeAsteroid
-    position: [131.4, 557.0]
+    position: [99.0, 537.0]
     behaviors:
       - type: MoveStraight
-        velocity: [14.42129031899708, -100.0]
+        velocity: [-37.25544807178612, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
+  spawn_distance: 5689.1
+
+# Wave at 5859.2 GU (3 asteroids)
+- enemies:
   - enemy_type: LargeAsteroid
-    position: [348.3, 655.4]
+    position: [478.7, 552.5]
     behaviors:
       - type: Accelerate
-        initial_velocity: [35.74001093793918, -100.0]
-        acceleration: [-3.613871846565127, 0.0]
+        initial_velocity: [-25.047026077707557, -100.0]
+        acceleration: [4.481859869943083, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [51.8, 596.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-7.013946459075399, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-99.6, 751.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-7.015139825091373, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3414.2
-
-# Wave at 3583.9 GU (4 asteroids)
-- enemies:
   - enemy_type: LargeAsteroid
-    position: [100.3, 685.7]
+    position: [-414.5, 732.5]
     behaviors:
       - type: MoveStraight
-        velocity: [-6.365216457300458, -100.0]
+        velocity: [36.4605696219964, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-355.7, 658.6]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-23.60160983695906, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 5859.2
+
+# Wave at 6116.3 GU (11 asteroids)
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [283.9, 583.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [43.08158860483256, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [27.3, 733.7]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-29.574080057646356, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [344.8, 527.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [37.21667829060897, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-592.2, 701.5]
+    behaviors:
+      - type: MoveStraight
+        velocity: [19.81393949882269, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-265.1, 660.4]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-10.03216156399391, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [-294.3, 714.8]
+    position: [564.5, 544.6]
     behaviors:
       - type: MoveStraight
-        velocity: [25.201232668903, -100.0]
+        velocity: [46.25343157615555, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [106.2, 716.2]
+    position: [46.1, 679.9]
     behaviors:
       - type: MoveStraight
-        velocity: [-0.9813455544116871, -100.0]
+        velocity: [24.19500778394766, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [102.7, 725.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-15.29261921205683, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3583.9
-
-# Wave at 3688.4 GU (2 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [57.6, 703.0]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-20.085404032773194, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [49.6, 668.2]
+    position: [47.3, 694.7]
     behaviors:
       - type: Accelerate
-        initial_velocity: [-4.541566791658111, -100.0]
-        acceleration: [2.5265633982456652, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3688.4
-
-# Wave at 3816.5 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-342.3, 637.5]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-44.07452842356834, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [3.8, 614.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [0.5425493675662543, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3816.5
-
-# Wave at 3956.2 GU (1 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [285.7, 729.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [15.884591177750593, -100.0]
-        acceleration: [-0.23687147669641107, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 3956.2
-
-# Wave at 4138.9 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-592.5, 590.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [12.03811672633562, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-401.8, 584.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [8.055475960973256, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4138.9
-
-# Wave at 4251.5 GU (6 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [536.6, 533.5]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-12.144106666357677, -100.0]
-        acceleration: [7.519982577964678, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [8.0, 676.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [0.3648832236018521, -100.0]
-        acceleration: [-4.385218051197908, 0.0]
+        initial_velocity: [3.0353672195177452, -100.0]
+        acceleration: [-2.8135030879252305, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [299.5, 587.6]
+    position: [301.2, 692.5]
     behaviors:
       - type: MoveStraight
-        velocity: [1.6706536443000648, -100.0]
+        velocity: [-39.34127034364611, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [-344.5, 654.1]
+    position: [-203.8, 578.5]
     behaviors:
       - type: MoveStraight
-        velocity: [-47.625789338070014, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [8.7, 562.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-7.549801596559836, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [178.3, 587.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-16.217266635445, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4251.5
-
-# Wave at 4369.3 GU (3 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-573.4, 680.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-21.15576027402754, -100.0]
+        velocity: [34.80152795063354, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [3.4, 654.2]
+    position: [-155.8, 552.4]
     behaviors:
       - type: MoveStraight
-        velocity: [-0.06351263473104174, -100.0]
+        velocity: [-23.302217795088666, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 6116.3
+
+# Wave at 6750.0 GU (1 asteroid turret)
+- enemies:
+  - enemy_type: AsteroidTurret
+    position: [150.0, 600.0]
+    behaviors:
+      - type: MoveStraight
+        velocity: [0.0, -60.0]
+        duration: 30.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 6750.0
+
+# Wave at 6961.9 GU (4 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-117.1, 573.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-37.27122009408468, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [385.3, 652.2]
+    position: [-398.7, 651.8]
     behaviors:
-      - type: MoveStraight
-        velocity: [49.857923250384204, -100.0]
+      - type: Accelerate
+        initial_velocity: [24.79256519552858, -100.0]
+        acceleration: [5.108818788977361, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 4369.3
+  - enemy_type: LargeAsteroid
+    position: [138.6, 575.2]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [4.793721313569819, -100.0]
+        acceleration: [-3.409380530097165, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-42.0, 610.5]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-28.629859901089972, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 6961.9
 
-# Wave at 4558.7 GU (6 asteroids)
+# Wave at 7419.2 GU (3 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-498.2, 628.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [13.294085576579576, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [155.7, 548.6]
+    behaviors:
+      - type: MoveStraight
+        velocity: [19.635425049050497, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [-330.4, 549.8]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [-47.55746122731737, -100.0]
+        acceleration: [-0.39781849249911794, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 7419.2
+
+# Wave at 7979.1 GU (5 asteroids)
 - enemies:
   - enemy_type: LargeAsteroid
-    position: [-423.6, 651.7]
+    position: [469.7, 653.2]
     behaviors:
       - type: MoveStraight
-        velocity: [5.993938328066706, -100.0]
+        velocity: [21.927396127596708, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [-617.5, 635.3]
+    position: [292.4, 618.7]
     behaviors:
-      - type: MoveStraight
-        velocity: [-0.5844980904358108, -100.0]
+      - type: Accelerate
+        initial_velocity: [-24.080845153498064, -100.0]
+        acceleration: [2.2025829884185004, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: LargeAsteroid
-    position: [-65.8, 543.0]
+    position: [-270.5, 519.4]
     behaviors:
       - type: MoveStraight
-        velocity: [-0.7529011985408948, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-246.3, 556.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-8.851815878225619, -100.0]
+        velocity: [-21.427184913684748, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [-286.7, 684.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-7.073483018529999, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [580.9, 504.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-9.238534164065923, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4558.7
-
-# Wave at 4716.5 GU (4 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [350.4, 634.7]
+    position: [-322.5, 673.5]
     behaviors:
       - type: Accelerate
-        initial_velocity: [17.84348478284949, -100.0]
-        acceleration: [-4.219659935429011, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [515.4, 580.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-4.158614009594193, -100.0]
-        acceleration: [4.40985632123477, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-348.3, 734.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-47.127691657697895, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [559.6, 586.5]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [22.370053253607722, -100.0]
-        acceleration: [-3.623089590145005, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4716.5
-
-# Wave at 4819.6 GU (5 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [563.6, 529.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [15.313049983483191, -100.0]
+        initial_velocity: [20.64191416945522, -100.0]
+        acceleration: [-1.4784100853346125, 0.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [26.0, 553.9]
+    position: [-95.8, 726.2]
     behaviors:
       - type: MoveStraight
-        velocity: [-21.4017479925371, -100.0]
+        velocity: [8.407941420422517, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [99.6, 596.3]
+  spawn_distance: 7979.1
+
+# Wave at 8300.0 GU (1 asteroid turret)
+- enemies:
+  - enemy_type: AsteroidTurret
+    position: [-100.0, 600.0]
     behaviors:
-      - type: Accelerate
-        initial_velocity: [10.187725191129262, -100.0]
-        acceleration: [5.991846655409736, 0.0]
+      - type: MoveStraight
+        velocity: [0.0, -60.0]
+        duration: 30.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 8300.0
+
+# Wave at 8613.1 GU (3 asteroids)
+- enemies:
+  - enemy_type: MediumAsteroid
+    position: [-592.9, 587.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [25.34751250593858, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [569.5, 565.0]
+    position: [-233.8, 698.8]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [-27.240451259222965, -100.0]
+        acceleration: [-4.909923386756661, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [55.4, 650.8]
+    behaviors:
+      - type: Accelerate
+        initial_velocity: [-27.94613056761811, -100.0]
+        acceleration: [-1.0266243832538144, 0.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 8613.1
+
+# Wave at 9219.9 GU (8 asteroids)
+- enemies:
+  - enemy_type: SmallAsteroid
+    position: [-417.1, 531.6]
     behaviors:
       - type: MoveStraight
-        velocity: [5.046908873574007, -100.0]
+        velocity: [16.94588446199107, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: LargeAsteroid
+    position: [398.0, 576.9]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-44.20748335058124, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: MediumAsteroid
-    position: [558.7, 492.2]
+    position: [433.6, 637.6]
     behaviors:
       - type: MoveStraight
-        velocity: [-20.68207029371789, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4819.6
-
-# Wave at 4925.5 GU (1 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [650, 622.0]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-0.4455241245655423, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 4925.5
-
-# Wave at 5166.5 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [342.3, 554.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [16.16119475183174, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-3.8, 774.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-0.2407367863928658, -100.0]
-        acceleration: [7.009896625025046, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 5166.5
-
-# Wave at 5299.0 GU (3 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [252.4, 620.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [9.272168807808724, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-285.7, 617.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-10.569275984660576, -100.0]
-        acceleration: [4.945445493484922, 0.0]
+        velocity: [-44.941167047511875, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [536.9, 547.8]
+    position: [-225.7, 669.3]
     behaviors:
       - type: MoveStraight
-        velocity: [1.6284144844454789, -100.0]
+        velocity: [45.817283820589594, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 5299.0
-
-# Wave at 5426.0 GU (2 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-560.6, 670.1]
+  - enemy_type: LargeAsteroid
+    position: [152.7, 525.5]
     behaviors:
       - type: MoveStraight
-        velocity: [2.740897473958554, -100.0]
+        velocity: [27.248088495122403, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  - enemy_type: MediumAsteroid
+    position: [418.0, 614.1]
+    behaviors:
+      - type: MoveStraight
+        velocity: [30.14166017222645, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
   - enemy_type: SmallAsteroid
-    position: [19.8, 646.8]
+    position: [417.0, 650.9]
     behaviors:
       - type: MoveStraight
-        velocity: [13.86872356986978, -100.0]
+        velocity: [30.71282732743802, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  spawn_distance: 5426.0
+  - enemy_type: LargeAsteroid
+    position: [339.2, 586.8]
+    behaviors:
+      - type: MoveStraight
+        velocity: [-7.162198676525556, -100.0]
+        duration: 20.0
+        transition: 'WaitForCompletion'
+  spawn_distance: 9219.9
 
-# Wave at 5616.5 GU (4 asteroids)
+# Wave at 9848.2 GU (2 asteroids)
 - enemies:
   - enemy_type: LargeAsteroid
-    position: [-8.0, 516.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-0.5190991541563863, -100.0]
-        acceleration: [6.3982029079250715, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [344.5, 735.4]
+    position: [386.8, 526.4]
     behaviors:
       - type: MoveStraight
-        velocity: [40.05961979028659, -100.0]
+        velocity: [46.078756721457864, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-41.1, 699.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-20.847597833583457, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-261.7, 704.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [21.269665890927275, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 5616.5
-
-# Wave at 5756.2 GU (1 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-385.3, 695.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-48.51115007873204, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 5756.2
-
-# Wave at 6006.8 GU (3 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [110.8, 622.4]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-0.5945115076887806, -100.0]
-        acceleration: [-4.285404995047285, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [60.9, 579.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [3.251513765683422, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-350.4, 557.5]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-38.95410397890462, -100.0]
-        acceleration: [7.134525405625407, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6006.8
-
-# Wave at 6113.0 GU (7 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [75.2, 693.3]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-6.2492420852464425, -100.0]
-        acceleration: [7.6365520807935745, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [348.3, 655.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [41.51567068579925, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [72.1, 612.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [4.036959612723689, -100.0]
-        acceleration: [4.627486157551882, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [128.4, 505.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-11.28956843660603, -100.0]
-        acceleration: [7.2197458173061015, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [134.5, 545.0]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-24.810084313058315, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [86.8, 633.6]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-12.587755213074383, -100.0]
-        acceleration: [-2.068680162326574, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-99.6, 751.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-4.783163410856036, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6113.0
-
-# Wave at 6343.7 GU (2 asteroids)
-- enemies:
   - enemy_type: SmallAsteroid
-    position: [276.9, 595.6]
+    position: [-468.4, 656.9]
     behaviors:
       - type: MoveStraight
-        velocity: [1.0968422691533215, -100.0]
+        velocity: [29.207936436296407, -100.0]
         duration: 20.0
         transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [557.9, 536.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-13.12375160547023, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6343.7
-
-# Wave at 6463.9 GU (3 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-543.7, 667.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [5.048142795079693, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [23.6, 663.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [12.783006921978966, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-342.3, 637.5]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-38.43807994678955, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6463.9
-
-# Wave at 6568.2 GU (2 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [3.8, 614.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [0.19108553829379837, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-17.8, 559.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-8.38858297282502, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6568.2
-
-# Wave at 6708.5 GU (1 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [-258.0, 683.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [3.4846821369222583, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6708.5
-
-# Wave at 6835.9 GU (3 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [348.8, 615.2]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [11.061278667955744, -100.0]
-        acceleration: [5.886033072596227, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-393.2, 631.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [39.36418702098767, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-506.3, 565.5]
-    behaviors:
-      - type: MoveStraight
-        velocity: [44.054202684436156, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 6835.9
-
-# Wave at 7225.4 GU (2 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [130.8, 555.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-0.5983767495354647, -100.0]
-        acceleration: [3.2890993261020824, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [310.9, 567.9]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [4.0487894615801885, -100.0]
-        acceleration: [2.124439964825049, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 7225.4
-
-# Wave at 7342.8 GU (6 asteroids)
-- enemies:
-  - enemy_type: SmallAsteroid
-    position: [635.8, 662.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [42.0156518240478, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-574.5, 611.2]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-10.837941654812365, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-459.7, 714.6]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [9.554294448953213, -100.0]
-        acceleration: [-2.7089508907830595, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-516.1, 566.0]
-    behaviors:
-      - type: MoveStraight
-        velocity: [25.83098430426109, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-524.3, 623.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [11.165335618841134, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [-439.4, 553.5]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-19.069546104306816, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 7342.8
-
-# Wave at 7464.2 GU (2 asteroids)
-- enemies:
-  - enemy_type: SmallAsteroid
-    position: [313.9, 592.8]
-    behaviors:
-      - type: MoveStraight
-        velocity: [7.319310235583421, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-453.1, 569.0]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-5.5737964766066455, -100.0]
-        acceleration: [0.40546780810270633, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 7464.2
-
-# Wave at 7626.1 GU (4 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-348.9, 673.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-13.466596788857576, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-525.2, 664.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-5.604186196189894, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-485.9, 680.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-17.23694683135968, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [165.0, 635.5]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-22.025386106789174, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 7626.1
-
-# Wave at 7752.2 GU (4 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [328.6, 608.8]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-2.4726008698069695, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [523.5, 609.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [5.91415854156799, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-138.6, 594.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [5.139111549754854, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-335.2, 594.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-16.143171297622068, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 7752.2
-
-# Wave at 8267.7 GU (1 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [1.2, 607.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-24.268494548529205, -100.0]
-        acceleration: [4.124007136201522, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 8267.7
-
-# Wave at 8374.8 GU (1 asteroids)
-- enemies:
-  - enemy_type: MediumAsteroid
-    position: [158.3, 618.6]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-35.60514691852707, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 8374.8
-
-# Wave at 8612.4 GU (5 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-334.4, 647.3]
-    behaviors:
-      - type: MoveStraight
-        velocity: [2.2437060953409547, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [-532.0, 623.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [2.2835017896254413, -100.0]
-        acceleration: [-5.006631395104655, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [104.8, 748.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [8.647333270200722, -100.0]
-        acceleration: [-4.1420137241195985, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [84.9, 605.7]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-8.515552109212626, -100.0]
-        acceleration: [-5.6508838520584295, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [133.3, 666.7]
-    behaviors:
-      - type: MoveStraight
-        velocity: [15.454542251326425, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 8612.4
-
-# Wave at 8743.6 GU (3 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [160.2, 596.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-13.676911406835005, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: LargeAsteroid
-    position: [138.0, 505.1]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-15.360444147109357, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  - enemy_type: MediumAsteroid
-    position: [104.6, 604.9]
-    behaviors:
-      - type: MoveStraight
-        velocity: [9.658954802254728, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 8743.6
-
-# Wave at 8854.9 GU (1 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [84.4, 638.4]
-    behaviors:
-      - type: MoveStraight
-        velocity: [-18.96353681158676, -100.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 8854.9
-
-# Wave at 9936.4 GU (1 asteroids)
-- enemies:
-  - enemy_type: LargeAsteroid
-    position: [-585.2, 687.1]
-    behaviors:
-      - type: Accelerate
-        initial_velocity: [-9.82980151460072, -100.0]
-        acceleration: [-4.753998459293875, 0.0]
-        duration: 20.0
-        transition: 'WaitForCompletion'
-  spawn_distance: 9936.4
-
+  spawn_distance: 9848.2

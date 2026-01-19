@@ -31,7 +31,6 @@ audio_ai/
 /*.ogg
 
 # Python generation scripts (one-off tools)
-generate_*.py
 compose_*.py
 fix_*.py
 verify_*.py

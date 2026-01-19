@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use bevy::prelude::Vec2;
-use crate::components::{Behavior, BehaviorType, SineAxis, TransitionType, ParallaxLayer};
+use crate::components::{Behavior, BehaviorType, SineAxis, TransitionType, ParallaxLayer, EnemyFireOverrides};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LevelData {
@@ -66,6 +66,9 @@ pub struct EnemySpawn {
 
 	#[serde(default)]
 	pub behaviors: Vec<Behavior>,
+
+	#[serde(default)]
+	pub firing: Option<EnemyFireOverrides>,
 
 	#[serde(default)]
 	pub formation_id: Option<String>,
@@ -210,6 +213,11 @@ impl EnemySpawn {
 					velocity: Vec2::new(0.0, -120.0),
 					variance: 30.0,
 				},
+				duration: None,
+				transition: TransitionType::WaitForCompletion,
+			}],
+			"AsteroidTurret" => vec![Behavior {
+				behavior_type: BehaviorType::MoveStraight { velocity: Vec2::new(0.0, -60.0) },
 				duration: None,
 				transition: TransitionType::WaitForCompletion,
 			}],

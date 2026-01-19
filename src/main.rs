@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 use bevy_kira_audio::prelude::*;
+use bevy_hanabi::prelude::*;
 use bevy::window::{WindowMode, PresentMode};
 use rand::Rng;
 
@@ -10,7 +11,7 @@ mod level;
 mod resources;
 mod materials;
 
-use materials::MaterialsPlugin;
+use materials::{MaterialsPlugin, ProjectileMaterial, ProjectileMaterialHandles};
 
 use systems::background::{scroll_background, spawn_background};
 use systems::player::{spawn_player, player_movement};
@@ -24,15 +25,18 @@ use systems::menu::{setup_ship_selection_menu, handle_ship_selection, handle_wea
 use systems::weapon_upgrade::{handle_weapon_switch, handle_weapon_upgrade, handle_player_hit, debug_weapon_controls};
 use systems::pickups::{collect_pickups, move_pickups, cleanup_pickups};
 use components::{FormationRegistry, WeaponSwitchEvent, WeaponUpgradeEvent, PlayerHitEvent, EnemyHitEvent, EnemyDeathEvent, ShipType, WeaponType, ChargeMeter};
-use systems::particles::{spawn_engine_particles, update_particles, spawn_player_hit_particles, spawn_enemy_hit_particles};
-use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, update_shield1_regen, play_enemy_hit_sound, play_enemy_death_sound};
+use systems::particles::{spawn_engine_particles, update_particles, spawn_player_hit_particles, spawn_enemy_hit_particles, spawn_floating_damage_numbers, update_floating_damage_numbers};
+use systems::collision::{check_projectile_enemy_collisions, apply_enemy_damage, check_player_enemy_collisions, update_invincibility, check_enemy_projectile_player_collisions, update_shield2_regen, update_shield1_regen, play_enemy_hit_sound, play_enemy_death_sound, play_player_hit_sound};
 use systems::visual::{apply_atmospheric_tint, apply_ambient_occlusion};
 use systems::world::WORLD_HEIGHT;
 use systems::info_overlay::{spawn_info_overlay, update_info_overlay, toggle_info_overlay_visibility};
 use systems::player_hud::{spawn_player_hud, animate_defense_hexagons, update_digital_display_text, update_charge_meter_ui, render_enhanced_mode_sparks, render_capacitor_glow, reset_hud_spawn_state, HudSpawnState};
 use systems::effects::{apply_shader_hit_flash, update_shader_effects, cleanup_dissolved_entities};
 use systems::death_fx::process_enemy_death_fx;
-use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel};
+use systems::sprite_animation::{animate_sprite_frames, cleanup_oneshot_effects};
+use systems::thruster_fx::animate_thrusters;
+use systems::hanabi_fx::{setup_explosion_effects, cleanup_explosion_effects, spawn_debug_effect_grid};
+use resources::{SelectedShip, SelectedWeapon, GameState, BloomLevel, DamageNumbersEnabled, EnemyAssetRegistry};
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use materials::noise::{generate_noise_texture, EffectsNoiseTexture};
 
@@ -130,6 +134,7 @@ fn main() {
 		.add_plugins(AudioPlugin)
 		.add_plugins(MaterialsPlugin)
 		.add_plugins(FrameTimeDiagnosticsPlugin)
+		.add_plugins(HanabiPlugin)
 		.insert_state(initial_state)
 		.insert_resource(SelectedShip { ship_type: initial_ship })
 		.insert_resource(SelectedWeapon { weapon_type: initial_weapon })
@@ -146,6 +151,7 @@ fn main() {
 		.init_resource::<DefensiveFieldHitTracker>()
 		.insert_resource(SoundVolume::new(initial_volume))
 		.insert_resource(BloomLevel::new(bloom_level))
+		.init_resource::<DamageNumbersEnabled>()
 		.init_resource::<SfxGateConfig>()
 		.init_resource::<SfxGateState>()
 		.add_event::<PlaySfxEvent>()
@@ -155,7 +161,7 @@ fn main() {
 		.add_event::<EnemyHitEvent>()
 		.add_event::<EnemyDeathEvent>()
 		// Startup: camera only
-		.add_systems(Startup, (setup, spawn_exit_button).chain())
+		.add_systems(Startup, (setup, spawn_exit_button, setup_explosion_effects).chain())
 		// Menu state systems
 		.add_systems(OnEnter(GameState::ShipSelection), (setup_ship_selection_menu, play_title_music))
 		.add_systems(
@@ -217,6 +223,8 @@ fn main() {
 		.add_systems(Update, (
 			process_phases,
 			process_enemy_waves,
+			animate_sprite_frames,
+			cleanup_oneshot_effects,
 			update_enemy_movement,
 			execute_enemy_behaviors,
 			update_formations,
@@ -236,8 +244,10 @@ fn main() {
 			cleanup_doodads,
 			process_level_events,
 			process_tutorials,
+			animate_thrusters,
 			spawn_engine_particles,
 			update_particles,
+			update_floating_damage_numbers,
 		).run_if(in_state(GameState::Playing)))
 		// Visual effects must run AFTER process_doodads to tint newly spawned structures
 		.add_systems(Update, (
@@ -251,11 +261,13 @@ fn main() {
 			apply_shader_hit_flash,
 			play_enemy_hit_sound,
 			spawn_enemy_hit_particles,
+			spawn_floating_damage_numbers,
 			play_enemy_death_sound,
 			process_enemy_death_fx,
 			check_player_enemy_collisions,
 			check_enemy_projectile_player_collisions,
 			spawn_player_hit_particles,
+			play_player_hit_sound,
 			update_invincibility,
 			update_shield2_regen,
 			update_shield1_regen,
@@ -278,15 +290,24 @@ fn main() {
 			render_capacitor_glow,
 			update_shader_effects,
 			cleanup_dissolved_entities,
+			cleanup_explosion_effects,
+			spawn_debug_effect_grid,
 		).run_if(in_state(GameState::Playing)))
 		.run();
 }
 
-fn setup(mut commands: Commands, bloom_level: Res<BloomLevel>, mut images: ResMut<Assets<Image>>) {
+fn setup(
+	mut commands: Commands,
+	bloom_level: Res<BloomLevel>,
+	mut images: ResMut<Assets<Image>>,
+	mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
+) {
 	// Shared noise texture for shader effects (dissolve/glow, etc.)
 	// Safe to create once at startup; reused by all `EffectsMaterial` instances.
 	let noise = generate_noise_texture(&mut images);
 	commands.insert_resource(EffectsNoiseTexture(noise));
+	commands.insert_resource(ProjectileMaterialHandles::new(&mut projectile_materials));
+	commands.insert_resource(EnemyAssetRegistry::load_from_disk());
 
 	let mut camera = commands.spawn((
 		Camera2d,

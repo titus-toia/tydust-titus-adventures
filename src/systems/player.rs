@@ -1,7 +1,9 @@
 use bevy::prelude::*;
-use crate::components::{Player, ParticleEmitter, ShipType, Weapon, WeaponType, PlayerDefenses, Collider};
+use rand::Rng;
+use crate::components::{Player, ParticleEmitter, ShipType, Weapon, WeaponType, PlayerDefenses, Collider, PlayerVelocity};
 use crate::resources::{SelectedShip, SelectedWeapon};
 use super::world::player_bounds;
+use crate::components::ThrusterFx;
 
 const TILT_ANGLE: f32 = 0.15;  // ~8.5 degrees, subtle bank
 const TILT_SPEED: f32 = 10.0;  // How fast to tilt
@@ -14,12 +16,13 @@ pub fn spawn_player(
 ) {
 	let ship_type = selected_ship.ship_type.unwrap_or(ShipType::Tempest);
 	let stats = ship_type.get_stats();
+	let mut rng = rand::thread_rng();
 
 	let weapon_type = selected_weapon.weapon_type;
 	let weapon_config = weapon_type.config();
 	let weapon_level = if weapon_type == WeaponType::BasicBlaster { 0 } else { 1 };
 
-	commands.spawn((
+	let mut player_ec = commands.spawn((
 		Sprite {
 			image: asset_server.load(ship_type.sprite_path()),
 			custom_size: Some(Vec2::new(stats.size, stats.size)),
@@ -36,6 +39,7 @@ pub fn spawn_player(
 			fire_cooldown: Timer::from_seconds(weapon_config.base_cooldown, TimerMode::Repeating),
 		},
 		PlayerTilt { target: 0.0, current: 0.0 },
+		PlayerVelocity::default(),
 		ParticleEmitter {
 			spawn_timer: Timer::from_seconds(0.05, TimerMode::Repeating),
 			offset: Vec2::new(0.0, -stats.size / 2.0 + 10.0),
@@ -43,6 +47,31 @@ pub fn spawn_player(
 		PlayerDefenses::default(),
 		Collider::new(stats.size / 2.0 * 0.7), // Slightly smaller than visual for fair gameplay
 	));
+
+	// Add a simple "thruster sprite" behind the ship (local-space), animated via `ThrusterFx`.
+	// This gives a juicy engine plume without requiring global bloom.
+	let thruster_offset = Vec3::new(0.0, -stats.size * 0.52, -0.02);
+	let thruster_base_scale = Vec3::new(0.55, 0.95, 1.0);
+	player_ec.with_children(|parent| {
+		parent.spawn((
+			Sprite {
+				image: asset_server.load("particles/exhaust_cyan.png"),
+				custom_size: Some(Vec2::splat(stats.size * 0.42)),
+				color: Color::srgba(0.35, 0.95, 1.0, 0.65),
+				..default()
+			},
+			Transform::from_translation(thruster_offset).with_scale(thruster_base_scale),
+			ThrusterFx {
+				local_offset: thruster_offset,
+				base_scale: thruster_base_scale,
+				scale_pulse: 0.22,
+				pulse_hz: 9.0,
+				base_alpha: 0.65,
+				alpha_pulse: 0.18,
+				phase: rng.gen_range(0.0..std::f32::consts::TAU),
+			},
+		));
+	});
 
 	info!(
 		"Player ship spawned: {:?} (size: {:.0} gu, speed: {}, fire rate: {})",
@@ -58,32 +87,32 @@ pub struct PlayerTilt {
 
 pub fn player_movement(
 	keyboard_input: Res<ButtonInput<KeyCode>>,
-	mut query: Query<(&mut Transform, &mut PlayerTilt, &Player), With<Player>>,
+	mut query: Query<(&mut Transform, &mut PlayerTilt, &Player, &mut PlayerVelocity), With<Player>>,
 	time: Res<Time>,
 ) {
-	for (mut transform, mut tilt, player) in query.iter_mut() {
+	for (mut transform, mut tilt, player, mut player_velocity) in query.iter_mut() {
 		let stats = player.ship_type.get_stats();
 		let speed = stats.speed;
 
-		let mut velocity = Vec3::ZERO;
+		let mut direction = Vec2::ZERO;
 
 		if keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA) {
-			velocity.x -= 1.0;
+			direction.x -= 1.0;
 		}
 		if keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD) {
-			velocity.x += 1.0;
+			direction.x += 1.0;
 		}
 		if keyboard_input.pressed(KeyCode::ArrowUp) || keyboard_input.pressed(KeyCode::KeyW) {
-			velocity.y += 1.0;
+			direction.y += 1.0;
 		}
 		if keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS) {
-			velocity.y -= 1.0;
+			direction.y -= 1.0;
 		}
 
 		// Set target tilt based on horizontal movement
-		tilt.target = if velocity.x < 0.0 {
+		tilt.target = if direction.x < 0.0 {
 			TILT_ANGLE  // Tilt right when moving left (like banking)
-		} else if velocity.x > 0.0 {
+		} else if direction.x > 0.0 {
 			-TILT_ANGLE  // Tilt left when moving right
 		} else {
 			0.0  // Return to center
@@ -96,9 +125,12 @@ pub fn player_movement(
 		// Apply rotation to transform
 		transform.rotation = Quat::from_rotation_z(tilt.current);
 
-		if velocity.length() > 0.0 {
-			velocity = velocity.normalize();
-			transform.translation += velocity * speed * time.delta_secs();
+		if direction.length() > 0.0 {
+			let velocity = direction.normalize() * speed;
+			transform.translation += velocity.extend(0.0) * time.delta_secs();
+			player_velocity.0 = velocity;
+		} else {
+			player_velocity.0 = Vec2::ZERO;
 		}
 
 		transform.translation.x = transform.translation.x.clamp(player_bounds::MIN_X, player_bounds::MAX_X);

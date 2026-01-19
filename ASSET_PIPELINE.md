@@ -174,6 +174,53 @@ For star cluster assets, uses morphological operations to detect concentrated st
 python3 scripts/asset-processing/isolate_star_cluster.py assets/backdrop/star_cluster_1.png assets/backdrop/cluster_clean.png
 ```
 
+## Enemy Sprite Metadata (Sizing + Collision)
+
+Enemy sprites often ship with large transparent padding. To keep gameplay size/collision consistent,
+we generate a manifest that records the true alpha bounds and recommended collision shapes.
+
+**Generate the manifest:**
+```bash
+python3 scripts/asset-processing/generate_enemy_manifest.py
+```
+
+**Destructive regenerate (ignore manual overrides):**
+```bash
+python3 scripts/asset-processing/generate_enemy_manifest.py --destructive
+```
+
+**Outputs:**
+- `assets/enemies/enemy_manifest.yaml`
+
+**Defaults:**
+- Visual bounds threshold: `16`
+- Collision bounds threshold: `64`
+- Gameplay size uses **content height** in game units
+- Collision shapes supported: `circle`, `ellipse`, `capsule` (capsule aligns to longest axis)
+
+**Manual overrides preserved:**
+- `gameplay_height_gu`, `collision_shape`, `collision_scale`, and `sockets` are preserved if already present.
+
+**Socket schema (optional):**
+```yaml
+sockets:
+  - id: left
+    offset_px: [-18, -6]
+    angle_deg: 0      # optional
+    tags: ["left"]    # optional
+```
+
+Offsets are **sprite-local** in pixels, relative to the texture center (+x right, +y up).
+
+**Firing override (optional):**
+```yaml
+fire_cooldown: 1.2
+```
+
+When set, this overrides the default `EnemyType` fire cooldown (per-enemy).
+
+If a sprite changes, re-run the script so collision + sizing stay correct.
+
 ## Asset QA Pipeline
 
 ## Purpose

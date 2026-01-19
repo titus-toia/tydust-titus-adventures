@@ -18,3 +18,6 @@ pub mod effects;
 pub mod audio;
 pub mod spawn;
 pub mod death_fx;
+pub mod sprite_animation;
+pub mod thruster_fx;
+pub mod hanabi_fx;
